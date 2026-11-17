@@ -49,7 +49,9 @@ jobs:
         run: |
           dotnet tool install --global dotnet-ef --version "10.*"
           if [ "$SQUASH" = "true" ]; then rm -f WhatsAppAutomation.Infrastructure/Persistence/Migrations/*.cs; fi
-          dotnet ef migrations add "$NAME" --project WhatsAppAutomation.Infrastructure --startup-project WhatsAppAutomation.Api -o Persistence/Migrations
+          # Restore and build first: "migrations add" alone does not restore, and a build error shows clearly here.
+          dotnet build WhatsAppAutomation.Api
+          dotnet ef migrations add "$NAME" --no-build --project WhatsAppAutomation.Infrastructure --startup-project WhatsAppAutomation.Api -o Persistence/Migrations
       - name: Commit
         env:
           NAME: ${{ inputs.name }}
