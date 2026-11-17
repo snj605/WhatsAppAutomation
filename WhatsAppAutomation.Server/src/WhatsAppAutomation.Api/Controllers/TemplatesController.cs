@@ -15,13 +15,13 @@ namespace WhatsAppAutomation.Api.Controllers;
 public sealed class TemplatesController(ISender mediator) : ControllerBase
 {
     [HttpGet]
-    [HasPermission(Permissions.Broadcasts.Send)]
+    [HasPermission(Permissions.Messages.Send)]
     [ProducesResponseType<IReadOnlyList<TemplateDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAll(CancellationToken cancellationToken) =>
         this.ToActionResult(await mediator.Send(new GetTemplatesQuery(), cancellationToken), Ok);
 
     [HttpPost]
-    [HasPermission(Permissions.Broadcasts.Send)]
+    [HasPermission(Permissions.Templates.Manage)]
     [ProducesResponseType<TemplateDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
@@ -29,7 +29,7 @@ public sealed class TemplatesController(ISender mediator) : ControllerBase
         this.ToActionResult(await mediator.Send(new SaveTemplateCommand(null, request.Name, request.Text), cancellationToken), Ok);
 
     [HttpPut("{id:guid}")]
-    [HasPermission(Permissions.Broadcasts.Send)]
+    [HasPermission(Permissions.Templates.Manage)]
     [ProducesResponseType<TemplateDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
@@ -37,7 +37,7 @@ public sealed class TemplatesController(ISender mediator) : ControllerBase
         this.ToActionResult(await mediator.Send(new SaveTemplateCommand(id, request.Name, request.Text), cancellationToken), Ok);
 
     [HttpDelete("{id:guid}")]
-    [HasPermission(Permissions.Broadcasts.Send)]
+    [HasPermission(Permissions.Templates.Manage)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken) =>

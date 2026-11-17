@@ -23,7 +23,7 @@ public sealed record HandleGatewayEventCommand(
     DateTimeOffset? At = null) : ICommand;
 
 internal sealed class HandleGatewayEventCommandHandler(
-    IAppDbContext db, IWhatsAppNotifier notifier, TimeProvider clock) : ICommandHandler<HandleGatewayEventCommand>
+    IAppDbContext db, IWhatsAppNotifier notifier, IWhatsAppGateway gateway, TimeProvider clock) : ICommandHandler<HandleGatewayEventCommand>
 {
     private static readonly Error UnknownEvent = Error.Validation("Unknown or incomplete gateway event.");
 
@@ -46,8 +46,19 @@ internal sealed class HandleGatewayEventCommandHandler(
                 return Result.Success();
 
             case "connection" when TryParseStatus(e.Status, out var status):
-                account.ApplyGatewayStatus(
-                    status, e.Reason, WhatsAppAutomation.Domain.ValueObjects.PhoneNumber.Normalize(e.PhoneNumber), e.Name, clock.GetUtcNow());
+                var phone = WhatsAppAutomation.Domain.ValueObjects.PhoneNumber.Normalize(e.PhoneNumber);
+                if (status == WhatsAppConnectionStatus.Connected && phone is not null &&
+                    await db.WhatsAppAccounts.AnyAsync(a => a.Id != account.Id && a.PhoneNumber == phone, cancellationToken))
+                {
+                    // One WhatsApp number belongs to one user on the whole platform: log this link out again.
+                    await gateway.UnlinkAsync(account.Id, cancellationToken);
+                    account.MarkNumberInUse(clock.GetUtcNow());
+                }
+                else
+                {
+                    account.ApplyGatewayStatus(status, e.Reason, phone, e.Name, clock.GetUtcNow());
+                }
+
                 await db.SaveChangesAsync(cancellationToken);
                 await notifier.AccountChangedAsync(account.UserId, WhatsAppAccountDto.From(account), cancellationToken);
                 return Result.Success();

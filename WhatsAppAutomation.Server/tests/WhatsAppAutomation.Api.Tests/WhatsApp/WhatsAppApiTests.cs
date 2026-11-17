@@ -37,7 +37,7 @@ public sealed class WhatsAppApiTests(ApiFactory factory)
     [Fact]
     public async Task Linking_and_sending_need_their_permissions()
     {
-        var sender = await factory.CreateClientForAsync(await factory.CreateUserAsync(SystemRoles.Sender));
+        var sender = await factory.CreateClientForAsync(await factory.CreateUserAsync(UserKind.PlatformAdmin));
 
         var link = await sender.PostAsJsonAsync("/api/v1/whatsapp/link", new LinkWhatsAppRequest("qr", null), Ct);
         var send = await sender.PostAsJsonAsync("/api/v1/whatsapp/messages", new SendTestMessageRequest("+919876543210", "Hi"), Ct);
@@ -217,7 +217,7 @@ public sealed class WhatsAppApiTests(ApiFactory factory)
 
     private async Task<(HttpClient Client, Guid UserId)> OwnerAsync()
     {
-        var userName = await factory.CreateUserAsync(SystemRoles.Owner);
+        var userName = await factory.CreateUserAsync(UserKind.TenantAdmin);
         return (await factory.CreateClientForAsync(userName), await factory.UserIdAsync(userName));
     }
 

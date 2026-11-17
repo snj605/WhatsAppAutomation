@@ -11,6 +11,7 @@ using Testcontainers.PostgreSql;
 using WhatsAppAutomation.Api.Contracts;
 using WhatsAppAutomation.Application.Common.Interfaces;
 using WhatsAppAutomation.Domain.Authorization;
+using WhatsAppAutomation.Domain.Entities;
 using WhatsAppAutomation.Infrastructure.Identity;
 using WhatsAppAutomation.Infrastructure.Persistence;
 
@@ -109,9 +110,30 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         return user!.Id;
     }
 
-    /// <summary>Creates a user with a unique name so tests do not interfere with each other.</summary>
-    public async Task<string> CreateUserAsync(string role = SystemRoles.Sender, bool isActive = true)
+    /// <summary>Creates a tenant with a unique name and returns its id.</summary>
+    public async Task<Guid> CreateTenantAsync(bool isActive = true)
     {
+        await using var scope = Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var tenant = new Tenant("Tenant " + Guid.NewGuid().ToString("N")[..10], DateTimeOffset.UtcNow);
+        tenant.SetActive(isActive);
+        db.Tenants.Add(tenant);
+        await db.SaveChangesAsync();
+        return tenant.Id;
+    }
+
+    /// <summary>
+    /// Creates a user with a unique name so tests do not interfere with each other. Without a tenant, a tenant
+    /// admin or member gets a new tenant of their own.
+    /// </summary>
+    public async Task<string> CreateUserAsync(
+        UserKind kind = UserKind.Member,
+        bool isActive = true,
+        Guid? tenantId = null,
+        IReadOnlyCollection<string>? switches = null,
+        bool mustChangePassword = false)
+    {
+        var tenant = kind == UserKind.PlatformAdmin ? (Guid?)null : tenantId ?? await CreateTenantAsync();
         await using var scope = Services.CreateAsyncScope();
         var users = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
         var userName = $"user_{Guid.NewGuid():N}"[..20];
@@ -122,13 +144,29 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
             DisplayName = "Test " + userName,
             IsActive = isActive,
             CreatedAt = DateTimeOffset.UtcNow,
+            Kind = kind,
+            TenantId = tenant,
+            MustChangePassword = mustChangePassword,
         };
 
         var created = await users.CreateAsync(user, TestPassword);
         Assert.True(created.Succeeded, string.Join(", ", created.Errors.Select(e => e.Description)));
-        Assert.True((await users.AddToRoleAsync(user, role)).Succeeded);
+        if (kind == UserKind.Member && switches is { Count: > 0 })
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            db.UserSwitches.AddRange(switches.Select(p => new UserSwitch(user.Id, p)));
+            await db.SaveChangesAsync();
+        }
+
         scope.ServiceProvider.GetRequiredService<IPermissionService>().InvalidateAll();
         return userName;
+    }
+
+    /// <summary>The tenant a user belongs to.</summary>
+    public async Task<Guid?> TenantIdAsync(string userName)
+    {
+        await using var scope = Services.CreateAsyncScope();
+        return (await scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>().FindByNameAsync(userName))!.TenantId;
     }
 
     /// <summary>An HTTP client already signed in as this user.</summary>
@@ -141,13 +179,6 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         var session = (await response.Content.ReadFromJsonAsync<SessionResponse>())!;
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", session.AccessToken);
         return client;
-    }
-
-    public async Task<Guid> RoleIdAsync(string name)
-    {
-        await using var scope = Services.CreateAsyncScope();
-        var roles = await scope.ServiceProvider.GetRequiredService<IRoleService>().ListAsync(CancellationToken.None);
-        return roles.Single(r => r.Name == name).Id;
     }
 
     public async Task WithDbAsync(Func<AppDbContext, Task> action)

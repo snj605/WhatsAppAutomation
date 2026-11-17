@@ -26,6 +26,8 @@ public static class DependencyInjection
 
         services.AddValidatorsFromAssembly(typeof(DependencyInjection).Assembly, includeInternalTypes: true);
         services.AddScoped<SessionStore>();
+        services.AddScoped<Features.Members.MemberAccess>();
+        services.AddScoped<Features.Members.UserRemoval>();
 
         services.AddSingleton<BroadcastPacing>();
         services.AddScoped<BroadcastDispatcher>();

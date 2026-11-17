@@ -28,7 +28,6 @@ internal sealed class PermissionCacheSignal
 internal sealed class PermissionService(AppDbContext db, IMemoryCache cache, PermissionCacheSignal signal) : IPermissionService
 {
     private static readonly IReadOnlySet<string> None = new HashSet<string>();
-    private static readonly IReadOnlySet<string> Everything = Permissions.All.Select(p => p.Name).ToHashSet();
 
     public async Task<IReadOnlySet<string>> GetPermissionsAsync(Guid userId, CancellationToken cancellationToken)
     {
@@ -51,36 +50,31 @@ internal sealed class PermissionService(AppDbContext db, IMemoryCache cache, Per
 
     public void InvalidateAll() => signal.Reset();
 
+    /// <summary>
+    /// From the kind of user and, for members, their switches. Nothing for a disabled user, a user of a
+    /// turned-off tenant, or a user who must first choose their own password.
+    /// </summary>
     private async Task<IReadOnlySet<string>> LoadAsync(Guid userId, CancellationToken cancellationToken)
     {
         var user = await db.Users.AsNoTracking()
             .Where(u => u.Id == userId)
-            .Select(u => new { u.IsActive })
+            .Select(u => new
+            {
+                u.IsActive,
+                u.Kind,
+                u.MustChangePassword,
+                TenantActive = u.TenantId == null || db.Tenants.Any(t => t.Id == u.TenantId && t.IsActive),
+            })
             .SingleOrDefaultAsync(cancellationToken);
 
-        if (user is null || !user.IsActive)
+        if (user is null || !user.IsActive || !user.TenantActive || user.MustChangePassword)
         {
             return None;
         }
 
-        var roles = await (
-            from userRole in db.UserRoles
-            join role in db.Roles on userRole.RoleId equals role.Id
-            where userRole.UserId == userId
-            select new { role.Id, role.IsSystem }).ToListAsync(cancellationToken);
-
-        if (roles.Any(r => r.IsSystem))
-        {
-            return Everything;
-        }
-
-        var roleIds = roles.Select(r => r.Id).ToList();
-        var granted = await db.RolePermissions
-            .Where(rp => roleIds.Contains(rp.RoleId))
-            .Select(rp => rp.Permission)
-            .Distinct()
-            .ToListAsync(cancellationToken);
-
-        return granted.ToHashSet();
+        var switches = user.Kind == UserKind.Member
+            ? await db.UserSwitches.AsNoTracking().Where(s => s.UserId == userId).Select(s => s.Permission).ToListAsync(cancellationToken)
+            : [];
+        return UserKinds.For(user.Kind, switches);
     }
 }

@@ -20,7 +20,7 @@ public sealed class FilesController(ISender mediator) : ControllerBase
 
     /// <summary>Any document, photo, video or audio up to 16 MB (programs and scripts are refused).</summary>
     [HttpPost]
-    [HasPermission(Permissions.Broadcasts.Send)]
+    [HasPermission(Permissions.Messages.Send)]
     [RequestSizeLimit(StoredFile.MaxBytes + Overhead)]
     [RequestFormLimits(MultipartBodyLengthLimit = StoredFile.MaxBytes + Overhead)]
     [ProducesResponseType<FileDto>(StatusCodes.Status200OK)]

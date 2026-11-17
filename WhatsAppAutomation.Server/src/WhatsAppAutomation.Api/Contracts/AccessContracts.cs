@@ -1,21 +1,34 @@
 namespace WhatsAppAutomation.Api.Contracts;
 
-public sealed record PermissionResponse(string Name, string Group, string Description);
-
-public sealed record RoleResponse(
-    Guid Id, string Name, string? Description, bool IsSystem, IReadOnlyList<string> Permissions, int UserCount);
-
-public sealed record SaveRoleRequest(string Name, string? Description, IReadOnlyList<string> Permissions);
-
 public sealed record CreatedResponse(Guid Id);
 
-public sealed record RoleRefResponse(Guid Id, string Name);
+/// <summary>A person of the tenant as the members screen shows them.</summary>
+/// <param name="Kind">"tenant_admin" or "member".</param>
+/// <param name="Switches">For members: the switches that are on. Empty for admins, who may do everything.</param>
+public sealed record MemberResponse(
+    Guid Id, string UserName, string DisplayName, string Kind, bool IsActive, IReadOnlyList<string> Switches, DateTimeOffset CreatedAt);
 
-public sealed record UserDetailsResponse(
-    Guid Id, string UserName, string DisplayName, bool IsActive, IReadOnlyList<RoleRefResponse> Roles, DateTimeOffset CreatedAt);
+public sealed record CreateMemberRequest(
+    string UserName, string DisplayName, string Password, bool IsAdmin, IReadOnlyList<string>? Switches);
 
-public sealed record CreateUserRequest(string UserName, string DisplayName, string Password, IReadOnlyList<Guid> RoleIds);
+public sealed record UpdateMemberRequest(string DisplayName, bool IsAdmin, IReadOnlyList<string>? Switches);
 
-public sealed record SetUserRolesRequest(IReadOnlyList<Guid> RoleIds);
+public sealed record SetActiveRequest(bool IsActive);
 
-public sealed record SetUserActiveRequest(bool IsActive);
+public sealed record SetPasswordRequest(string Password);
+
+public sealed record ChangePasswordRequest(string CurrentPassword, string NewPassword);
+
+/// <summary>A tenant as the platform admin sees it: counts only, nothing of what is inside.</summary>
+public sealed record TenantResponse(Guid Id, string Name, bool IsActive, DateTimeOffset CreatedAt, int Users, int Admins);
+
+public sealed record CreateTenantRequest(string Name, string AdminUserName, string AdminDisplayName, string AdminPassword);
+
+public sealed record RenameTenantRequest(string Name);
+
+/// <summary>A tenant admin as the platform admin sees them.</summary>
+public sealed record TenantAdminResponse(Guid Id, string UserName, string DisplayName, bool IsActive, DateTimeOffset CreatedAt);
+
+public sealed record CreateTenantAdminRequest(string UserName, string DisplayName, string Password);
+
+public sealed record UpdateTenantAdminRequest(string DisplayName);

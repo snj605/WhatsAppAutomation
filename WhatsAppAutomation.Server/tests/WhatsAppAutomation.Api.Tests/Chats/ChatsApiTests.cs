@@ -121,7 +121,7 @@ public sealed class ChatsApiTests(ApiFactory factory)
 
     private async Task<(HttpClient Client, Guid UserId)> ConnectedOwnerAsync()
     {
-        var userName = await factory.CreateUserAsync(SystemRoles.Owner);
+        var userName = await factory.CreateUserAsync(UserKind.TenantAdmin);
         var client = await factory.CreateClientForAsync(userName);
         var userId = await factory.UserIdAsync(userName);
         (await client.PostAsJsonAsync("/api/v1/whatsapp/link", new LinkWhatsAppRequest("qr", null), Ct)).EnsureSuccessStatusCode();

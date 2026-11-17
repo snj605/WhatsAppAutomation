@@ -149,7 +149,7 @@ public sealed class ContactsController(ISender mediator, IContactSpreadsheet spr
         this.ToActionResult(await mediator.Send(new GetBirthdaySettingsQuery(), cancellationToken), Ok);
 
     [HttpPut("birthdays/settings")]
-    [HasPermission(Permissions.Broadcasts.Send)]
+    [HasPermission(Permissions.Modules.Manage)]
     [ProducesResponseType<BirthdaySettingsDto>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> SetBirthdaySettings(BirthdaySettingsRequest request, CancellationToken cancellationToken) =>
@@ -197,7 +197,7 @@ public sealed class ContactsController(ISender mediator, IContactSpreadsheet spr
 
     /// <summary>The .xlsx import template, with the user's own categories in the Category dropdown.</summary>
     [HttpGet("contacts/import/template")]
-    [HasPermission(Permissions.Contacts.Manage)]
+    [HasPermission(Permissions.Contacts.Import)]
     [Produces("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")]
     public async Task<IActionResult> GetImportTemplate(CancellationToken cancellationToken)
     {
@@ -216,7 +216,7 @@ public sealed class ContactsController(ISender mediator, IContactSpreadsheet spr
     /// send the same file again with apply=true to save the rows without errors.
     /// </summary>
     [HttpPost("contacts/import")]
-    [HasPermission(Permissions.Contacts.Manage)]
+    [HasPermission(Permissions.Contacts.Import)]
     [RequestSizeLimit(MaxImportBytes + (64 * 1024))]
     [RequestFormLimits(MultipartBodyLengthLimit = MaxImportBytes + (64 * 1024))]
     [ProducesResponseType<ImportResultDto>(StatusCodes.Status200OK)]

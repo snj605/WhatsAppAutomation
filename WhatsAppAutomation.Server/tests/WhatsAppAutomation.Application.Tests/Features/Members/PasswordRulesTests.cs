@@ -1,6 +1,6 @@
-using WhatsAppAutomation.Application.Features.Users;
+using WhatsAppAutomation.Application.Features.Members;
 
-namespace WhatsAppAutomation.Application.Tests.Features.Users;
+namespace WhatsAppAutomation.Application.Tests.Features.Members;
 
 public sealed class PasswordRulesTests
 {
@@ -9,7 +9,7 @@ public sealed class PasswordRulesTests
     [InlineData("diwali")]
     [InlineData("om1978")]
     public void A_user_may_choose_a_short_simple_password(string password) =>
-        Assert.Null(PasswordRules.Problem(password, "demo1", managesAccounts: false));
+        Assert.Null(PasswordRules.Problem(password, "demo1", isAdmin: false));
 
     [Theory]
     [InlineData("riya4")]      // five characters
@@ -20,12 +20,12 @@ public sealed class PasswordRulesTests
     [InlineData("Password")]
     [InlineData("RAMESH1")]    // the user name, in another case
     public void Too_short_or_obvious_passwords_are_refused(string password) =>
-        Assert.NotNull(PasswordRules.Problem(password, "ramesh1", managesAccounts: false));
+        Assert.NotNull(PasswordRules.Problem(password, "ramesh1", isAdmin: false));
 
     [Fact]
-    public void An_account_that_manages_users_or_roles_needs_twelve_characters()
+    public void An_admin_account_needs_twelve_characters()
     {
-        Assert.NotNull(PasswordRules.Problem("riya4242", "owner", managesAccounts: true));
-        Assert.Null(PasswordRules.Problem("riya4242riya", "owner", managesAccounts: true));
+        Assert.NotNull(PasswordRules.Problem("riya4242", "owner", isAdmin: true));
+        Assert.Null(PasswordRules.Problem("riya4242riya", "owner", isAdmin: true));
     }
 }

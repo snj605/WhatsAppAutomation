@@ -10,6 +10,7 @@ using WhatsAppAutomation.Application.Features.Broadcasts;
 using WhatsAppAutomation.Application.Features.Broadcasts.Commands;
 using WhatsAppAutomation.Application.Features.Chats;
 using WhatsAppAutomation.Application.Features.Contacts.Queries;
+using WhatsAppAutomation.Domain.Authorization;
 using WhatsAppAutomation.Domain.Entities;
 
 namespace WhatsAppAutomation.Application.Features.Contacts;
@@ -138,7 +139,13 @@ internal sealed class SetBirthdaySettingsCommandHandler(IAppDbContext db, ICurre
 /// them one by one, birthday wishes before any other broadcast. If WhatsApp is not connected they wait and go out as soon
 /// as it is connected again (the apps ask the user to reconnect).
 /// </summary>
-public sealed class BirthdayAutoSender(IAppDbContext db, IOptions<BroadcastOptions> options, TimeProvider clock, ILogger<BirthdayAutoSender> logger)
+public sealed class BirthdayAutoSender(
+    IAppDbContext db,
+    IIdentityService identity,
+    IPermissionService permissions,
+    IOptions<BroadcastOptions> options,
+    TimeProvider clock,
+    ILogger<BirthdayAutoSender> logger)
 {
     /// <summary>Returns how many users' wishes were started.</summary>
     public async Task<int> RunOnceAsync(CancellationToken cancellationToken)
@@ -154,6 +161,13 @@ public sealed class BirthdayAutoSender(IAppDbContext db, IOptions<BroadcastOptio
         var started = 0;
         foreach (var p in due.Where(p => BirthdaySettings.TimePassedToday(p.BirthdaySendTime!.Value, o, now)))
         {
+            // Turned off, or no longer allowed to send occasion wishes: wait (not marked as done for today).
+            if (!await identity.MaySendAsync(p.UserId, cancellationToken) ||
+                !(await permissions.GetPermissionsAsync(p.UserId, cancellationToken)).Contains(Permissions.Modules.Manage))
+            {
+                continue;
+            }
+
             p.MarkBirthdayAutoSent(today);
             var template = await db.MessageTemplates.AsNoTracking()
                 .SingleOrDefaultAsync(t => t.Id == p.BirthdayTemplateId && t.UserId == p.UserId, cancellationToken);

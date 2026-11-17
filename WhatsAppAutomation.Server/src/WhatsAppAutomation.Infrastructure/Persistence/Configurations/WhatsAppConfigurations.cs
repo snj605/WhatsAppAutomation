@@ -20,6 +20,9 @@ internal sealed class WhatsAppAccountConfiguration : IEntityTypeConfiguration<Wh
 
         // One linked number per user.
         builder.HasIndex(a => a.UserId).IsUnique();
+
+        // One WhatsApp number belongs to one user on the whole platform.
+        builder.HasIndex(a => a.PhoneNumber).IsUnique().HasFilter("phone_number IS NOT NULL");
         builder.HasOne<AppUser>().WithMany().HasForeignKey(a => a.UserId).OnDelete(DeleteBehavior.Cascade);
     }
 }

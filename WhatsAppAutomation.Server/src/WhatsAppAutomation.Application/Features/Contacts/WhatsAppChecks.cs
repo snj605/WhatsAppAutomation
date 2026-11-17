@@ -134,6 +134,7 @@ internal sealed class RequestWhatsAppCheckCommandHandler(IAppDbContext db, ICurr
 public sealed class WhatsAppNumberChecker(
     IAppDbContext db,
     IWhatsAppGateway gateway,
+    IIdentityService identity,
     IWhatsAppNotifier notifier,
     TimeProvider clock,
     ILogger<WhatsAppNumberChecker> logger)
@@ -153,6 +154,11 @@ public sealed class WhatsAppNumberChecker(
         var done = 0;
         foreach (var account in accounts)
         {
+            if (!await identity.MaySendAsync(account.UserId, cancellationToken))
+            {
+                continue;
+            }
+
             var contacts = await db.Contacts.Include(c => c.Groups)
                 .Where(c => c.UserId == account.UserId && c.WhatsAppCheck == WhatsAppCheck.Pending)
                 .OrderBy(c => c.CreatedAt)

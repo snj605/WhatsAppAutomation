@@ -35,7 +35,7 @@ internal sealed class CreateBroadcastCommandValidator : AbstractValidator<Create
 }
 
 internal sealed class CreateBroadcastCommandHandler(
-    IAppDbContext db, ICurrentUser currentUser, IOptions<BroadcastOptions> options, TimeProvider clock)
+    IAppDbContext db, ICurrentUser currentUser, IPermissionService permissions, IOptions<BroadcastOptions> options, TimeProvider clock)
     : ICommandHandler<CreateBroadcastCommand, BroadcastSummaryDto>
 {
     public async Task<Result<BroadcastSummaryDto>> Handle(CreateBroadcastCommand command, CancellationToken cancellationToken)
@@ -43,6 +43,11 @@ internal sealed class CreateBroadcastCommandHandler(
         if (currentUser.UserId is not { } userId)
         {
             return BroadcastErrors.NotSignedIn;
+        }
+
+        if (!await BroadcastAccess.MaySendAsync(permissions, userId, command.Input, cancellationToken))
+        {
+            return BroadcastErrors.OnlySingleMessages;
         }
 
         var created = await BroadcastCreation.CreateAsync(db, userId, command.Input, options.Value, clock.GetUtcNow(), cancellationToken);

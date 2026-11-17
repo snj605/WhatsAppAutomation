@@ -103,6 +103,18 @@ public sealed class WhatsAppAccount
         LinkedAt = null;
     }
 
+    /// <summary>
+    /// The number just linked is already linked by another user. It was logged out again; the reason tells
+    /// the app what happened.
+    /// </summary>
+    public void MarkNumberInUse(DateTimeOffset now)
+    {
+        MarkUnlinked(now);
+        SetStatus(WhatsAppConnectionStatus.NotLinked, NumberInUseReason, now);
+    }
+
+    public const string NumberInUseReason = "number_in_use";
+
     /// <summary>Applies a status reported by the gateway.</summary>
     public void ApplyGatewayStatus(
         WhatsAppConnectionStatus status, string? reason, string? phoneNumber, string? profileName, DateTimeOffset now)

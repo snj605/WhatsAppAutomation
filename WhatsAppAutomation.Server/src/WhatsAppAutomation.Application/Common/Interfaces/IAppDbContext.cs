@@ -9,6 +9,8 @@ public interface IAppDbContext
 {
     DbSet<RefreshToken> RefreshTokens { get; }
 
+    DbSet<Tenant> Tenants { get; }
+
     DbSet<WhatsAppAccount> WhatsAppAccounts { get; }
 
     DbSet<OutgoingMessage> OutgoingMessages { get; }

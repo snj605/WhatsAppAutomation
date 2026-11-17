@@ -16,14 +16,16 @@ public sealed class AuthApiTests(ApiFactory factory)
     [Fact]
     public async Task Login_with_correct_password_returns_a_session_for_that_user()
     {
-        var userName = await factory.CreateUserAsync(SystemRoles.Owner);
+        var userName = await factory.CreateUserAsync(UserKind.TenantAdmin);
 
         var session = await LoginAsync(userName, "phone-1");
 
         Assert.False(string.IsNullOrWhiteSpace(session.AccessToken));
         Assert.False(string.IsNullOrWhiteSpace(session.RefreshToken));
         Assert.Equal(userName, session.User.UserName);
-        Assert.Equal([SystemRoles.Owner], session.User.Roles);
+        Assert.Equal(UserKinds.TenantAdminCode, session.User.Kind);
+        Assert.False(session.User.MustChangePassword);
+        Assert.NotNull(session.User.TenantName);
         Assert.True(session.RefreshTokenExpiresAt > session.AccessTokenExpiresAt);
     }
 

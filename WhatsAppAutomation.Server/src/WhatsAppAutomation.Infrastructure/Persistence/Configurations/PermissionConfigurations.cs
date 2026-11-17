@@ -22,15 +22,26 @@ internal sealed class PermissionConfiguration : IEntityTypeConfiguration<Permiss
     }
 }
 
-internal sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RolePermission>
+internal sealed class TenantConfiguration : IEntityTypeConfiguration<Tenant>
 {
-    public void Configure(EntityTypeBuilder<RolePermission> builder)
+    public void Configure(EntityTypeBuilder<Tenant> builder)
     {
-        builder.ToTable("role_permissions");
-        builder.HasKey(rp => new { rp.RoleId, rp.Permission });
-        builder.Property(rp => rp.Permission).HasMaxLength(Permissions.NameMaxLength);
+        builder.ToTable("tenants");
+        builder.HasKey(t => t.Id);
+        builder.Property(t => t.Id).ValueGeneratedNever();
+        builder.Property(t => t.Name).HasMaxLength(Tenant.NameMaxLength).IsRequired();
+    }
+}
 
-        builder.HasOne<AppRole>().WithMany().HasForeignKey(rp => rp.RoleId).OnDelete(DeleteBehavior.Cascade);
-        builder.HasOne<Permission>().WithMany().HasForeignKey(rp => rp.Permission).OnDelete(DeleteBehavior.Cascade);
+internal sealed class UserSwitchConfiguration : IEntityTypeConfiguration<UserSwitch>
+{
+    public void Configure(EntityTypeBuilder<UserSwitch> builder)
+    {
+        builder.ToTable("user_switches");
+        builder.HasKey(s => new { s.UserId, s.Permission });
+        builder.Property(s => s.Permission).HasMaxLength(Permissions.NameMaxLength);
+
+        builder.HasOne<AppUser>().WithMany().HasForeignKey(s => s.UserId).OnDelete(DeleteBehavior.Cascade);
+        builder.HasOne<Permission>().WithMany().HasForeignKey(s => s.Permission).OnDelete(DeleteBehavior.Cascade);
     }
 }

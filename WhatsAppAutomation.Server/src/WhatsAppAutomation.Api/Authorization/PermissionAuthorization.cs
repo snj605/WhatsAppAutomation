@@ -5,7 +5,7 @@ using WhatsAppAutomation.Application.Common.Interfaces;
 namespace WhatsAppAutomation.Api.Authorization;
 
 /// <summary>
-/// Put on a controller action to require a permission, e.g. [HasPermission(Permissions.Users.View)].
+/// Put on a controller action to require a permission, e.g. [HasPermission(Permissions.Members.Manage)].
 /// It is a normal [Authorize] with a policy name that our policy provider understands.
 /// </summary>
 [AttributeUsage(AttributeTargets.Method | AttributeTargets.Class, AllowMultiple = true)]

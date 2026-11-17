@@ -42,7 +42,7 @@ public static class DependencyInjection
                 options.User.RequireUniqueEmail = false;
 
                 // The floor for everyone, with no character-class rules. PasswordRules (Application) adds the rest:
-                // obvious passwords are refused, and accounts that manage users or roles need 12 characters.
+                // obvious passwords are refused, and admin accounts need 12 characters.
                 options.Password.RequiredLength = 6;
                 options.Password.RequireDigit = false;
                 options.Password.RequireLowercase = false;
@@ -57,7 +57,6 @@ public static class DependencyInjection
             .AddEntityFrameworkStores<AppDbContext>();
 
         services.AddScoped<IIdentityService, IdentityService>();
-        services.AddScoped<IRoleService, RoleService>();
         services.AddMemoryCache();
         services.AddSingleton<PermissionCacheSignal>();
         services.AddScoped<IPermissionService, PermissionService>();

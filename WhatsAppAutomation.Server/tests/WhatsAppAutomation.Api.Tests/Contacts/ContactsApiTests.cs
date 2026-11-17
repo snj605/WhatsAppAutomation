@@ -186,8 +186,9 @@ public sealed class ContactsApiTests(ApiFactory factory)
     [Fact]
     public async Task Contacts_need_their_permissions_and_preferences_default_to_English()
     {
-        var sender = await factory.CreateClientForAsync(await factory.CreateUserAsync(SystemRoles.Sender));
-        Assert.Equal(HttpStatusCode.Forbidden, (await sender.GetAsync("/api/v1/contacts", Ct)).StatusCode);
+        // The platform admin never reaches anyone's contacts.
+        var platform = await factory.CreateClientForAsync(await factory.CreateUserAsync(UserKind.PlatformAdmin));
+        Assert.Equal(HttpStatusCode.Forbidden, (await platform.GetAsync("/api/v1/contacts", Ct)).StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, (await factory.CreateClient().GetAsync("/api/v1/categories", Ct)).StatusCode);
 
         var client = await OwnerAsync();
@@ -202,7 +203,7 @@ public sealed class ContactsApiTests(ApiFactory factory)
         IReadOnlyList<Guid>? groups = null) =>
         new(phone, savedName, nameEn, null, nameGu, language, categoryId, null, new BirthdayDto(15, 8, null), null, groups);
 
-    private async Task<HttpClient> OwnerAsync() => await factory.CreateClientForAsync(await factory.CreateUserAsync(SystemRoles.Owner));
+    private async Task<HttpClient> OwnerAsync() => await factory.CreateClientForAsync(await factory.CreateUserAsync(UserKind.TenantAdmin));
 
     private static async Task<CategoryDto> CreateCategoryAsync(HttpClient client, string name, string color)
     {

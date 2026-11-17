@@ -182,7 +182,7 @@ public sealed class BroadcastsApiTests(ApiFactory factory)
     [Fact]
     public async Task Broadcasts_pause_when_the_number_is_not_linked_and_need_their_permission()
     {
-        var userName = await factory.CreateUserAsync(SystemRoles.Owner);
+        var userName = await factory.CreateUserAsync(UserKind.TenantAdmin);
         var client = await factory.CreateClientForAsync(userName);
         var list = await CategoryAsync(client, "List");
         await ContactAsync(client, "+919825011111", list, "en", nameEn: "Riya");
@@ -194,9 +194,13 @@ public sealed class BroadcastsApiTests(ApiFactory factory)
         Assert.Equal("paused", summary.Status);
         Assert.Contains("not linked", summary.PauseReason, StringComparison.Ordinal);
 
-        var sender = await factory.CreateClientForAsync(await factory.CreateUserAsync(SystemRoles.Sender));
-        Assert.Equal(HttpStatusCode.Forbidden, (await sender.GetAsync("/api/v1/broadcasts", Ct)).StatusCode);
-        var other = await factory.CreateClientForAsync(await factory.CreateUserAsync(SystemRoles.Owner));
+        // A member without the Broadcasts switch may send to one contact, not to a list.
+        var memberName = await factory.CreateUserAsync();
+        var member = await factory.CreateClientForAsync(memberName);
+        var memberList = await CategoryAsync(member, "Mine");
+        var refused = await member.PostAsJsonAsync("/api/v1/broadcasts", Input([memberList], en: "Hi {name}"), Ct);
+        Assert.Equal(HttpStatusCode.Forbidden, refused.StatusCode);
+        var other = await factory.CreateClientForAsync(await factory.CreateUserAsync(UserKind.TenantAdmin));
         Assert.Equal(HttpStatusCode.NotFound, (await other.GetAsync($"/api/v1/broadcasts/{created.Id}", Ct)).StatusCode);
     }
 
@@ -450,7 +454,7 @@ public sealed class BroadcastsApiTests(ApiFactory factory)
 
     private async Task<(HttpClient Client, Guid UserId)> ConnectedOwnerAsync()
     {
-        var userName = await factory.CreateUserAsync(SystemRoles.Owner);
+        var userName = await factory.CreateUserAsync(UserKind.TenantAdmin);
         var client = await factory.CreateClientForAsync(userName);
         var userId = await factory.UserIdAsync(userName);
         (await client.PostAsJsonAsync("/api/v1/whatsapp/link", new LinkWhatsAppRequest("qr", null), Ct)).EnsureSuccessStatusCode();

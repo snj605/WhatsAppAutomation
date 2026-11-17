@@ -20,7 +20,13 @@ public sealed record BroadcastInput(
     string? Text = null,
     bool AllContacts = false,
     Guid? AttachmentId = null,
-    bool ForBirthday = false);
+    bool ForBirthday = false)
+{
+    /// <summary>One contact picked by hand: a single message, which every member may send.</summary>
+    public bool IsSingleMessage =>
+        !AllContacts && !ForBirthday && CategoryIds is not { Count: > 0 } && GroupIds is not { Count: > 0 } &&
+        ContactIds is { Count: 1 };
+}
 
 /// <summary>The file sent with a broadcast; Kept is false once its bytes were freed after sending.</summary>
 public sealed record AttachmentDto(Guid Id, string FileName, string ContentType, long SizeBytes, bool Kept);

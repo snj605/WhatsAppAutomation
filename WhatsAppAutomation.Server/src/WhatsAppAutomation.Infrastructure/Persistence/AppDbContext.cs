@@ -15,7 +15,9 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
 
     public DbSet<Permission> Permissions => Set<Permission>();
 
-    public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
+    public DbSet<Tenant> Tenants => Set<Tenant>();
+
+    public DbSet<UserSwitch> UserSwitches => Set<UserSwitch>();
 
     public DbSet<WhatsAppAccount> WhatsAppAccounts => Set<WhatsAppAccount>();
 
@@ -47,11 +49,16 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
         {
             b.ToTable("users");
             b.Property(u => u.DisplayName).HasMaxLength(AppUser.DisplayNameMaxLength).IsRequired();
+            b.Property(u => u.Kind).HasMaxLength(20)
+                .HasConversion(k => UserKinds.ToCode(k), s => UserKinds.Parse(s))
+                .HasDefaultValueSql("'member'");
+            b.HasIndex(u => new { u.TenantId, u.Kind });
+            b.HasOne<Tenant>().WithMany().HasForeignKey(u => u.TenantId).OnDelete(DeleteBehavior.Cascade);
         });
         builder.Entity<AppRole>(b =>
         {
             b.ToTable("roles");
-            b.Property(r => r.Description).HasMaxLength(SystemRoles.DescriptionMaxLength);
+            b.Property(r => r.Description).HasMaxLength(200);
         });
         builder.Entity<IdentityUserRole<Guid>>().ToTable("user_roles");
         builder.Entity<IdentityUserClaim<Guid>>().ToTable("user_claims");

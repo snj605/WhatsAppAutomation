@@ -139,7 +139,7 @@ public sealed class WebAuthController(ISender mediator) : ControllerBase
     private static WebSessionResponse ToResponse(AuthSession session) => new(
         session.AccessToken,
         session.AccessTokenExpiresAt,
-        new UserResponse(session.User.Id, session.User.UserName, session.User.DisplayName, session.User.Roles));
+        AuthController.ToResponse(session.User));
 
     private static CookieOptions CookieOptionsFor(DateTimeOffset expires) => new()
     {

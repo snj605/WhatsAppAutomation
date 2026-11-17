@@ -9,6 +9,7 @@ using WhatsAppAutomation.Application.Common.Interfaces;
 using WhatsAppAutomation.Application.Features.Authentication;
 using WhatsAppAutomation.Application.Features.Authentication.Commands;
 using WhatsAppAutomation.Application.Features.Authentication.Queries;
+using WhatsAppAutomation.Domain.Authorization;
 
 namespace WhatsAppAutomation.Api.Controllers;
 
@@ -71,6 +72,17 @@ public sealed class AuthController(ISender mediator) : ControllerBase
         return this.ToActionResult(result, me => Ok(new MeResponse(ToResponse(me.User), me.Permissions)));
     }
 
+    /// <summary>Changes the signed-in user's own password. Allowed even while the account must change its password.</summary>
+    [HttpPut("password")]
+    [Authorize]
+    [EnableRateLimiting(RateLimitPolicies.Auth)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> ChangePassword(ChangePasswordRequest request, CancellationToken cancellationToken) =>
+        this.ToActionResult(await mediator.Send(new ChangePasswordCommand(request.CurrentPassword, request.NewPassword), cancellationToken));
+
     private static SessionResponse ToResponse(AuthSession session) => new(
         session.AccessToken,
         session.AccessTokenExpiresAt,
@@ -78,6 +90,6 @@ public sealed class AuthController(ISender mediator) : ControllerBase
         session.RefreshTokenExpiresAt,
         ToResponse(session.User));
 
-    private static UserResponse ToResponse(UserSummary user) =>
-        new(user.Id, user.UserName, user.DisplayName, user.Roles);
+    internal static UserResponse ToResponse(UserSummary user) =>
+        new(user.Id, user.UserName, user.DisplayName, UserKinds.ToCode(user.Kind), user.TenantName, user.MustChangePassword);
 }

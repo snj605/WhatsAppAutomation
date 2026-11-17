@@ -17,6 +17,7 @@ namespace WhatsAppAutomation.Application.Features.Broadcasts;
 public sealed class BroadcastDispatcher(
     IAppDbContext db,
     IWhatsAppGateway gateway,
+    IIdentityService identity,
     ISendTurn sendTurn,
     IWhatsAppNotifier notifier,
     BroadcastPacing pacing,
@@ -54,6 +55,12 @@ public sealed class BroadcastDispatcher(
 
     private async Task<bool> RunForUserAsync(Guid userId, CancellationToken cancellationToken)
     {
+        // A turned-off user or tenant sends nothing; their messages wait and go out once turned on again.
+        if (!await identity.MaySendAsync(userId, cancellationToken))
+        {
+            return false;
+        }
+
         var now = clock.GetUtcNow();
         var account = await db.WhatsAppAccounts.AsNoTracking().SingleOrDefaultAsync(a => a.UserId == userId, cancellationToken);
         if (account is null || account.Status is WhatsAppConnectionStatus.NotLinked or WhatsAppConnectionStatus.LoggedOut

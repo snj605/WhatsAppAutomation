@@ -13,7 +13,8 @@ namespace WhatsAppAutomation.Application.Features.Broadcasts.Queries;
 /// <summary>What a broadcast would do, without saving anything: who gets which language, and who is skipped and why.</summary>
 public sealed record PreviewBroadcastQuery(BroadcastInput Input) : IQuery<BroadcastPreviewDto>;
 
-internal sealed class PreviewBroadcastQueryHandler(IAppDbContext db, ICurrentUser currentUser, IOptions<BroadcastOptions> options, TimeProvider clock)
+internal sealed class PreviewBroadcastQueryHandler(
+    IAppDbContext db, ICurrentUser currentUser, IPermissionService permissions, IOptions<BroadcastOptions> options, TimeProvider clock)
     : IQueryHandler<PreviewBroadcastQuery, BroadcastPreviewDto>
 {
     public async Task<Result<BroadcastPreviewDto>> Handle(PreviewBroadcastQuery query, CancellationToken cancellationToken)
@@ -21,6 +22,11 @@ internal sealed class PreviewBroadcastQueryHandler(IAppDbContext db, ICurrentUse
         if (currentUser.UserId is not { } userId)
         {
             return BroadcastErrors.NotSignedIn;
+        }
+
+        if (!await BroadcastAccess.MaySendAsync(permissions, userId, query.Input, cancellationToken))
+        {
+            return BroadcastErrors.OnlySingleMessages;
         }
 
         var now = clock.GetUtcNow();

@@ -1,31 +1,30 @@
 namespace WhatsAppAutomation.Domain.Authorization;
 
-/// <summary>One thing a user may be allowed to do, e.g. "users.view".</summary>
+/// <summary>One thing a user may be allowed to do, e.g. "broadcasts.send".</summary>
 /// <param name="Name">Stable id stored in the database and checked by the API. Never rename one.</param>
-/// <param name="Group">Heading the settings screen groups it under.</param>
+/// <param name="Group">Heading the screens group it under.</param>
 /// <param name="Description">What it allows, in plain words.</param>
 public sealed record PermissionDefinition(string Name, string Group, string Description);
 
 /// <summary>
-/// Every permission in the system. Permissions live in code because each one guards code: an
-/// endpoint checks a permission, so a permission without code would do nothing. The Owner decides
-/// which role gets which permission; the list itself only changes when the code changes.
-/// Adding one here and running "dotnet ef migrations add" writes it to the permissions table.
+/// Every permission in the system. Permissions live in code because each one guards code: an endpoint
+/// checks a permission. Who has which follows from the kind of user (<see cref="UserKinds"/>): the platform
+/// admin manages tenants, a tenant admin may do everything inside the tenant, and a member has the base
+/// permissions plus the switches the tenant admin turned on.
 /// </summary>
 public static class Permissions
 {
     public const int NameMaxLength = 100;
 
-    public static class Users
+    public static class Platform
     {
-        public const string View = "users.view";
-        public const string Manage = "users.manage";
+        /// <summary>Create and manage tenants and their admins. Never reaches any tenant's contacts or messages.</summary>
+        public const string Tenants = "platform.tenants";
     }
 
-    public static class Roles
+    public static class Members
     {
-        public const string View = "roles.view";
-        public const string Manage = "roles.manage";
+        public const string Manage = "members.manage";
     }
 
     public static class WhatsApp
@@ -42,6 +41,7 @@ public static class Permissions
     {
         public const string View = "contacts.view";
         public const string Manage = "contacts.manage";
+        public const string Import = "contacts.import";
     }
 
     public static class Broadcasts
@@ -49,17 +49,28 @@ public static class Permissions
         public const string Send = "broadcasts.send";
     }
 
+    public static class Templates
+    {
+        public const string Manage = "templates.manage";
+    }
+
+    public static class Modules
+    {
+        public const string Manage = "modules.manage";
+    }
+
     public static IReadOnlyList<PermissionDefinition> All { get; } =
     [
-        new(Users.View, "Users", "See the list of users and their roles."),
-        new(Users.Manage, "Users", "Create users, change their roles, and enable or disable them."),
-        new(Roles.View, "Roles", "See roles and the permissions each one has."),
-        new(Roles.Manage, "Roles", "Create, edit and delete roles and choose their permissions."),
+        new(Platform.Tenants, "Platform", "Create tenants and their admins, turn them on or off."),
+        new(Members.Manage, "Members", "Add members to the tenant, turn their switches on or off, remove them."),
         new(WhatsApp.Link, "WhatsApp", "Link and unlink your own WhatsApp number."),
         new(Messages.Send, "Messages", "Send messages from your linked WhatsApp number."),
-        new(Contacts.View, "Contacts", "See your own contacts, categories and groups."),
-        new(Contacts.Manage, "Contacts", "Add, edit, import and delete your own contacts, categories and groups."),
-        new(Broadcasts.Send, "Broadcasts", "Create, start, pause and cancel your own broadcasts, and see their progress."),
+        new(Contacts.View, "Contacts", "See your own contacts and groups."),
+        new(Contacts.Manage, "Contacts", "Add, edit and delete your own contacts and groups."),
+        new(Contacts.Import, "Contacts", "Import many contacts at once from Excel or CSV."),
+        new(Broadcasts.Send, "Broadcasts", "Send to your own groups and lists, pause and stop them, see their results."),
+        new(Templates.Manage, "Templates", "Make, change and delete message templates."),
+        new(Modules.Manage, "Modules", "Make your own occasion modules (like Birthday) and send their wishes."),
     ];
 
     private static readonly HashSet<string> Names = [.. All.Select(p => p.Name)];

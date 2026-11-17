@@ -8,7 +8,11 @@ public sealed record RefreshRequest(string RefreshToken, string DeviceId);
 
 public sealed record LogoutRequest(string RefreshToken);
 
-public sealed record UserResponse(Guid Id, string UserName, string DisplayName, IReadOnlyList<string> Roles);
+/// <param name="Kind">"platform_admin", "tenant_admin" or "member".</param>
+/// <param name="TenantName">The tenant's name; null for the platform admin.</param>
+/// <param name="MustChangePassword">True when an admin chose the password: the app shows only the change-password screen.</param>
+public sealed record UserResponse(
+    Guid Id, string UserName, string DisplayName, string Kind, string? TenantName, bool MustChangePassword);
 
 public sealed record SessionResponse(
     string AccessToken,
