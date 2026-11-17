@@ -1,16 +1,19 @@
 namespace WhatsAppAutomation.Domain.Authorization;
 
-/// <summary>The three kinds of user. Stored as "platform_admin", "tenant_admin" or "member".</summary>
+/// <summary>
+/// The three kinds of user. Stored as "platform_admin", "tenant_admin" or "member". Member comes first so the
+/// default value is the one with the least access.
+/// </summary>
 public enum UserKind
 {
-    /// <summary>Runs the platform: tenants and their admins. Has no WhatsApp number, contacts or messages.</summary>
-    PlatformAdmin,
+    /// <summary>A person in a tenant: the base permissions plus the switches the tenant admin turned on.</summary>
+    Member,
 
     /// <summary>Runs one tenant: may do everything inside it and manages its members.</summary>
     TenantAdmin,
 
-    /// <summary>A person in a tenant: the base permissions plus the switches the tenant admin turned on.</summary>
-    Member,
+    /// <summary>Runs the platform: tenants and their admins. Has no WhatsApp number, contacts or messages.</summary>
+    PlatformAdmin,
 }
 
 /// <summary>What each kind of user may do.</summary>

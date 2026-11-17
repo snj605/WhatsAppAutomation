@@ -35,6 +35,29 @@ public sealed class WhatsAppApiTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task A_number_already_linked_by_another_user_is_logged_out_again()
+    {
+        var phone = ApiFactory.UniquePhone();
+        var (first, firstId) = await OwnerAsync();
+        var (second, secondId) = await OwnerAsync();
+        foreach (var (client, userId) in new[] { (first, firstId), (second, secondId) })
+        {
+            (await client.PostAsJsonAsync("/api/v1/whatsapp/link", new LinkWhatsAppRequest("qr", null), Ct)).EnsureSuccessStatusCode();
+            await PostEventAsync(new
+            {
+                type = "connection", accountId = await AccountIdAsync(userId), status = "connected", reason = "linked", phoneNumber = phone,
+            });
+        }
+
+        Assert.Equal(phone, (await GetAccountAsync(first)).PhoneNumber);
+        var refused = await GetAccountAsync(second);
+        Assert.Equal(WhatsAppConnectionStatus.NotLinked, refused.Status);
+        Assert.Equal("number_in_use", refused.StatusReason);
+        Assert.Null(refused.PhoneNumber);
+        Assert.Contains($"unlink {await AccountIdAsync(secondId)}", factory.Gateway.Calls);
+    }
+
+    [Fact]
     public async Task Linking_and_sending_need_their_permissions()
     {
         var sender = await factory.CreateClientForAsync(await factory.CreateUserAsync(UserKind.PlatformAdmin));
@@ -227,7 +250,7 @@ public sealed class WhatsAppApiTests(ApiFactory factory)
         (await client.PostAsJsonAsync("/api/v1/whatsapp/link", new LinkWhatsAppRequest("qr", null), Ct)).EnsureSuccessStatusCode();
         await PostEventAsync(new
         {
-            type = "connection", accountId = await AccountIdAsync(userId), status = "connected", reason = "linked", phoneNumber = "+911111111111",
+            type = "connection", accountId = await AccountIdAsync(userId), status = "connected", reason = "linked", phoneNumber = ApiFactory.UniquePhone(),
         });
         return (client, userId);
     }

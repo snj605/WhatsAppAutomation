@@ -466,7 +466,7 @@ public sealed class BroadcastsApiTests(ApiFactory factory)
         });
         using var request = new HttpRequestMessage(HttpMethod.Post, "/internal/whatsapp/events")
         {
-            Content = JsonContent.Create(new { type = "connection", accountId, status = "connected", reason = "linked", phoneNumber = "+911111111111" }),
+            Content = JsonContent.Create(new { type = "connection", accountId, status = "connected", reason = "linked", phoneNumber = ApiFactory.UniquePhone() }),
         };
         request.Headers.Add("X-Gateway-Secret", ApiFactory.GatewaySecret);
         Assert.Equal(HttpStatusCode.NoContent, (await factory.CreateClient().SendAsync(request, Ct)).StatusCode);

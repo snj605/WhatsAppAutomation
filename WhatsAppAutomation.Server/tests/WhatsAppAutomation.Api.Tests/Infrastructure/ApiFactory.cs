@@ -110,6 +110,14 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         return user!.Id;
     }
 
+    private static int _phone = Random.Shared.Next(10_000_000, 50_000_000);
+
+    /// <summary>
+    /// A WhatsApp number no other test uses: one number belongs to one user on the whole platform, and the
+    /// tests share one database.
+    /// </summary>
+    public static string UniquePhone() => "+9199" + Interlocked.Increment(ref _phone).ToString("D8", System.Globalization.CultureInfo.InvariantCulture);
+
     /// <summary>Creates a tenant with a unique name and returns its id.</summary>
     public async Task<Guid> CreateTenantAsync(bool isActive = true)
     {
