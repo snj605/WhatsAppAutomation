@@ -13,6 +13,7 @@ using WhatsAppAutomation.Application.Features.Contacts;
 using WhatsAppAutomation.Application.Features.Files;
 using WhatsAppAutomation.Application.Features.Templates;
 using WhatsAppAutomation.Domain.Authorization;
+using WhatsAppAutomation.Domain.Entities;
 
 namespace WhatsAppAutomation.Api.Tests.Broadcasts;
 
@@ -135,26 +136,39 @@ public sealed class BroadcastsApiTests(ApiFactory factory)
     }
 
     [Fact]
-    public async Task The_daily_limit_of_a_newly_linked_number_stops_sending_for_the_day()
+    public async Task The_users_daily_limit_stops_sending_for_the_day_from_the_first_day()
     {
-        var (client, _) = await ConnectedOwnerAsync();
+        var (client, userId) = await ConnectedOwnerAsync();
         var list = await CategoryAsync(client, "Many");
-        for (var i = 0; i < 22; i++)
+        for (var i = 0; i < 3; i++)
         {
             await ContactAsync(client, $"+9198250{i:00000}", list, "en", nameEn: $"P{i}");
         }
 
+        // 298 messages already went out today from this newly linked number: two more fit in the default 300.
+        await factory.WithDbAsync(async db =>
+        {
+            var accountId = db.WhatsAppAccounts.Single(a => a.UserId == userId).Id;
+            for (var i = 0; i < 298; i++)
+            {
+                db.OutgoingMessages.Add(new OutgoingMessage(accountId, userId, "+919900000000", "earlier", DateTimeOffset.UtcNow));
+            }
+
+            await db.SaveChangesAsync(Ct);
+        });
+
         var created = await CreateAsync(client, Input([list], en: "Hi {name}"));
-        for (var i = 0; i < 25; i++)
+        for (var i = 0; i < 5; i++)
         {
             await RunSenderAsync();
         }
 
         var summary = await SummaryAsync(client, created.Id);
-        Assert.Equal(20, summary.Counts.Sent);
-        Assert.Equal(2, summary.Counts.Pending);
+        Assert.Equal(2, summary.Counts.Sent);
+        Assert.Equal(1, summary.Counts.Pending);
         var pacing = (await client.GetFromJsonAsync<PacingDto>("/api/v1/broadcasts/pacing", Ct))!;
         Assert.Contains("limit", pacing.Waiting, StringComparison.Ordinal);
+        await CancelAsync(client, created.Id);
     }
 
     [Fact]
@@ -392,6 +406,7 @@ public sealed class BroadcastsApiTests(ApiFactory factory)
         // Occasion wishes are not in the Chats list.
         var chats = (await client.GetFromJsonAsync<List<ChatListItemDto>>("/api/v1/chats", Ct))!;
         Assert.DoesNotContain(chats, c => c.Name == "Birthday");
+        await CancelAllAsync(client);
     }
 
     [Fact]
@@ -433,6 +448,7 @@ public sealed class BroadcastsApiTests(ApiFactory factory)
         Assert.Equal((1, 1), (wish.Counts.Pending, wish.Counts.Skipped));
         var details = (await client.GetFromJsonAsync<BroadcastDetailsDto>($"/api/v1/broadcasts/{wish.Id}", Ct))!;
         Assert.Contains(details.Recipients, r => r.Text == "Mohan, remembering Shantaben");
+        await CancelAllAsync(client);
     }
 
     [Fact]
@@ -477,6 +493,7 @@ public sealed class BroadcastsApiTests(ApiFactory factory)
         await RunSenderAsync();
         Assert.Contains(factory.Gateway.Calls, c => c.Contains("+919825066602", StringComparison.Ordinal));
         Assert.DoesNotContain(factory.Gateway.Calls, c => c.Contains("+919825066601", StringComparison.Ordinal));
+        await CancelAllAsync(client);
     }
 
     [Fact]
@@ -505,6 +522,19 @@ public sealed class BroadcastsApiTests(ApiFactory factory)
         Assert.Equal((2, 0), (summary.Counts.Sent, summary.Counts.Failed));
         Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsJsonAsync($"/api/v1/broadcasts/{created.Id}/retry", new RetryBroadcastRequest(null), Ct)).StatusCode);
     }
+
+    /// <summary>The sender works on every user at once: tests leave nothing waiting for the next test.</summary>
+    private static async Task CancelAllAsync(HttpClient client)
+    {
+        var queue = (await client.GetFromJsonAsync<QueueDto>("/api/v1/broadcasts/queue", Ct))!;
+        foreach (var item in queue.Items)
+        {
+            await CancelAsync(client, item.Id);
+        }
+    }
+
+    private static async Task CancelAsync(HttpClient client, Guid id) =>
+        (await client.PostAsync($"/api/v1/broadcasts/{id}/cancel", null, Ct)).EnsureSuccessStatusCode();
 
     private static async Task<ModuleDto> ModuleAsync(HttpClient client, string name, string kind, string? forNameLabel = null)
     {
