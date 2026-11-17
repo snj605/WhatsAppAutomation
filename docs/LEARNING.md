@@ -128,7 +128,7 @@ Rule: a singleton must never hold a scoped object, because the scoped one would 
 
 Order matters. `UseAuthentication` (who are you?) must run before `UseAuthorization` (may you do this?). `UseExceptionHandler` comes first so it can catch errors from everything after it.
 
-`Program.cs` also checks for CLI commands (`migrate`, `create-user`) before starting the web server. Those live in `Cli/AdminCli.cs`.
+`Program.cs` also checks for CLI commands (`migrate`, `create-platform-admin`) before starting the web server. Those live in `Cli/AdminCli.cs`.
 
 **Where it is.** `WhatsAppAutomation.Api/Program.cs`.
 

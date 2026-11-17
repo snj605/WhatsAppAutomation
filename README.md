@@ -49,13 +49,21 @@ Requirements: .NET 10 SDK, PostgreSQL 16 or later.
    dotnet run -- migrate
    ```
 
-3. Create the first user (there is no sign-up screen). The password is asked for twice and is not shown:
+3. Create the platform admin, once (there is no sign-up screen). The password is asked for twice and is not shown:
 
    ```
-   dotnet run -- create-user --username dhaval --display-name "Dhaval" --role Owner
+   dotnet run -- create-platform-admin --username samir --display-name "Samir"
    ```
 
-   `migrate` creates two roles: `Owner` (every permission, cannot be changed) and `Sender` (no permissions until the Owner gives it some). Use any role name that exists. Passwords need at least 6 characters and must not be obvious (like `123456` or the user name); accounts that can manage users or roles, such as the Owner, need at least 12. After this, the Owner can create more users and roles through the API.
+   There are three kinds of user:
+
+   - **Platform admin**: creates tenants (a business or a family) with their first admin, turns tenants on or off, and manages tenant admins. Sees counts only, never a tenant's contacts or messages.
+   - **Tenant admin**: may do everything inside their tenant and adds its members. A tenant can have several admins; the last active one cannot be turned off or removed.
+   - **Member**: links their own number, keeps their own contacts and sends single messages. The tenant admin turns on extra switches per member: *Create own modules*, *Broadcasts*, *Import from Excel*, *Templates*.
+
+   Passwords need at least 6 characters and must not be obvious (like `123456` or the user name); admins need at least 12. Someone whose password was chosen by an admin must choose their own at the first sign-in.
+
+   Upgrading a database from before tenants keeps everything: its users go into one tenant called "My company", Owners become its tenant admins and everyone else a member with matching switches. Then create the platform admin as above.
 
 4. Run the API: `dotnet run`, or F5 in Visual Studio (which also starts the web app, see below).
 
@@ -76,9 +84,9 @@ Requirements: Node.js 22.22.3 or later in the 22 line, 24.15 or later in the 24 
 
    Without Visual Studio: `dotnet run --launch-profile https` in the Api folder does the same.
 
-4. Sign in with the user you created with `create-user`.
+4. Sign in with the platform admin you created, and add the first tenant.
 
-Screens so far: sign-in, Home, WhatsApp (`whatsapp.link` to link a number, `messages.send` for the test message), Settings → Users (`users.view`, changes need `users.manage`) and Settings → Roles (`roles.view`, changes need `roles.manage`). The menu shows only what the signed-in user may open.
+The menu shows only what the signed-in user may open.
 
 Front-end commands (in `whatsappautomation.client`): `npm test -- --watch=false` runs the unit tests (Vitest), `npm run build` makes the production build.
 
@@ -125,14 +133,12 @@ On a server (later): run the gateway as its own service on the private network o
 | `POST /api/v1/auth/refresh` | none | `{ refreshToken, deviceId }` → a new pair. The old refresh token stops working. |
 | `POST /api/v1/auth/logout` | none | `{ refreshToken }` → ends the session on that device. |
 | `GET /api/v1/auth/me` | signed in | The user and their permissions. Apps use the permissions to show or hide screens. |
-| `GET /api/v1/permissions` | `roles.view` | Every permission that exists. |
-| `GET /api/v1/roles`, `GET /api/v1/roles/{id}` | `roles.view` | Roles with their permissions and number of users. |
-| `POST /api/v1/roles`, `PUT /api/v1/roles/{id}` | `roles.manage` | `{ name, description?, permissions: [] }`. Owner cannot be changed; names are unique; "Owner" is reserved. |
-| `DELETE /api/v1/roles/{id}` | `roles.manage` | Only roles no user has. |
-| `GET /api/v1/users` | `users.view` | Users with their roles. |
-| `POST /api/v1/users` | `users.manage` | `{ userName, displayName, password, roleIds: [] }`. |
-| `PUT /api/v1/users/{id}/roles` | `users.manage` | `{ roleIds: [] }`. The last active Owner keeps the Owner role. |
-| `PUT /api/v1/users/{id}/active` | `users.manage` | `{ isActive }`. Disabling signs the user out everywhere. You cannot disable yourself or the last Owner. |
+| `PUT /api/v1/auth/password` | signed in | `{ currentPassword, newPassword }`. Also allowed while the account must change its password (`user.mustChangePassword`), when nothing else is. |
+| `GET/POST /api/v1/members` | `members.manage` | The people of your tenant. `{ userName, displayName, password, isAdmin, switches: [] }`; they choose their own password at the first sign-in. |
+| `PUT /api/v1/members/{id}` | `members.manage` | `{ displayName, isAdmin, switches: [] }`. Switches: `modules.manage`, `broadcasts.send`, `contacts.import`, `templates.manage`. |
+| `PUT /api/v1/members/{id}/active`, `PUT /api/v1/members/{id}/password`, `DELETE /api/v1/members/{id}` | `members.manage` | Turn off (signs out everywhere), set a new password, delete with all their data. Not on yourself; the last active admin stays. |
+| `GET/POST /api/v1/platform/tenants`, `PUT/DELETE /api/v1/platform/tenants/{id}`, `PUT …/{id}/active` | `platform.tenants` | Tenants with counts only. Create takes `{ name, adminUserName, adminDisplayName, adminPassword }`. Only a turned-off tenant can be deleted. |
+| `GET/POST /api/v1/platform/tenants/{id}/admins`, `PUT/DELETE …/admins/{adminId}`, `PUT …/active`, `PUT …/password` | `platform.tenants` | The tenant's admins. |
 | `GET /api/v1/whatsapp` | signed in | Your WhatsApp link: `status` (`not_linked`, `linking`, `connecting`, `connected`, `reconnecting`, `logged_out`, `restricted`, `disconnected`), number, WhatsApp name, when linked. |
 | `POST /api/v1/whatsapp/link` | `whatsapp.link` | `{ method: "qr" }` or `{ method: "code", phoneNumber: "+91…" }`. The QR codes or the phone code arrive live (see below). |
 | `POST /api/v1/whatsapp/unlink` | `whatsapp.link` | Logs out on WhatsApp and deletes the saved login. Also cancels linking. |
@@ -144,20 +150,20 @@ On a server (later): run the gateway as its own service on the private network o
 | `GET /api/v1/contacts` | `contacts.view` | `?search=&categoryId=&groupId=&needsDetails=&page=&pageSize=`. |
 | `GET/POST /api/v1/contacts`, `PUT /api/v1/contacts/{id}` | `contacts.view` / `contacts.manage` | One contact. The phone number is unique per user; the name in the contact's language is required. |
 | `POST /api/v1/contacts/delete` | `contacts.manage` | `{ ids: [] }`. |
-| `GET /api/v1/contacts/import/template` | `contacts.manage` | Excel template with instructions and dropdowns. |
-| `POST /api/v1/contacts/import?apply=false\|true` | `contacts.manage` | Upload `.xlsx` or UTF-8 `.csv` (5 MB, 5000 rows). `apply=false` only checks and shows each row; `apply=true` saves. |
+| `GET /api/v1/contacts/import/template` | `contacts.import` | Excel template with instructions and dropdowns. |
+| `POST /api/v1/contacts/import?apply=false\|true` | `contacts.import` | Upload `.xlsx` or UTF-8 `.csv` (5 MB, 5000 rows). `apply=false` only checks and shows each row; `apply=true` saves. |
 | `GET/PUT /api/v1/preferences` | signed in | `{ defaultLanguage: "en"\|"hi"\|"gu" }`. |
-| `POST /api/v1/broadcasts/preview` | `broadcasts.send` | Same body as create: who gets it, in which language, and who is skipped and why. Sends nothing. |
-| `GET/POST /api/v1/broadcasts`, `GET /api/v1/broadcasts/{id}` | `broadcasts.send` | `{ name, textEn?, textHi?, textGu?, categoryIds, groupIds, contactIds }`. Texts may use `{name}` and `{salutation}`. Details include every recipient with their ticks. |
-| `POST /api/v1/broadcasts/{id}/pause\|resume\|cancel` | `broadcasts.send` | Cancel skips everyone not sent yet. |
-| `GET /api/v1/broadcasts/pacing` | `broadcasts.send` | Sent today, today's limit, when the next message goes, and why it is waiting. |
+| `POST /api/v1/broadcasts/preview` | `messages.send` (more than one contact: `broadcasts.send`) | Same body as create: who gets it, in which language, and who is skipped and why. Sends nothing. |
+| `GET/POST /api/v1/broadcasts`, `GET /api/v1/broadcasts/{id}` | `messages.send` (more than one contact: `broadcasts.send`) | `{ name, textEn?, textHi?, textGu?, categoryIds, groupIds, contactIds }`. Texts may use `{name}` and `{salutation}`. Details include every recipient with their ticks. |
+| `POST /api/v1/broadcasts/{id}/pause\|resume\|cancel` | `messages.send` (more than one contact: `broadcasts.send`) | Cancel skips everyone not sent yet. |
+| `GET /api/v1/broadcasts/pacing` | `messages.send` (more than one contact: `broadcasts.send`) | Sent today, today's limit, when the next message goes, and why it is waiting. |
 | `GET /health` | none | Database and WhatsApp gateway. The gateway being down shows as "Degraded", not "Unhealthy". |
 
 Live updates use SignalR at `/hubs/whatsapp` (access token as `?access_token=`). Events: `qr` `{ qr }`, `pairingCode` `{ code }`, `account` (same shape as `GET /api/v1/whatsapp`), `message` (one message with its ticks). Each user receives only their own.
 
 `POST /internal/whatsapp/events` is for the gateway only (shared secret in `X-Gateway-Secret`).
 
-Permissions are defined in code (`WhatsAppAutomation.Server/src/WhatsAppAutomation.Domain/Authorization/Permissions.cs`). Roles and which permissions they have are data the Owner manages. Changes take effect on the next request.
+Permissions are defined in code (`WhatsAppAutomation.Server/src/WhatsAppAutomation.Domain/Authorization/Permissions.cs`); who has which follows from the kind of user and, for members, their switches (`UserKinds.cs`). Changes take effect on the next request.
 
 ### Sign-in for the web app
 
@@ -200,7 +206,7 @@ Broadcasts also pause by themselves when the number is unlinked, logged out or r
 
 Each contact gets the text in their own language. If there is no text in their language, the user's default language is used; if there is none in that either, they are skipped. A text that uses `{name}` skips contacts who have no name in that language ("Needs details").
 
-To let a user of the `Sender` role use this, the Owner ticks `contacts.view`, `contacts.manage` and `broadcasts.send` for the role in Settings → Roles.
+Every member may send to one contact at a time. Sending to several people, groups or categories needs the *Broadcasts* switch.
 
 ## Tests
 

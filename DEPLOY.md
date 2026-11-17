@@ -83,11 +83,11 @@ Delete `whatsapp_deploy` from your PC once it is in GitHub, or keep it in your p
 
 Push to `main`. CI runs first (about 10 minutes), then Deploy. The first deployment also gets the HTTPS certificate. Then open `https://13-233-10-20.sslip.io`.
 
-Create the first account (the password is asked twice and not shown). Owners need at least 12 characters:
+Create the platform admin, once (the password is asked twice and not shown, at least 12 characters). Then sign in and add tenants on the website:
 
 ```bash
 cd /opt/whatsapp
-docker compose run --rm -it api create-user --username samir --display-name "Samir" --role Owner
+docker compose run --rm -it api create-platform-admin --username samir --display-name "Samir"
 ```
 
 **Link a test WhatsApp number first**, not a client's. WhatsApp may restrict numbers whose linked device runs from a cloud server's IP.

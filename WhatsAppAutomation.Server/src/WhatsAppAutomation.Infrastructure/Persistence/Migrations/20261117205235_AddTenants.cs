@@ -13,29 +13,6 @@ namespace WhatsAppAutomation.Infrastructure.Persistence.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(
-                name: "role_permissions");
-
-            migrationBuilder.DeleteData(
-                table: "permissions",
-                keyColumn: "name",
-                keyValue: "roles.manage");
-
-            migrationBuilder.DeleteData(
-                table: "permissions",
-                keyColumn: "name",
-                keyValue: "roles.view");
-
-            migrationBuilder.DeleteData(
-                table: "permissions",
-                keyColumn: "name",
-                keyValue: "users.manage");
-
-            migrationBuilder.DeleteData(
-                table: "permissions",
-                keyColumn: "name",
-                keyValue: "users.view");
-
             migrationBuilder.AddColumn<string>(
                 name: "kind",
                 table: "users",
@@ -128,6 +105,48 @@ namespace WhatsAppAutomation.Infrastructure.Persistence.Migrations
                     { "templates.manage", "Make, change and delete message templates.", "Templates" }
                 });
 
+            // Hand-written: keep every existing user and what they could do. If there are users, they all go into
+            // one tenant. The Owners become its tenant admins; everyone else becomes a member whose switches
+            // match what their roles allowed (import and templates were part of contacts.manage and
+            // broadcasts.send before, birthday settings needed broadcasts.send).
+            migrationBuilder.Sql("""
+                DO $$
+                DECLARE tenant uuid := gen_random_uuid();
+                BEGIN
+                    IF EXISTS (SELECT 1 FROM users) THEN
+                        INSERT INTO tenants (id, name, is_active, created_at) VALUES (tenant, 'My company', true, now());
+                        UPDATE users SET tenant_id = tenant, kind = 'member';
+                        UPDATE users u SET kind = 'tenant_admin'
+                        WHERE EXISTS (SELECT 1 FROM user_roles ur JOIN roles r ON r.id = ur.role_id
+                                      WHERE ur.user_id = u.id AND r.is_system);
+                        INSERT INTO user_switches (user_id, permission)
+                        SELECT DISTINCT u.id, s.permission
+                        FROM users u
+                        JOIN user_roles ur ON ur.user_id = u.id
+                        JOIN role_permissions rp ON rp.role_id = ur.role_id
+                        JOIN (VALUES ('broadcasts.send', 'broadcasts.send'),
+                                     ('broadcasts.send', 'templates.manage'),
+                                     ('broadcasts.send', 'modules.manage'),
+                                     ('contacts.manage', 'contacts.import')) AS s(old, permission) ON s.old = rp.permission
+                        WHERE u.kind = 'member';
+                    END IF;
+                END $$;
+                """);
+
+            // Hand-written: one number belongs to one user. If two accounts hold the same number today, the one
+            // linked last keeps it; the others are marked not linked (their WhatsApp login is not touched here,
+            // the gateway reports it again when it reconnects).
+            migrationBuilder.Sql("""
+                UPDATE whatsapp_accounts a
+                SET status = 'NotLinked', status_reason = 'number_in_use', phone_number = NULL, profile_name = NULL,
+                    linked_at = NULL, status_changed_at = now()
+                WHERE a.phone_number IS NOT NULL AND EXISTS (
+                    SELECT 1 FROM whatsapp_accounts b
+                    WHERE b.phone_number = a.phone_number AND b.id <> a.id
+                      AND (b.linked_at > a.linked_at OR (b.linked_at IS NOT DISTINCT FROM a.linked_at AND b.id > a.id)
+                           OR (a.linked_at IS NULL AND b.linked_at IS NOT NULL)));
+                """);
+
             migrationBuilder.CreateIndex(
                 name: "ix_whatsapp_accounts_phone_number",
                 table: "whatsapp_accounts",
@@ -152,6 +171,30 @@ namespace WhatsAppAutomation.Infrastructure.Persistence.Migrations
                 principalTable: "tenants",
                 principalColumn: "id",
                 onDelete: ReferentialAction.Cascade);
+
+            // Last, once the old role permissions were read above.
+            migrationBuilder.DropTable(
+                name: "role_permissions");
+
+            migrationBuilder.DeleteData(
+                table: "permissions",
+                keyColumn: "name",
+                keyValue: "roles.manage");
+
+            migrationBuilder.DeleteData(
+                table: "permissions",
+                keyColumn: "name",
+                keyValue: "roles.view");
+
+            migrationBuilder.DeleteData(
+                table: "permissions",
+                keyColumn: "name",
+                keyValue: "users.manage");
+
+            migrationBuilder.DeleteData(
+                table: "permissions",
+                keyColumn: "name",
+                keyValue: "users.view");
         }
 
         /// <inheritdoc />
