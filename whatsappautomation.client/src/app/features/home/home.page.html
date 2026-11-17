@@ -1,0 +1,136 @@
+<div class="page">
+  <section class="welcome">
+    <div>
+      <p class="eyebrow">{{ greeting() }}</p>
+      <h1>{{ auth.user()?.displayName }}</h1>
+      <p class="lead">Here is how your WhatsApp sending looks today.</p>
+    </div>
+    @if (canWhatsApp()) {
+      <a routerLink="/whatsapp" class="welcome-cta">
+        <i class="pi pi-send" aria-hidden="true"></i> Send a message
+      </a>
+    }
+  </section>
+
+  @if (birthdaysToday().length > 0) {
+    <section class="card birthday-reminder">
+      <span class="card-icon amber"><i class="pi pi-gift" aria-hidden="true"></i></span>
+      <div class="birthday-text">
+        <strong>{{ birthdaysToday().length === 1 ? '1 birthday today' : birthdaysToday().length + ' birthdays today' }}</strong>
+        <span class="muted">
+          @for (b of birthdaysToday().slice(0, 4); track b.contactId; let last = $last) {
+            <span>{{ b.name }}{{ last ? '' : ', ' }}</span>
+          }
+          @if (birthdaysToday().length > 4) {
+            <span> and {{ birthdaysToday().length - 4 }} more</span>
+          }
+        </span>
+      </div>
+      <span class="spacer"></span>
+      @if (canBroadcast()) {
+        <p-button label="Send wishes" icon="pi pi-send" (onClick)="sendBirthdayWishes()" />
+      }
+      <p-button label="See all" severity="secondary" [text]="true" routerLink="/birthdays" />
+    </section>
+  }
+
+  @if (canWhatsApp()) {
+    <div class="grid-4">
+      <article class="card stat status-card" [class]="'tone-' + status().severity">
+        @if (loading()) {
+          <p-skeleton height="4.5rem" />
+        } @else {
+          <div class="stat-top">
+            <span class="card-icon"><i class="pi pi-whatsapp" aria-hidden="true"></i></span>
+            <span class="pill"><span class="dot" [class]="status().severity"></span>{{ status().label }}</span>
+          </div>
+          <div>
+            <p class="stat-label">Your number</p>
+            <p class="stat-value number">{{ account()?.phoneNumber ?? 'Not linked' }}</p>
+          </div>
+        }
+      </article>
+
+      <article class="card stat">
+        <div class="stat-top"><span class="card-icon blue"><i class="pi pi-send" aria-hidden="true"></i></span></div>
+        <div>
+          <p class="stat-label">Recent messages</p>
+          <p class="stat-value">{{ stats().total }}</p>
+        </div>
+      </article>
+
+      <article class="card stat">
+        <div class="stat-top"><span class="card-icon violet"><i class="pi pi-check-circle" aria-hidden="true"></i></span></div>
+        <div>
+          <p class="stat-label">Delivered</p>
+          <p class="stat-value">{{ stats().delivered }} <small>· {{ stats().read }} read</small></p>
+        </div>
+      </article>
+
+      <article class="card stat">
+        <div class="stat-top"><span class="card-icon rose"><i class="pi pi-times-circle" aria-hidden="true"></i></span></div>
+        <div>
+          <p class="stat-label">Not sent</p>
+          <p class="stat-value">{{ stats().failed }}</p>
+        </div>
+      </article>
+    </div>
+  }
+
+  <div class="home-grid">
+    @if (canWhatsApp()) {
+      <section class="card">
+        <div class="card-head">
+          <h2>Recent messages</h2>
+          <span class="spacer"></span>
+          <a routerLink="/whatsapp" class="link">Open WhatsApp <i class="pi pi-arrow-right" aria-hidden="true"></i></a>
+        </div>
+        @if (loading()) {
+          <p-skeleton height="3rem" />
+          <p-skeleton height="3rem" />
+        } @else if (messages().length === 0) {
+          <div class="empty">
+            <i class="pi pi-inbox" aria-hidden="true"></i>
+            <strong>No messages yet</strong>
+            <span>Messages you send appear here with their ticks.</span>
+          </div>
+        } @else {
+          <ul class="activity">
+            @for (m of messages().slice(0, 6); track m.id) {
+              <li>
+                <span class="initials small-avatar" aria-hidden="true"><i class="pi pi-user"></i></span>
+                <div class="activity-text">
+                  <strong>{{ m.toPhoneNumber }}</strong>
+                  <span>{{ m.text }}</span>
+                </div>
+                <div class="activity-meta">
+                  <span class="tick" [class]="m.status"><i [class]="tick(m.status).icon" aria-hidden="true"></i> {{ tick(m.status).label }}</span>
+                  <small>{{ m.createdAt | date: 'short' }}</small>
+                </div>
+              </li>
+            }
+          </ul>
+        }
+      </section>
+    }
+
+    <section class="card">
+      <div class="card-head"><h2>Shortcuts</h2></div>
+      @if (actions().length === 0) {
+        <p class="muted">Ask an Owner to give you access to more of the app.</p>
+      }
+      <div class="actions-list">
+        @for (a of actions(); track a.link) {
+          <a [routerLink]="a.link" class="action">
+            <span class="card-icon" [class]="a.tone"><i [class]="a.icon" aria-hidden="true"></i></span>
+            <span class="action-text">
+              <strong>{{ a.label }}</strong>
+              <span>{{ a.text }}</span>
+            </span>
+            <i class="pi pi-chevron-right chevron" aria-hidden="true"></i>
+          </a>
+        }
+      </div>
+    </section>
+  </div>
+</div>

@@ -1,0 +1,116 @@
+<div class="page">
+<div class="page-header">
+  <div>
+    <h1>Users</h1>
+    <p class="subtitle">People who can sign in, and the roles that decide what they may do.</p>
+  </div>
+  @if (canManage()) {
+    <div class="actions">
+      <p-button label="New user" icon="pi pi-plus" (onClick)="openCreate()" [disabled]="roles().length === 0" />
+    </div>
+  }
+</div>
+
+<section class="card card-flush">
+<p-table [value]="users()" [loading]="loading()" dataKey="id" [tableStyle]="{ 'min-width': '44rem' }">
+  <ng-template #header>
+    <tr>
+      <th>User</th>
+      <th>Roles</th>
+      <th>Status</th>
+      <th>Created</th>
+      @if (canManage()) {
+        <th></th>
+      }
+    </tr>
+  </ng-template>
+  <ng-template #body let-user>
+    <tr>
+      <td>
+        <div class="cell-main">
+          <span class="initials" aria-hidden="true">{{ initialsOf(user.displayName) }}</span>
+          <div>
+            <div class="title">{{ user.displayName }} @if (isMe(user)) {<span class="hint">(you)</span>}</div>
+            <div class="sub">{{ user.userName }}</div>
+          </div>
+        </div>
+      </td>
+      <td>
+        <div class="tags">
+          @for (role of user.roles; track role.id) {
+            <p-tag [value]="role.name" severity="info" />
+          }
+        </div>
+      </td>
+      <td>
+        <p-tag [value]="user.isActive ? 'Active' : 'Disabled'" [severity]="user.isActive ? 'success' : 'secondary'" [rounded]="true" />
+      </td>
+      <td>{{ user.createdAt | date: 'mediumDate' }}</td>
+      @if (canManage()) {
+        <td>
+          <div class="row-actions">
+            <p-button icon="pi pi-shield" [text]="true" [rounded]="true" ariaLabel="Change roles"
+              [disabled]="roles().length === 0" (onClick)="openEditRoles(user)" />
+            <p-button [icon]="user.isActive ? 'pi pi-ban' : 'pi pi-check-circle'" [text]="true" [rounded]="true"
+              [severity]="user.isActive ? 'danger' : 'success'" [ariaLabel]="user.isActive ? 'Disable' : 'Enable'"
+              [disabled]="isMe(user)" (onClick)="toggleActive(user)" />
+            <p-button icon="pi pi-trash" [text]="true" [rounded]="true" severity="danger" ariaLabel="Delete user"
+              [disabled]="isMe(user)" (onClick)="deleteUser(user)" />
+          </div>
+        </td>
+      }
+    </tr>
+  </ng-template>
+  <ng-template #emptymessage>
+    <tr><td colspan="5"><div class="empty"><i class="pi pi-users" aria-hidden="true"></i><strong>No users</strong></div></td></tr>
+  </ng-template>
+</p-table>
+</section>
+
+@if (canManage() && roles().length === 0 && !loading()) {
+  <p class="hint">To create users or change roles you also need the "See roles" permission.</p>
+}
+</div>
+
+<p-dialog header="New user" [modal]="true" [visible]="createOpen()" (visibleChange)="createOpen.set($event)"
+  [style]="{ width: '28rem' }" [breakpoints]="{ '575px': '95vw' }">
+  <form class="form" [formGroup]="createForm" (ngSubmit)="create()" id="create-user" novalidate>
+    <label for="new-username">User name</label>
+    <input pInputText id="new-username" formControlName="userName" autocomplete="off" fluid
+      [invalid]="createForm.controls.userName.invalid && createForm.controls.userName.touched" />
+    <small class="hint">Letters, digits, ".", "_" and "-". Used to sign in.</small>
+
+    <label for="new-display">Name</label>
+    <input pInputText id="new-display" formControlName="displayName" autocomplete="off" fluid
+      [invalid]="createForm.controls.displayName.invalid && createForm.controls.displayName.touched" />
+
+    <label for="new-password">First password</label>
+    <p-password inputId="new-password" formControlName="password" [toggleMask]="true" [feedback]="false"
+      autocomplete="new-password" fluid
+      [invalid]="createForm.controls.password.invalid && createForm.controls.password.touched" />
+    <small class="hint">At least 6 characters, and not an easy one like 123456 or the user name. Accounts that can manage users or roles need 12. Share it with the person privately.</small>
+
+    <label for="new-roles">Roles</label>
+    <p-multiselect inputId="new-roles" formControlName="roleIds" [options]="roles()" optionLabel="name" optionValue="id"
+      placeholder="Choose roles" display="chip" fluid appendTo="body"
+      [invalid]="createForm.controls.roleIds.invalid && createForm.controls.roleIds.touched" />
+  </form>
+  <ng-template #footer>
+    <p-button label="Cancel" severity="secondary" [outlined]="true" (onClick)="createOpen.set(false)" />
+    <p-button label="Create" icon="pi pi-check" [loading]="saving()" (onClick)="create()" />
+  </ng-template>
+</p-dialog>
+
+<p-dialog [header]="'Roles of ' + (editing()?.displayName ?? '')" [modal]="true" [visible]="editing() !== null"
+  (visibleChange)="!$event && editing.set(null)" [style]="{ width: '28rem' }" [breakpoints]="{ '575px': '95vw' }">
+  <div class="form">
+    <label for="edit-roles">Roles</label>
+    <p-multiselect inputId="edit-roles" [(ngModel)]="editRoleIds" [options]="roles()" optionLabel="name" optionValue="id"
+      placeholder="Choose roles" display="chip" fluid appendTo="body" />
+    <small class="hint">Changes apply at once, also on devices where this user is signed in.</small>
+  </div>
+  <ng-template #footer>
+    <p-button label="Cancel" severity="secondary" [outlined]="true" (onClick)="editing.set(null)" />
+    <p-button label="Save" icon="pi pi-check" [loading]="saving()" [disabled]="editRoleIds.length === 0" (onClick)="saveRoles()" />
+  </ng-template>
+</p-dialog>

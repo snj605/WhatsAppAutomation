@@ -1,0 +1,132 @@
+<div class="chat">
+  <header class="wa-bar">
+    <a routerLink="/chats" class="icon-btn back" aria-label="Back"><i class="pi pi-arrow-left" aria-hidden="true"></i></a>
+    <span class="avatar" aria-hidden="true" [style.background]="colors(summary()?.name ?? '').bg" [style.color]="colors(summary()?.name ?? '').fg">{{ initials(summary()?.name ?? '') }}</span>
+    <div class="bar-title">
+      <strong>{{ summary()?.name ?? 'Loading…' }}</strong>
+      @if (counts(); as c) {
+        <small>{{ c.total }} {{ c.total === 1 ? 'person' : 'people' }}</small>
+      }
+    </div>
+    @if (summary()?.status === 'sending') {
+      <button type="button" class="icon-btn" (click)="pause()" [disabled]="busy()" aria-label="Pause" title="Pause"><i class="pi pi-pause" aria-hidden="true"></i></button>
+    }
+    @if (summary()?.status === 'paused') {
+      <button type="button" class="icon-btn" (click)="resume()" [disabled]="busy()" aria-label="Continue" title="Continue"><i class="pi pi-play" aria-hidden="true"></i></button>
+    }
+    @if (summary()?.status === 'sending' || summary()?.status === 'paused') {
+      <button type="button" class="icon-btn" (click)="stop()" [disabled]="busy()" aria-label="Stop" title="Stop"><i class="pi pi-stop-circle" aria-hidden="true"></i></button>
+    }
+  </header>
+
+  @if (summary(); as s) {
+    <section class="progress-card" [class]="'is-' + s.status" aria-live="polite">
+      <p class="status-line">
+        <i [class]="s.status === 'completed' ? 'pi pi-check-circle' : s.status === 'paused' ? 'pi pi-pause-circle' : s.status === 'cancelled' ? 'pi pi-stop-circle' : 'pi pi-spin pi-spinner'" aria-hidden="true"></i>
+        {{ statusLine() }}
+      </p>
+      <div class="bar" role="progressbar" [attr.aria-valuenow]="percent()" aria-valuemin="0" aria-valuemax="100">
+        <span [style.width.%]="percent()"></span>
+      </div>
+      @if (counts(); as c) {
+        <div class="stats">
+          <span><strong>{{ c.sent }}</strong> sent</span>
+          <span><strong>{{ c.delivered }}</strong> delivered</span>
+          <span><strong>{{ c.read }}</strong> read</span>
+          @if (c.failed + c.skipped > 0) {<span class="bad"><strong>{{ c.failed + c.skipped }}</strong> not sent</span>}
+        </div>
+      }
+      @if (s.status === 'sending' || s.status === 'paused') {
+        <div class="progress-actions">
+          @if (s.status === 'sending') {
+            <button type="button" class="pbtn" (click)="pause()" [disabled]="busy()"><i class="pi pi-pause" aria-hidden="true"></i> Pause</button>
+          } @else {
+            <button type="button" class="pbtn primary" (click)="resume()" [disabled]="busy()"><i class="pi pi-play" aria-hidden="true"></i> Continue</button>
+          }
+          <button type="button" class="pbtn danger" (click)="stop()" [disabled]="busy()"><i class="pi pi-stop-circle" aria-hidden="true"></i> Stop</button>
+        </div>
+      }
+    </section>
+  }
+
+  <div class="thread">
+    @if (summary(); as s) {
+      <span class="pill">{{ s.createdAt | date: 'd MMM y, h:mm a' }}</span>
+
+      @for (b of bubbles(); track $index) {
+        <div class="bubble">
+          @if (b.label) {<span class="bubble-label">{{ b.label }}</span>}
+          @if (details()?.attachment; as f) {
+            <span class="bubble-file">
+              <i [class]="fileIcon(f.contentType)" aria-hidden="true"></i>
+              <span>{{ f.fileName }}</span>
+              <small>{{ fileSize(f.sizeBytes) }}</small>
+            </span>
+          }
+          <span class="bubble-text" [innerHTML]="b.html"></span>
+          <span class="bubble-meta">{{ s.createdAt | date: 'h:mm a' }} <i class="pi pi-check" aria-hidden="true"></i></span>
+        </div>
+      }
+
+      @if (example(); as e) {
+        <div class="bubble example">
+          <span class="bubble-label">{{ e.name }} got:</span>
+          <span class="bubble-text">{{ e.text }}</span>
+        </div>
+      }
+
+      @if (counts(); as c) {
+        <span class="pill">{{ c.sent }} sent · {{ c.delivered }} delivered · {{ c.read }} read</span>
+        @if (c.waiting > 0) {<span class="pill">{{ c.waiting }} waiting</span>}
+        @if (c.failed + c.skipped > 0) {<span class="pill warn">{{ c.failed }} not sent · {{ c.skipped }} skipped</span>}
+      }
+
+      @switch (s.status) {
+        @case ('paused') {<span class="pill warn">Paused: {{ s.pauseReason ?? 'by you' }}</span>}
+        @case ('completed') {<span class="pill ok">All done</span>}
+        @case ('cancelled') {<span class="pill">Stopped</span>}
+        @case ('sending') {
+          @if (pacing(); as p) {
+            @if (p.waiting) {
+              <span class="pill">{{ p.waiting }}</span>
+            } @else if (p.nextSendAt) {
+              <span class="pill">Next message at {{ p.nextSendAt | date: 'hh:mm:ss a' }}</span>
+            }
+          }
+        }
+      }
+    } @else {
+      <span class="pill">Loading…</span>
+    }
+  </div>
+
+  <section class="who">
+    <button type="button" class="who-toggle" (click)="showPeople.set(!showPeople())" [attr.aria-expanded]="showPeople()">
+      <i class="pi pi-users" aria-hidden="true"></i>
+      <span>See who got it</span>
+      <i [class]="showPeople() ? 'pi pi-chevron-down' : 'pi pi-chevron-up'" aria-hidden="true"></i>
+    </button>
+    @if (showPeople()) {
+      <div class="filters" role="group" aria-label="Show">
+        <button type="button" class="chip" [class.on]="filter() === 'all'" (click)="filter.set('all')">All</button>
+        <button type="button" class="chip" [class.on]="filter() === 'sent'" (click)="filter.set('sent')">Sent</button>
+        <button type="button" class="chip" [class.on]="filter() === 'waiting'" (click)="filter.set('waiting')">Waiting</button>
+        <button type="button" class="chip" [class.on]="filter() === 'problems'" (click)="filter.set('problems')">Problems</button>
+      </div>
+      <ul class="people">
+        @for (r of people(); track r.id) {
+          <li class="person">
+            <span class="avatar small" aria-hidden="true" [style.background]="colors(r.name).bg" [style.color]="colors(r.name).fg">{{ initials(r.name) }}</span>
+            <span class="person-text">
+              <strong>{{ r.name }}</strong>
+              <small>{{ r.reason ?? r.phoneNumber }}</small>
+            </span>
+            <span class="status" [class]="'st-' + r.status"><i [class]="tick(r).icon" aria-hidden="true"></i> {{ tick(r).label }}</span>
+          </li>
+        } @empty {
+          <li class="none">Nobody here.</li>
+        }
+      </ul>
+    }
+  </section>
+</div>

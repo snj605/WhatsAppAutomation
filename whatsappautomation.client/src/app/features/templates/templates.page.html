@@ -1,0 +1,53 @@
+<div class="tpl">
+  <header class="top">
+    <a routerLink="/me" class="icon-btn" aria-label="Back"><i class="pi pi-arrow-left" aria-hidden="true"></i></a>
+    <div class="top-title"><strong>Templates</strong><small>Your saved messages</small></div>
+    @if (editing() === null) {
+      <button type="button" class="add" (click)="startNew()"><i class="pi pi-plus" aria-hidden="true"></i> New</button>
+    }
+  </header>
+
+  <div class="body">
+    @if (editing() !== null) {
+      <section class="card form">
+        <label class="label" for="tpl-name">Name</label>
+        <input id="tpl-name" class="input" placeholder="Diwali wishes" maxlength="60" [value]="name()" (input)="name.set($any($event.target).value)" />
+        <label class="label" for="tpl-text">Message</label>
+        <textarea #box id="tpl-text" class="input area" rows="5" maxlength="4096" placeholder="Wishing you a very happy Diwali…"
+          [value]="text()" (input)="text.set(box.value)"></textarea>
+        <div class="tools">
+          <button type="button" class="tool primary" (click)="addName()"><i class="pi pi-user" aria-hidden="true"></i> Add name</button>
+          @for (m of moreInserts; track m.value) {
+            <button type="button" class="tool" (click)="insert(m.value)">{{ m.hint }}</button>
+          }
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn ghost" (click)="cancel()">Cancel</button>
+          <button type="button" class="btn primary" (click)="save()" [disabled]="saving() || !name().trim() || !text().trim()">Save template</button>
+        </div>
+      </section>
+    }
+
+    @for (t of templates(); track t.id) {
+      <article class="card item">
+        <div class="item-head">
+          <strong>{{ t.name }}</strong>
+          <span class="item-actions">
+            <button type="button" class="icon-btn small" (click)="edit(t)" aria-label="Edit"><i class="pi pi-pencil" aria-hidden="true"></i></button>
+            <button type="button" class="icon-btn small danger" (click)="remove(t)" aria-label="Delete"><i class="pi pi-trash" aria-hidden="true"></i></button>
+          </span>
+        </div>
+        <p>{{ friendly(t.text) }}</p>
+      </article>
+    } @empty {
+      @if (!loading() && editing() === null) {
+        <div class="empty">
+          <span class="empty-icon"><i class="pi pi-bookmark" aria-hidden="true"></i></span>
+          <strong>Save messages you send often</strong>
+          <span>Festival wishes, reminders, thank-you notes… Pick one in a tap when sending.</span>
+          <button type="button" class="btn primary" (click)="startNew()"><i class="pi pi-plus" aria-hidden="true"></i> New template</button>
+        </div>
+      }
+    }
+  </div>
+</div>

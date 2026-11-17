@@ -1,0 +1,92 @@
+<p-dialog [header]="isNew() ? 'Add contact' : 'Edit contact'" [modal]="true" [visible]="visible()" (visibleChange)="!$event && closed.emit()"
+  [style]="{ width: '44rem' }" [breakpoints]="{ '720px': '96vw' }" [draggable]="false">
+  <form class="contact-form" [formGroup]="form" (ngSubmit)="save()" id="contact-form" novalidate>
+    <div class="grid-2">
+      <div class="field">
+        <label for="c-phone">Phone, with country code *</label>
+        <input pInputText id="c-phone" formControlName="phoneNumber" placeholder="+91 98765 43210" inputmode="tel" autocomplete="off" fluid
+          [invalid]="form.controls.phoneNumber.invalid && form.controls.phoneNumber.touched" />
+      </div>
+      <div class="field">
+        <label for="c-saved">Saved name</label>
+        <input pInputText id="c-saved" formControlName="savedName" placeholder="How you know them, e.g. Daddy" autocomplete="off" fluid />
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Message language *</label>
+      <p-selectbutton [options]="languages" formControlName="language" optionLabel="label" optionValue="value" [allowEmpty]="false" />
+    </div>
+
+    <fieldset class="names">
+      <legend>Real name used in messages</legend>
+      <div class="grid-3">
+        <div class="field">
+          <label for="c-en">English @if (required('en')) {<b>*</b>}</label>
+          <input pInputText id="c-en" formControlName="nameEn" placeholder="Rameshbhai" autocomplete="off" fluid />
+        </div>
+        <div class="field">
+          <label for="c-hi">Hindi @if (required('hi')) {<b>*</b>}</label>
+          <input pInputText id="c-hi" formControlName="nameHi" placeholder="रमेशभाई" autocomplete="off" lang="hi" fluid />
+        </div>
+        <div class="field">
+          <label for="c-gu">Gujarati @if (required('gu')) {<b>*</b>}</label>
+          <input pInputText id="c-gu" formControlName="nameGu" placeholder="રમેશભાઈ" autocomplete="off" lang="gu" fluid />
+        </div>
+      </div>
+      <small class="hint">The name in the message language is required. Fill the others if you may send in those languages too.</small>
+    </fieldset>
+
+    <div class="grid-2">
+      <div class="field">
+        <label for="c-category">Category</label>
+        <p-select inputId="c-category" [options]="categories()" formControlName="categoryId" optionLabel="name" optionValue="id"
+          placeholder="None" [showClear]="true" appendTo="body" fluid>
+          <ng-template #selectedItem let-c>
+            @if (c) {<span class="flag-item"><span class="flag" [style.background]="c.color"></span>{{ c.name }}</span>}
+          </ng-template>
+          <ng-template #item let-c>
+            <span class="flag-item"><span class="flag" [style.background]="c.color"></span>{{ c.name }}</span>
+          </ng-template>
+        </p-select>
+      </div>
+      <div class="field">
+        <label for="c-groups">Groups</label>
+        @if (notOnWhatsApp()) {
+          <p class="muted">This number is not on WhatsApp, so it cannot be in groups. Changing the number checks it again.</p>
+        } @else {
+          <p-multiselect inputId="c-groups" [options]="groups()" formControlName="groupIds" optionLabel="name" optionValue="id"
+            placeholder="None" display="chip" appendTo="body" fluid [filter]="groups().length > 6" />
+        }
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="field">
+        <label for="c-salutation">Salutation</label>
+        <input pInputText id="c-salutation" formControlName="salutation" placeholder="Pujya, Respected, Dear…" autocomplete="off" fluid />
+      </div>
+      <div class="field">
+        <label for="c-day">Birthday (year optional)</label>
+        <div class="birthday">
+          <p-select inputId="c-day" [options]="days" formControlName="birthDay" placeholder="Day" [showClear]="true" appendTo="body" />
+          <p-select [options]="months" formControlName="birthMonth" placeholder="Month" [showClear]="true" appendTo="body" ariaLabel="Month" />
+          <input pInputText type="number" formControlName="birthYear" placeholder="Year" min="1900" max="2100" aria-label="Year" />
+        </div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="c-notes">Notes</label>
+      <textarea pTextarea id="c-notes" formControlName="notes" rows="2" [autoResize]="true" fluid></textarea>
+    </div>
+
+    @if (error(); as message) {
+      <p class="form-error" role="alert"><i class="pi pi-exclamation-circle" aria-hidden="true"></i> {{ message }}</p>
+    }
+  </form>
+  <ng-template #footer>
+    <p-button label="Cancel" severity="secondary" [outlined]="true" (onClick)="closed.emit()" />
+    <p-button [label]="isNew() ? 'Add contact' : 'Save'" icon="pi pi-check" [loading]="saving()" (onClick)="save()" />
+  </ng-template>
+</p-dialog>

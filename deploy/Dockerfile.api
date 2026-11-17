@@ -1,0 +1,56 @@
+# syntax=docker/dockerfile:1.7
+# The API with the website inside it. Built by CI from the repository root:
+#   docker build -f deploy/Dockerfile.api --secret id=primeng_license,env=PRIMENG_LICENSE_KEY .
+
+# ---- 1. Website (Angular) ----
+FROM node:22-bookworm-slim AS web
+WORKDIR /src/whatsappautomation.client
+COPY whatsappautomation.client/package.json whatsappautomation.client/package-lock.json ./
+RUN npm ci --no-audit --no-fund
+COPY whatsappautomation.client/ ./
+# The PrimeNG licence key is not in git (the repository is public): it comes from a build secret.
+RUN --mount=type=secret,id=primeng_license,required=false \
+    if [ -s /run/secrets/primeng_license ]; then \
+      KEY="$(cat /run/secrets/primeng_license)"; \
+      sed -i "s|PRIMENG_LICENSE_KEY = '[^']*';|PRIMENG_LICENSE_KEY = '${KEY}';|" src/app/core/config/primeng-license.ts; \
+    fi \
+ && npm run build \
+ && test -f dist/whatsappautomation.client/browser/index.html
+
+# ---- 2. API (.NET) ----
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS api
+# dotnet publish also visits the website project (.esproj); it needs Node to be present.
+COPY --from=web /usr/local/bin/node /usr/local/bin/node
+COPY --from=web /usr/local/lib/node_modules /usr/local/lib/node_modules
+RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
+ && ln -s /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx
+WORKDIR /src
+# Restore first, from the project files only, so package downloads are cached between builds.
+COPY WhatsAppAutomation.Server/Directory.Build.props WhatsAppAutomation.Server/
+COPY WhatsAppAutomation.Server/src/WhatsAppAutomation.Domain/*.csproj WhatsAppAutomation.Server/src/WhatsAppAutomation.Domain/
+COPY WhatsAppAutomation.Server/src/WhatsAppAutomation.Application/*.csproj WhatsAppAutomation.Server/src/WhatsAppAutomation.Application/
+COPY WhatsAppAutomation.Server/src/WhatsAppAutomation.Infrastructure/*.csproj WhatsAppAutomation.Server/src/WhatsAppAutomation.Infrastructure/
+COPY WhatsAppAutomation.Server/src/WhatsAppAutomation.Api/*.csproj WhatsAppAutomation.Server/src/WhatsAppAutomation.Api/
+COPY whatsappautomation.client/whatsappautomation.client.esproj whatsappautomation.client/
+RUN dotnet restore WhatsAppAutomation.Server/src/WhatsAppAutomation.Api/WhatsAppAutomation.Api.csproj
+COPY WhatsAppAutomation.Server/src/ WhatsAppAutomation.Server/src/
+# The website is already built: put its files where the .esproj expects them, so publish copies them to wwwroot.
+COPY --from=web /src/whatsappautomation.client/ whatsappautomation.client/
+RUN dotnet publish WhatsAppAutomation.Server/src/WhatsAppAutomation.Api/WhatsAppAutomation.Api.csproj \
+      -c Release -o /app --no-restore -p:UseAppHost=false \
+ && test -f /app/wwwroot/index.html
+
+# ---- 3. Small runtime image (no shell, no package manager, runs as a non-root user) ----
+FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble-chiseled
+WORKDIR /app
+COPY --from=api /app ./
+# ASPNETCORE_FORWARDEDHEADERS_ENABLED: behind Caddy, read the client's address and https from the proxy's headers.
+# DOTNET_gcServer=0 and GCConserveMemory: memory-friendly on a 2 GB server (one small heap, memory given back sooner).
+ENV ASPNETCORE_URLS=http://+:8080 \
+    ASPNETCORE_ENVIRONMENT=Production \
+    ASPNETCORE_FORWARDEDHEADERS_ENABLED=true \
+    DOTNET_gcServer=0 \
+    DOTNET_GCConserveMemory=5 \
+    DOTNET_TieredPGO=1
+EXPOSE 8080
+ENTRYPOINT ["dotnet", "WhatsAppAutomation.Api.dll"]

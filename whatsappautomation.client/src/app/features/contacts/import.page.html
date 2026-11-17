@@ -1,0 +1,156 @@
+<div class="page">
+  <header class="page-header">
+    <div>
+      <h1>Import contacts</h1>
+      <p class="subtitle">From Excel or CSV. Nothing is saved until you check the preview and press Import.</p>
+    </div>
+    <div class="actions">
+      <p-button label="Contacts" icon="pi pi-arrow-left" severity="secondary" [outlined]="true" routerLink="/contacts" />
+    </div>
+  </header>
+
+  <ol class="stepper" aria-label="Steps">
+    <li [class.current]="step() === 'choose'" [class.done]="step() !== 'choose'"><span>1</span> Choose file</li>
+    <li [class.current]="step() === 'preview'" [class.done]="step() === 'done'"><span>2</span> Check preview</li>
+    <li [class.current]="step() === 'done'"><span>3</span> Done</li>
+  </ol>
+
+  @if (step() === 'choose') {
+    <div class="grid-2 choose">
+      <section class="card">
+        <div class="card-head">
+          <span class="card-icon"><i class="pi pi-file-excel" aria-hidden="true"></i></span>
+          <h2>1. Get the template</h2>
+        </div>
+        <p class="muted">An Excel file with the right columns, dropdowns for Category and Language, and three sample rows. Your own categories are in the dropdown.</p>
+        <ul class="columns">
+          <li><b>Phone*</b> with country code, e.g. +919876543210</li>
+          <li><b>Category</b> optional; a new name creates the category</li>
+          <li><b>Name (English / Hindi / Gujarati)</b>: the one in the contact's language is required</li>
+          <li><b>Language</b> en, hi or gu; empty uses your default</li>
+          <li><b>Birthday</b> DD-MM or DD-MM-YYYY, <b>Groups</b> comma-separated</li>
+        </ul>
+        <p-button label="Download template (.xlsx)" icon="pi pi-download" severity="secondary" (onClick)="downloadTemplate()" />
+        <p class="hint">Use .xlsx for Hindi and Gujarati. If you use CSV, save it as "CSV UTF-8".</p>
+      </section>
+
+      <section class="card">
+        <div class="card-head">
+          <span class="card-icon blue"><i class="pi pi-upload" aria-hidden="true"></i></span>
+          <h2>2. Upload your file</h2>
+        </div>
+        <label class="dropzone" [class.dragging]="dragging()" (dragover)="onDragOver($event)" (dragleave)="dragging.set(false)" (drop)="onDrop($event)">
+          <input type="file" accept=".xlsx,.csv" (change)="onPick($event)" [disabled]="busy()" />
+          @if (busy()) {
+            <i class="pi pi-spin pi-spinner" aria-hidden="true"></i>
+            <strong>Reading {{ file()?.name }}…</strong>
+          } @else {
+            <i class="pi pi-cloud-upload" aria-hidden="true"></i>
+            <strong>Drop the file here, or click to choose</strong>
+            <span class="muted">.xlsx or .csv, up to 5 MB and 5000 contacts</span>
+          }
+        </label>
+        @if (error(); as message) {
+          <p class="form-error" role="alert"><i class="pi pi-exclamation-circle" aria-hidden="true"></i> {{ message }}</p>
+        }
+      </section>
+    </div>
+  }
+
+  @if (step() !== 'choose' && result(); as r) {
+    <div class="grid-4 stats">
+      <div class="card stat"><span class="stat-icon create"><i class="pi pi-user-plus"></i></span><div><strong>{{ r.created }}</strong><span>{{ r.applied ? 'added' : 'new' }}</span></div></div>
+      <div class="card stat"><span class="stat-icon update"><i class="pi pi-sync"></i></span><div><strong>{{ r.updated }}</strong><span>{{ r.applied ? 'updated' : 'to update' }}</span></div></div>
+      <div class="card stat"><span class="stat-icon error"><i class="pi pi-exclamation-triangle"></i></span><div><strong>{{ r.failed }}</strong><span>with problems{{ r.applied ? ', skipped' : '' }}</span></div></div>
+      <div class="card stat"><span class="stat-icon file"><i class="pi pi-file"></i></span><div><strong class="file-name">{{ file()?.name }}</strong><span>{{ r.rows.length }} rows</span></div></div>
+    </div>
+
+    @if (r.newCategories.length > 0 || r.newGroups.length > 0) {
+      <section class="card new-lists">
+        @if (r.newCategories.length > 0) {
+          <div><span class="muted">{{ r.applied ? 'Created' : 'Will create' }} categories:</span>
+            @for (c of r.newCategories; track c) {<p-tag [value]="c" severity="success" />}
+          </div>
+        }
+        @if (r.newGroups.length > 0) {
+          <div><span class="muted">{{ r.applied ? 'Created' : 'Will create' }} groups:</span>
+            @for (g of r.newGroups; track g) {<p-tag [value]="g" severity="info" />}
+          </div>
+        }
+      </section>
+    }
+
+    @if (step() === 'done') {
+      <section class="card done">
+        <span class="done-icon"><i class="pi pi-check" aria-hidden="true"></i></span>
+        <div>
+          <h2>Import finished</h2>
+          <p class="muted">{{ r.created }} added and {{ r.updated }} updated.
+            @if (r.failed > 0) {
+              <span>{{ r.failed }} rows with problems were not saved.</span>
+            }
+          </p>
+        </div>
+        <span class="spacer"></span>
+        @if (r.failed > 0) {
+          <p-button label="Download problem rows" icon="pi pi-download" severity="secondary" [outlined]="true" (onClick)="downloadErrors()" />
+        }
+        <p-button label="Import another file" severity="secondary" [outlined]="true" (onClick)="restart()" />
+        <p-button label="View contacts" icon="pi pi-arrow-right" iconPos="right" routerLink="/contacts" />
+      </section>
+    }
+
+    <section class="card card-flush">
+      <div class="table-toolbar">
+        <h2 class="table-title">Rows</h2>
+        <span class="spacer"></span>
+        <p-selectbutton [options]="showOptions" [(ngModel)]="show" optionLabel="label" optionValue="value" [allowEmpty]="false" size="small" />
+      </div>
+      <p-table [value]="rows()" [paginator]="rows().length > 50" [rows]="50" [tableStyle]="{ 'min-width': '44rem' }">
+        <ng-template #header>
+          <tr><th style="width: 4rem">Row</th><th>Phone</th><th>Name</th><th>Category</th><th>Result</th></tr>
+        </ng-template>
+        <ng-template #body let-row>
+          <tr [class.row-error]="row.action === 'error'">
+            <td class="muted">{{ row.row }}</td>
+            <td class="nowrap mono">{{ row.phoneNumber ?? '—' }}</td>
+            <td>{{ row.name ?? '—' }}</td>
+            <td>{{ row.category ?? '—' }}</td>
+            <td>
+              @switch (row.action) {
+                @case ('create') { <p-tag value="New" severity="success" /> }
+                @case ('update') { <p-tag value="Update" severity="info" /> }
+                @default {
+                  <ul class="errors">
+                    @for (e of row.errors; track $index) {<li>{{ e }}</li>}
+                  </ul>
+                }
+              }
+            </td>
+          </tr>
+        </ng-template>
+        <ng-template #emptymessage>
+          <tr><td colspan="5"><div class="empty"><i class="pi pi-check-circle"></i><strong>No problems</strong></div></td></tr>
+        </ng-template>
+      </p-table>
+    </section>
+
+    @if (step() === 'preview') {
+      <div class="sticky-actions">
+        @if (error(); as message) {
+          <p class="form-error" role="alert">{{ message }}</p>
+        }
+        <span class="hint">
+          @if (r.failed > 0) { Rows with problems are skipped. Fix them in the file and upload again, or import the rest now. }
+          @else { Everything looks good. }
+        </span>
+        <span class="spacer"></span>
+        @if (r.failed > 0) {
+          <p-button label="Download problem rows" icon="pi pi-download" severity="secondary" [text]="true" (onClick)="downloadErrors()" />
+        }
+        <p-button label="Choose another file" severity="secondary" [outlined]="true" (onClick)="restart()" />
+        <p-button [label]="'Import ' + toSave() + ' contacts'" icon="pi pi-check" [loading]="busy()" [disabled]="toSave() === 0" (onClick)="apply()" />
+      </div>
+    }
+  }
+</div>

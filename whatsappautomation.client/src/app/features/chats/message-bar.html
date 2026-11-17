@@ -1,0 +1,44 @@
+<div class="bar">
+  @if (panel() === 'insert') {
+    <div class="panel" role="menu">
+      @for (i of inserts; track i.value) {
+        <button type="button" class="panel-item" role="menuitem" (click)="insert(i.value)"><strong>{{ i.label }}</strong><small>{{ i.hint }}</small></button>
+      }
+    </div>
+  }
+  @if (panel() === 'templates') {
+    <div class="panel" role="menu">
+      @for (t of myTemplates(); track t.id) {
+        <button type="button" class="panel-item" role="menuitem" (click)="useTemplate(t.text)"><strong><i class="pi pi-bookmark" aria-hidden="true"></i> {{ t.name }}</strong><small>{{ t.text }}</small></button>
+      }
+      @for (t of suggestions; track t.label) {
+        <button type="button" class="panel-item" role="menuitem" (click)="useTemplate(t.text)"><strong><i [class]="t.icon" aria-hidden="true"></i> {{ t.label }}</strong><small>{{ t.text }}</small></button>
+      }
+    </div>
+  }
+
+  @if (attachment(); as f) {
+    <div class="file">
+      <i [class]="fileIcon(f.contentType)" aria-hidden="true"></i>
+      <span class="file-name">{{ f.fileName }}</span><small>{{ fileSize(f.sizeBytes) }}</small>
+      <button type="button" class="x" (click)="attachment.set(null)" aria-label="Remove file"><i class="pi pi-times" aria-hidden="true"></i></button>
+    </div>
+  }
+
+  <div class="chips">
+    <button type="button" class="chip main" (click)="addName()"><i class="pi pi-user" aria-hidden="true"></i> Name</button>
+    <button type="button" class="chip" (click)="togglePanel('insert')" [class.on]="panel() === 'insert'">Other names <i class="pi pi-chevron-up" aria-hidden="true"></i></button>
+    <button type="button" class="chip" (click)="togglePanel('templates')" [class.on]="panel() === 'templates'"><i class="pi pi-bookmark" aria-hidden="true"></i> Templates</button>
+  </div>
+
+  <div class="row">
+    <button type="button" class="round ghost" (click)="picker.click()" [disabled]="uploading()" aria-label="Attach a file" title="Attach a photo, video or document (up to 16 MB)">
+      <i [class]="uploading() ? 'pi pi-spin pi-spinner' : 'pi pi-paperclip'" aria-hidden="true"></i>
+    </button>
+    <input #picker type="file" hidden (change)="attach(picker)" />
+    <textarea #box rows="1" [placeholder]="placeholder()" [value]="text()" (input)="text.set(box.value)" maxlength="4096" aria-label="Message"></textarea>
+    <button type="button" class="round send" (click)="submit()" [disabled]="!text().trim() || disabled() || busy()" aria-label="Send">
+      <i [class]="busy() ? 'pi pi-spin pi-spinner' : 'pi pi-send'" aria-hidden="true"></i>
+    </button>
+  </div>
+</div>

@@ -1,0 +1,46 @@
+# Send these from Visual Studio: click "Send request" above each one, top to bottom.
+# Replace YOUR_PASSWORD before sending, and put it back before committing.
+
+@host = https://localhost:7269
+
+### Is the server and database OK?
+GET {{host}}/health
+
+### Sign in
+# @name login
+POST {{host}}/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "userName": "snj",
+  "password": "snj1",
+  "deviceId": "my-laptop",
+  "deviceName": "My laptop"
+}
+
+### Who am I, and what may I do?
+GET {{host}}/api/v1/auth/me
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
+### All permissions
+GET {{host}}/api/v1/permissions
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
+### All roles
+GET {{host}}/api/v1/roles
+Authorization: Bearer {{login.response.body.$.accessToken}}
+
+### Create a role
+POST {{host}}/api/v1/roles
+Authorization: Bearer {{login.response.body.$.accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Viewer",
+  "description": "Can see users and roles",
+  "permissions": ["users.view", "roles.view"]
+}
+
+### All users
+GET {{host}}/api/v1/users
+Authorization: Bearer {{login.response.body.$.accessToken}}

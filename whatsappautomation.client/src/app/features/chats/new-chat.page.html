@@ -1,0 +1,255 @@
+<div class="send">
+  <header class="top">
+    <button type="button" class="icon-btn" (click)="back()" [attr.aria-label]="step() === 1 ? 'Close' : 'Back'">
+      <i [class]="step() === 1 ? 'pi pi-times' : 'pi pi-arrow-left'" aria-hidden="true"></i>
+    </button>
+    <div class="top-title">
+      <strong>New message</strong>
+      <small>Step {{ step() }} of 3</small>
+    </div>
+  </header>
+
+  <ol class="steps" aria-label="Steps">
+    <li [class.on]="step() === 1" [class.done]="step() > 1">
+      <button type="button" (click)="goTo(1)"><span class="num">1</span><span>Who</span></button>
+    </li>
+    <li [class.on]="step() === 2" [class.done]="step() > 2">
+      <button type="button" (click)="goTo(2)" [disabled]="!canLeaveStep1()"><span class="num">2</span><span>Message</span></button>
+    </li>
+    <li [class.on]="step() === 3">
+      <button type="button" (click)="goTo(3)" [disabled]="!canLeaveStep1() || !canLeaveStep2()"><span class="num">3</span><span>Send</span></button>
+    </li>
+  </ol>
+
+  <main class="body">
+    @switch (step()) {
+      @case (1) {
+        <h2>Who should get it?</h2>
+        <div class="choices" role="radiogroup" aria-label="Who should get it">
+          <button type="button" class="choice" role="radio" [attr.aria-checked]="audience() === 'all'" [class.on]="audience() === 'all'" (click)="choose('all')">
+            <span class="choice-icon"><i class="pi pi-globe" aria-hidden="true"></i></span>
+            <span class="choice-text"><strong>Everyone</strong><small>{{ allCount() === 1 ? 'Your 1 contact' : 'All ' + allCount() + ' contacts' }}</small></span>
+            <i class="pi pi-check-circle mark" aria-hidden="true"></i>
+          </button>
+          <button type="button" class="choice" role="radio" [attr.aria-checked]="audience() === 'categories'" [class.on]="audience() === 'categories'" (click)="choose('categories')">
+            <span class="choice-icon"><i class="pi pi-tags" aria-hidden="true"></i></span>
+            <span class="choice-text"><strong>A category</strong><small>Family, Elders, Friends…</small></span>
+            <i class="pi pi-check-circle mark" aria-hidden="true"></i>
+          </button>
+          <button type="button" class="choice" role="radio" [attr.aria-checked]="audience() === 'groups'" [class.on]="audience() === 'groups'" (click)="choose('groups')">
+            <span class="choice-icon"><i class="pi pi-users" aria-hidden="true"></i></span>
+            <span class="choice-text"><strong>A group</strong><small>Your own lists</small></span>
+            <i class="pi pi-check-circle mark" aria-hidden="true"></i>
+          </button>
+          <button type="button" class="choice" role="radio" [attr.aria-checked]="audience() === 'people'" [class.on]="audience() === 'people'" (click)="choose('people')">
+            <span class="choice-icon"><i class="pi pi-user-plus" aria-hidden="true"></i></span>
+            <span class="choice-text"><strong>Pick people</strong><small>Search and tick</small></span>
+            <i class="pi pi-check-circle mark" aria-hidden="true"></i>
+          </button>
+        </div>
+
+        @if (audience() === 'categories') {
+          <section class="panel">
+            <h3>Choose categories</h3>
+            @for (c of categories(); track c.id) {
+              <label class="pick-row" [class.on]="categoryIds().has(c.id)">
+                <input type="checkbox" [checked]="categoryIds().has(c.id)" (change)="toggleCategory(c.id)" />
+                <span class="dot" [style.background]="c.color"></span>
+                <span class="pick-name">{{ c.name }}</span>
+                <span class="count">{{ c.contactCount }}</span>
+              </label>
+            } @empty {
+              <p class="muted">No categories yet. <a routerLink="/contacts/lists">Create one</a> or choose another option.</p>
+            }
+          </section>
+        }
+
+        @if (audience() === 'groups') {
+          <section class="panel">
+            <h3>Choose groups</h3>
+            @for (g of groups(); track g.id) {
+              <label class="pick-row" [class.on]="groupIds().has(g.id)">
+                <input type="checkbox" [checked]="groupIds().has(g.id)" (change)="toggleGroup(g.id)" />
+                <i class="pi pi-users muted" aria-hidden="true"></i>
+                <span class="pick-name">{{ g.name }}</span>
+                <span class="count">{{ g.contactCount }}</span>
+              </label>
+            } @empty {
+              <p class="muted">No groups yet. <a routerLink="/contacts/lists">Create one</a> or choose another option.</p>
+            }
+          </section>
+        }
+
+        @if (audience() === 'people') {
+          <section class="panel">
+            <div class="search">
+              <i class="pi pi-search" aria-hidden="true"></i>
+              <input type="search" placeholder="Search name or number" [value]="query()" (input)="onSearch($any($event.target).value)" aria-label="Search contacts" />
+            </div>
+            <div class="panel-head">
+              <span>{{ picked().size }} selected</span>
+              <span class="panel-actions">
+                @if (contactsTotal() > 0) {<button type="button" class="link-btn" (click)="pickAllFound()">Select all {{ contactsTotal() }}</button>}
+                @if (picked().size > 0) {<button type="button" class="link-btn" (click)="clearPicked()">Clear</button>}
+              </span>
+            </div>
+            <div class="people">
+              @for (c of contacts(); track c.id) {
+                <label class="pick-row" [class.on]="isPicked(c.id)">
+                  <input type="checkbox" [checked]="isPicked(c.id)" (change)="togglePerson(c)" />
+                  <span class="avatar" aria-hidden="true">{{ initials(displayName(c)) }}</span>
+                  <span class="pick-name">{{ displayName(c) }}<small>{{ c.phoneNumber }}</small></span>
+                </label>
+              } @empty {
+                @if (!loadingContacts()) {<p class="muted">No contacts found.</p>}
+              }
+              @if (contacts().length < contactsTotal()) {
+                <p class="muted small">Showing {{ contacts().length }} of {{ contactsTotal() }}. Search to find others.</p>
+              }
+            </div>
+          </section>
+        }
+      }
+
+      @case (2) {
+        <h2>Write your message</h2>
+        <div class="templates" aria-label="Ready messages">
+          @for (t of myTemplates(); track t.id) {
+            <button type="button" class="template mine" (click)="useTemplate(t.text)"><i class="pi pi-bookmark" aria-hidden="true"></i>{{ t.name }}</button>
+          }
+          @for (t of templates; track t.label) {
+            <button type="button" class="template" (click)="useTemplate(t.text)"><i [class]="t.icon" aria-hidden="true"></i>{{ t.label }}</button>
+          }
+          <a routerLink="/templates" class="template manage"><i class="pi pi-cog" aria-hidden="true"></i>Manage</a>
+        </div>
+
+        <div class="write-grid">
+          <section class="editor">
+            <textarea #box rows="6" placeholder="Type your message here…" [value]="text()" (input)="setText(box.value)" maxlength="4096" aria-label="Message"></textarea>
+            <div class="tools">
+              <button type="button" class="tool primary" (click)="addName()"><i class="pi pi-user" aria-hidden="true"></i> Add name</button>
+              <button type="button" class="tool" (click)="showMore.set(!showMore())" [attr.aria-expanded]="showMore()">
+                More <i [class]="showMore() ? 'pi pi-chevron-up' : 'pi pi-chevron-down'" aria-hidden="true"></i>
+              </button>
+              <button type="button" class="tool" (click)="picker.click()" [disabled]="uploading() !== null" title="Attach a photo, video or document (up to 16 MB)">
+                <i [class]="uploading() ? 'pi pi-spin pi-spinner' : 'pi pi-paperclip'" aria-hidden="true"></i> Attach
+              </button>
+              <input #picker type="file" hidden (change)="attach(picker)" />
+              <button type="button" class="tool" (click)="saveOpen.set(!saveOpen())" [disabled]="!text().trim()" title="Save this message as a template">
+                <i class="pi pi-bookmark" aria-hidden="true"></i> Save
+              </button>
+              <span class="len">{{ text().length }}/4096</span>
+            </div>
+            @if (uploading(); as name) {
+              <div class="file-chip busy"><i class="pi pi-spin pi-spinner" aria-hidden="true"></i><span class="file-name">Uploading {{ name }}…</span></div>
+            }
+            @if (attachment(); as f) {
+              <div class="file-chip">
+                <i [class]="fileIcon(f.contentType)" aria-hidden="true"></i>
+                <span class="file-name">{{ f.fileName }}</span>
+                <small>{{ fileSize(f.sizeBytes) }}</small>
+                <button type="button" class="file-x" (click)="removeAttachment()" aria-label="Remove file"><i class="pi pi-times" aria-hidden="true"></i></button>
+              </div>
+            }
+            @if (saveOpen()) {
+              <div class="save-row">
+                <input class="save-input" placeholder="Template name, e.g. Diwali wishes" maxlength="60" [value]="templateName()"
+                  (input)="templateName.set($any($event.target).value)" (keydown.enter)="saveTemplate()" aria-label="Template name" />
+                <button type="button" class="tool primary" (click)="saveTemplate()" [disabled]="!templateName().trim()">Save</button>
+              </div>
+            }
+            @if (showMore()) {
+              <div class="more">
+                @for (m of moreInserts; track m.value) {
+                  <button type="button" class="more-item" (click)="insert(m.value)"><strong>{{ m.label }}</strong><small>{{ m.hint }}</small></button>
+                }
+              </div>
+            }
+            <p class="hint"><i class="pi pi-info-circle" aria-hidden="true"></i> "Add name" puts each person's own name in their message.</p>
+          </section>
+
+          <section class="phone" aria-live="polite">
+            <div class="phone-top">
+              <span class="avatar small" aria-hidden="true">{{ initials(sample()?.contactName ?? '?') }}</span>
+              <strong>{{ sample()?.contactName ?? 'Preview' }}</strong>
+              @if (previewing()) {<i class="pi pi-spin pi-spinner muted" aria-label="Updating"></i>}
+            </div>
+            <div class="phone-body">
+              @if (sample(); as s) {
+                <div class="bubble">
+                  @if (attachment(); as f) {<span class="bubble-file"><i [class]="fileIcon(f.contentType)" aria-hidden="true"></i> {{ f.fileName }}</span>}
+                  {{ s.text }}<span class="bubble-time">now ✓</span>
+                </div>
+              } @else {
+                <p class="muted center">{{ previewNote() }}</p>
+              }
+            </div>
+            @if (sampleCount() > 1) {
+              <button type="button" class="link-btn" (click)="nextSample()">Show another person</button>
+            }
+            @if (skippedCount() > 0) {
+              <p class="warn"><i class="pi pi-exclamation-triangle" aria-hidden="true"></i> {{ skippedCount() }} will be skipped: {{ skipReasons()[0]?.reason }}</p>
+            }
+          </section>
+        </div>
+      }
+
+      @case (3) {
+        <h2>Check and send</h2>
+        <section class="summary">
+          <div class="sum-row"><span>To</span><strong>{{ whoLabel() }}</strong></div>
+          <div class="sum-row"><span>Will get it</span><strong class="big">{{ previewing() && !preview() ? '…' : willSend() }} {{ willSend() === 1 ? 'person' : 'people' }}</strong></div>
+          @if (skippedCount() > 0) {
+            <div class="sum-row">
+              <span>Skipped</span>
+              <button type="button" class="link-btn" (click)="showSkipped.set(!showSkipped())">{{ skippedCount() }} — see why</button>
+            </div>
+            @if (showSkipped()) {
+              <ul class="reasons">
+                @for (r of skipReasons(); track r.reason) {<li><strong>{{ r.count }}</strong> {{ r.reason }}</li>}
+              </ul>
+              <p class="muted small">Add the missing names in <a routerLink="/contacts">Contacts</a>, or send without them.</p>
+            }
+          }
+          @if (preview(); as p) {
+            <div class="sum-row"><span>Time</span><strong>{{ p.estimatedDays > 1 ? 'About ' + p.estimatedDays + ' days (up to ' + p.dailyCap + ' a day)' : 'Today, one by one' }}</strong></div>
+          }
+          <div class="sum-message">
+            <span>Message</span>
+            <p>{{ friendly(text()) }}</p>
+          </div>
+          @if (attachment(); as f) {
+            <div class="sum-row"><span>File</span><strong><i [class]="fileIcon(f.contentType)" aria-hidden="true"></i> {{ f.fileName }} · {{ fileSize(f.sizeBytes) }}</strong></div>
+          }
+          @if (sample(); as s) {
+            <div class="sum-example">
+              <span>{{ s.contactName }} will get:</span>
+              <div class="bubble">{{ s.text }}</div>
+            </div>
+          }
+        </section>
+        <p class="muted small center">Messages go out one at a time with natural pauses, so your number stays safe. You can pause or stop any time.</p>
+      }
+    }
+  </main>
+
+  <footer class="actions">
+    @switch (step()) {
+      @case (1) {
+        <span class="pill-count">{{ roughCount() }} {{ roughCount() === 1 ? 'person' : 'people' }}</span>
+        <button type="button" class="btn primary" (click)="goTo(2)" [disabled]="!canLeaveStep1()">Next: write message <i class="pi pi-arrow-right" aria-hidden="true"></i></button>
+      }
+      @case (2) {
+        <button type="button" class="btn ghost" (click)="back()">Back</button>
+        <button type="button" class="btn primary" (click)="goTo(3)" [disabled]="!canLeaveStep2()">Next: check <i class="pi pi-arrow-right" aria-hidden="true"></i></button>
+      }
+      @case (3) {
+        <button type="button" class="btn ghost" (click)="back()">Back</button>
+        <button type="button" class="btn primary send-btn" (click)="send()" [disabled]="sending() || willSend() === 0">
+          <i [class]="sending() ? 'pi pi-spin pi-spinner' : 'pi pi-send'" aria-hidden="true"></i>
+          Send to {{ willSend() }} {{ willSend() === 1 ? 'person' : 'people' }}
+        </button>
+      }
+    }
+  </footer>
+</div>

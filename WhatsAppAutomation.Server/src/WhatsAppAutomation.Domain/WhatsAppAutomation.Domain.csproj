@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Domain: business rules and entities. References nothing else in the solution. -->
+
+</Project>

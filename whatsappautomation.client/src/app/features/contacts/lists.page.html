@@ -1,0 +1,126 @@
+<div class="page">
+  <header class="page-header">
+    <div>
+      <h1>Categories & groups</h1>
+      <p class="subtitle">Every contact has one category (its coloured flag) and can be in any number of groups.</p>
+    </div>
+    <div class="actions">
+      <p-button label="Contacts" icon="pi pi-arrow-left" severity="secondary" [outlined]="true" routerLink="/contacts" />
+    </div>
+  </header>
+
+  <div class="grid-2 lists">
+    <section class="card" aria-labelledby="cat-title">
+      <div class="card-head">
+        <span class="card-icon"><i class="pi pi-tags" aria-hidden="true"></i></span>
+        <div>
+          <h2 id="cat-title">Categories</h2>
+          <p class="muted small">For example Elders, Youngers, Others.</p>
+        </div>
+        <span class="spacer"></span>
+        @if (canManage()) {
+          <p-button icon="pi pi-plus" label="New" size="small" (onClick)="newCategory()" />
+        }
+      </div>
+      <ul class="list">
+        @for (c of categories(); track c.id) {
+          <li>
+            <span class="swatch" [style.background]="c.color"></span>
+            <div class="list-text"><strong>{{ c.name }}</strong><small>{{ c.contactCount }} {{ c.contactCount === 1 ? 'contact' : 'contacts' }}</small></div>
+            @if (canManage()) {
+              <p-button icon="pi pi-pencil" [text]="true" [rounded]="true" ariaLabel="Edit" (onClick)="editCategory(c)" />
+              <p-button icon="pi pi-trash" [text]="true" [rounded]="true" severity="danger" ariaLabel="Delete" [disabled]="c.contactCount > 0"
+                (onClick)="remove('category', c)" />
+            }
+          </li>
+        } @empty {
+          @if (!loading()) {
+            <li class="list-empty">
+              <span>No categories yet.</span>
+              @if (canManage()) {
+                <p-button label="Add Elders, Youngers and Others" icon="pi pi-bolt" size="small" [outlined]="true" [loading]="saving()"
+                  (onClick)="addSuggested()" />
+              }
+            </li>
+          }
+        }
+      </ul>
+    </section>
+
+    <section class="card" aria-labelledby="group-title">
+      <div class="card-head">
+        <span class="card-icon blue"><i class="pi pi-users" aria-hidden="true"></i></span>
+        <div>
+          <h2 id="group-title">Groups</h2>
+          <p class="muted small">Named lists such as "Family – Surat" or "Satsang Mandal".</p>
+        </div>
+        <span class="spacer"></span>
+        @if (canManage()) {
+          <p-button icon="pi pi-plus" label="New" size="small" (onClick)="newGroup()" />
+        }
+      </div>
+      <ul class="list">
+        @for (g of groups(); track g.id) {
+          <li>
+            <span class="swatch group"><i class="pi pi-users" aria-hidden="true"></i></span>
+            <div class="list-text">
+              <a routerLink="/contacts" [queryParams]="{ group: g.id }" class="plain"><strong>{{ g.name }}</strong></a>
+              <small>{{ g.contactCount }} {{ g.contactCount === 1 ? 'contact' : 'contacts' }}</small>
+            </div>
+            @if (canManage()) {
+              <p-button icon="pi pi-pencil" [text]="true" [rounded]="true" ariaLabel="Rename" (onClick)="editGroup(g)" />
+              <p-button icon="pi pi-trash" [text]="true" [rounded]="true" severity="danger" ariaLabel="Delete" (onClick)="remove('group', g)" />
+            }
+          </li>
+        } @empty {
+          @if (!loading()) {
+            <li class="list-empty"><span>No groups yet. Add contacts to groups from the Contacts list or with the Groups column when importing.</span></li>
+          }
+        }
+      </ul>
+    </section>
+  </div>
+
+  <section class="card" aria-labelledby="lang-title">
+    <div class="card-head">
+      <span class="card-icon violet"><i class="pi pi-language" aria-hidden="true"></i></span>
+      <div>
+        <h2 id="lang-title">Default message language</h2>
+        <p class="muted small">Used for new contacts, for imported rows without a language, and when a message has no text in a contact's language.</p>
+      </div>
+    </div>
+    <p-selectbutton [options]="languages" [(ngModel)]="defaultLanguage" (ngModelChange)="saveLanguage($event)" optionLabel="label"
+      optionValue="value" [allowEmpty]="false" ariaLabel="Default message language" />
+  </section>
+</div>
+
+<p-dialog [header]="(editing()?.id ? 'Edit ' : 'New ') + (editing()?.kind === 'group' ? 'group' : 'category')" [modal]="true"
+  [visible]="editing() !== null" (visibleChange)="!$event && editing.set(null)" [style]="{ width: '26rem' }" [breakpoints]="{ '575px': '95vw' }">
+  @if (editing(); as e) {
+    <form class="form" (ngSubmit)="save()" id="list-form">
+      <div class="field">
+        <label for="list-name">Name</label>
+        <input pInputText id="list-name" name="name" [(ngModel)]="e.name" [maxlength]="e.kind === 'group' ? 80 : 50" autocomplete="off" fluid
+          autofocus />
+      </div>
+      @if (e.kind === 'category') {
+        <div class="field">
+          <label>Flag colour</label>
+          <div class="swatches" role="radiogroup" aria-label="Flag colour">
+            @for (color of colors; track color) {
+              <button type="button" class="swatch-btn" role="radio" [attr.aria-checked]="e.color === color" [attr.aria-label]="color"
+                [class.selected]="e.color === color" [style.background]="color" (click)="e.color = color"></button>
+            }
+            <label class="custom-color" title="Other colour">
+              <input type="color" name="color" [(ngModel)]="e.color" aria-label="Other colour" />
+            </label>
+          </div>
+        </div>
+      }
+    </form>
+  }
+  <ng-template #footer>
+    <p-button label="Cancel" severity="secondary" [outlined]="true" (onClick)="editing.set(null)" />
+    <p-button label="Save" icon="pi pi-check" [loading]="saving()" [disabled]="!editing()?.name?.trim()" (onClick)="save()" />
+  </ng-template>
+</p-dialog>

@@ -1,0 +1,212 @@
+<div class="page">
+  <header class="page-header">
+    <div>
+      <h1>Contacts</h1>
+      <p class="subtitle">The people you send to, with their real names in each language.</p>
+    </div>
+    @if (canManage()) {
+      <div class="actions">
+        <p-button label="Import" icon="pi pi-file-import" severity="secondary" [outlined]="true" routerLink="/contacts/import" />
+        <p-button label="Add contact" icon="pi pi-user-plus" (onClick)="editing.set('new')" />
+      </div>
+    }
+  </header>
+
+  @if (!loading() && total() === 0 && !search && !categoryId() && !groupId && !needsDetails) {
+    <section class="card start">
+      <span class="card-icon"><i class="pi pi-users" aria-hidden="true"></i></span>
+      <div>
+        <h2>Add your first contacts</h2>
+        <p class="muted">Add people one by one or import a file. Categories (for example Elders, Youngers) and groups are optional: use them only if they help you pick people later.</p>
+      </div>
+      <span class="spacer"></span>
+      <p-button label="Add contact" icon="pi pi-user-plus" (onClick)="editing.set('new')" />
+      <p-button label="Or import a file" severity="secondary" [text]="true" routerLink="/contacts/import" />
+    </section>
+  }
+
+  @if (check(); as s) {
+    @if (s.pending > 0 || s.unchecked > 0) {
+      <section class="card check-banner" role="status">
+        <i [class]="s.pending > 0 && s.connected ? 'pi pi-spin pi-spinner' : 'pi pi-shield'" aria-hidden="true"></i>
+        <span>
+          @if (s.pending > 0) {
+            @if (s.connected) {
+              Checking {{ s.pending }} {{ s.pending === 1 ? 'number' : 'numbers' }} on WhatsApp…
+            } @else {
+              {{ s.pending }} {{ s.pending === 1 ? 'number waits' : 'numbers wait' }} for the WhatsApp check. It starts when your WhatsApp is connected.
+            }
+          } @else {
+            {{ s.unchecked }} {{ s.unchecked === 1 ? 'contact was' : 'contacts were' }} never checked on WhatsApp.
+          }
+        </span>
+        <span class="spacer"></span>
+        @if (s.pending === 0 && s.unchecked > 0 && canManage()) {
+          <p-button label="Check now" icon="pi pi-check-circle" size="small" [loading]="checkBusy()" (onClick)="requestCheck()" />
+        }
+      </section>
+    }
+    @if (s.notOnWhatsApp > 0 || notOnWhatsApp()) {
+      <nav class="category-chips" aria-label="WhatsApp">
+        <button type="button" class="chip" [class.active]="!notOnWhatsApp()" (click)="showNotOnWhatsApp(false)">On WhatsApp</button>
+        <button type="button" class="chip" [class.active]="notOnWhatsApp()" (click)="showNotOnWhatsApp(true)">
+          <i class="pi pi-times-circle" aria-hidden="true"></i> Not on WhatsApp <span class="count">{{ s.notOnWhatsApp }}</span>
+        </button>
+      </nav>
+      @if (notOnWhatsApp()) {
+        <p class="muted check-note">These numbers have no WhatsApp. They are kept apart: they cannot be in groups, get no birthday wishes
+          and no messages. Use "Check again" if someone joined WhatsApp later.</p>
+      }
+    }
+  }
+
+  <nav class="category-chips" aria-label="Filter by category">
+    <button type="button" class="chip" [class.active]="categoryId() === null" (click)="pickCategory(null)">
+      All <span class="count">{{ allCount() }}</span>
+    </button>
+    @for (c of categories(); track c.id) {
+      <button type="button" class="chip" [class.active]="categoryId() === c.id" (click)="pickCategory(c.id)">
+        <span class="flag" [style.background]="c.color"></span>{{ c.name }} <span class="count">{{ c.contactCount }}</span>
+      </button>
+    }
+  </nav>
+
+  <section class="card card-flush">
+    <div class="table-toolbar contacts-toolbar">
+      <p-iconfield class="search">
+        <p-inputicon class="pi pi-search" />
+        <input pInputText type="search" [(ngModel)]="search" (ngModelChange)="onSearch()" placeholder="Search name or number" aria-label="Search contacts" fluid />
+      </p-iconfield>
+      <p-select [options]="groups()" [(ngModel)]="groupId" (ngModelChange)="reload()" optionLabel="name" optionValue="id" placeholder="All groups"
+        [showClear]="true" appendTo="body" ariaLabel="Filter by group" styleClass="group-filter" />
+      <label class="toggle">
+        <p-toggleswitch [(ngModel)]="needsDetails" (ngModelChange)="reload()" inputId="needs-details" />
+        <span>Needs details</span>
+      </label>
+      <span class="spacer"></span>
+      <span class="hint">{{ total() }} {{ total() === 1 ? 'contact' : 'contacts' }}</span>
+    </div>
+
+    @if (selection.length > 0 && canManage()) {
+      <div class="selection-bar" role="region" aria-label="Selected contacts">
+        <strong>{{ selection.length }} selected</strong>
+        @if (!notOnWhatsApp()) {
+          <p-button label="Add to group" icon="pi pi-plus" size="small" severity="secondary" (onClick)="openGroupMenu(true, groupMenuRef, $event)" />
+        } @else {
+          <p-button label="Check again" icon="pi pi-refresh" size="small" severity="secondary" [loading]="checkBusy()"
+            (onClick)="requestCheck(selectionIds())" />
+        }
+        <p-button label="Remove from group" icon="pi pi-minus" size="small" severity="secondary" [outlined]="true"
+          (onClick)="openGroupMenu(false, groupMenuRef, $event)" />
+        <p-button label="Delete" icon="pi pi-trash" size="small" severity="danger" [outlined]="true" (onClick)="deleteSelected()" />
+        <span class="spacer"></span>
+        <p-button label="Clear" size="small" [text]="true" (onClick)="selection = []" />
+      </div>
+    }
+    <p-menu #groupMenuRef [model]="groupMenu" [popup]="true" appendTo="body" />
+
+    <p-table [value]="contacts()" [loading]="loading()" dataKey="id" [(selection)]="selection" [tableStyle]="{ 'min-width': '52rem' }"
+      [rowHover]="true">
+      <ng-template #header>
+        <tr>
+          @if (canManage()) {
+            <th style="width: 3rem"><p-table-header-checkbox /></th>
+          }
+          <th>Contact</th>
+          <th>Phone</th>
+          <th>Category</th>
+          <th>Language</th>
+          <th>Groups</th>
+          <th>Birthday</th>
+          @if (canManage()) {
+            <th style="width: 6rem"></th>
+          }
+        </tr>
+      </ng-template>
+      <ng-template #body let-c>
+        <tr>
+          @if (canManage()) {
+            <td><p-table-checkbox [value]="c" /></td>
+          }
+          <td>
+            <div class="cell-main">
+              <span class="initials" [style.background]="(category(c.categoryId)?.color ?? '#94a3b8') + '22'"
+                [style.color]="category(c.categoryId)?.color ?? '#475569'" aria-hidden="true">{{ initials(c) }}</span>
+              <div>
+                <div class="title">{{ displayName(c) }}</div>
+                <div class="sub">
+                  @if (realName(c); as real) {
+                    {{ c.salutation ? c.salutation + ' ' : '' }}{{ real }}
+                  } @else {
+                    <span class="needs"><i class="pi pi-exclamation-triangle" aria-hidden="true"></i> Needs {{ languageLabel(c.language) }} name</span>
+                  }
+                  @if (c.optedOutAt) {
+                    <span class="needs"><i class="pi pi-ban" aria-hidden="true"></i> No broadcasts</span>
+                  }
+                  @if (c.whatsAppCheck === 'not_on_whatsapp') {
+                    <span class="needs"><i class="pi pi-times-circle" aria-hidden="true"></i> Not on WhatsApp</span>
+                  } @else if (c.whatsAppCheck === 'pending') {
+                    <span class="checking"><i class="pi pi-spin pi-spinner" aria-hidden="true"></i> Checking…</span>
+                  }
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="nowrap mono">{{ c.phoneNumber }}</td>
+          <td>
+            @if (category(c.categoryId); as cat) {
+              <span class="flag-item"><span class="flag" [style.background]="cat.color"></span>{{ cat.name }}</span>
+            }
+          </td>
+          <td><span class="lang">{{ c.language.toUpperCase() }}</span></td>
+          <td>
+            <div class="tags">
+              @for (g of c.groups; track g.id) {
+                <p-tag [value]="g.name" severity="secondary" />
+              }
+            </div>
+          </td>
+          <td class="nowrap">{{ birthday(c) ?? '—' }}</td>
+          @if (canManage()) {
+            <td>
+              <div class="row-actions">
+                <p-button icon="pi pi-pencil" [text]="true" [rounded]="true" ariaLabel="Edit" (onClick)="editing.set(c)" />
+                @if (c.whatsAppCheck === 'not_on_whatsapp' || c.whatsAppCheck === 'unchecked') {
+                  <p-button icon="pi pi-refresh" [text]="true" [rounded]="true" severity="secondary" pTooltip="Check on WhatsApp"
+                    ariaLabel="Check this number on WhatsApp" (onClick)="requestCheck([c.id])" />
+                }
+                <p-button [icon]="c.optedOutAt ? 'pi pi-check-circle' : 'pi pi-ban'" [text]="true" [rounded]="true" severity="secondary"
+                  [ariaLabel]="c.optedOutAt ? 'Allow broadcasts again' : 'Stop broadcasts to this contact'" (onClick)="toggleOptOut(c)" />
+                <p-button icon="pi pi-trash" [text]="true" [rounded]="true" severity="danger" ariaLabel="Delete" (onClick)="deleteOne(c)" />
+              </div>
+            </td>
+          }
+        </tr>
+      </ng-template>
+      <ng-template #emptymessage>
+        <tr>
+          <td colspan="8">
+            <div class="empty">
+              <i class="pi pi-address-book" aria-hidden="true"></i>
+              @if (search || categoryId() || groupId || needsDetails) {
+                <strong>No contacts match</strong>
+                <span>Try another search or clear the filters.</span>
+              } @else {
+                <strong>No contacts yet</strong>
+                <span>Add people one by one, or import them from Excel.</span>
+              }
+            </div>
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+
+    @if (total() > pageSize() || page() > 1) {
+      <p-paginator [first]="(page() - 1) * pageSize()" [rows]="pageSize()" [totalRecords]="total()" [rowsPerPageOptions]="[25, 50, 100]"
+        (onPageChange)="onPage($event)" />
+    }
+  </section>
+</div>
+
+<app-contact-dialog [target]="editing()" [categories]="categories()" [groups]="groups()" [defaultLanguage]="defaultLanguage()"
+  (closed)="editing.set(null)" (saved)="onSaved($event)" />

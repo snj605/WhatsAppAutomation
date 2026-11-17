@@ -1,0 +1,18 @@
+# Keep Docker builds small and fast: send only what the images need.
+**/bin/
+**/obj/
+**/node_modules/
+**/dist/
+**/.angular/
+**/.vs/
+**/.idea/
+**/TestResults/
+**/*.user
+.git/
+.github/
+docs/
+WhatsAppAutomation.Mobile/
+WhatsAppAutomation.Server/tests/
+whatsappautomation.gateway/test/
+deploy/.env
+**/*.dump

@@ -1,0 +1,80 @@
+<div class="chats" [class.child-open]="childOpen()">
+  <section class="list-pane" aria-label="Chats">
+    <header class="top">
+      <div class="title-row">
+        <h1>Chats</h1>
+        <a routerLink="/chats/new" class="new-small" aria-label="New message"><i class="pi pi-pencil" aria-hidden="true"></i></a>
+      </div>
+      <label class="search">
+        <i class="pi pi-search" aria-hidden="true"></i>
+        <input type="search" placeholder="Search chats" [value]="search()" (input)="search.set($any($event.target).value)" aria-label="Search chats" />
+      </label>
+      <div class="kinds" role="group" aria-label="Show">
+        <button type="button" class="kind" [class.on]="filter() === 'all'" (click)="setFilter('all')">All</button>
+        <button type="button" class="kind" [class.on]="filter() === 'group'" (click)="setFilter('group')"><i class="pi pi-users" aria-hidden="true"></i> Groups <span>{{ counts().group }}</span></button>
+        <button type="button" class="kind" [class.on]="filter() === 'category'" (click)="setFilter('category')"><i class="pi pi-tag" aria-hidden="true"></i> Categories <span>{{ counts().category }}</span></button>
+        <button type="button" class="kind" [class.on]="filter() === 'other'" (click)="setFilter('other')"><i class="pi pi-megaphone" aria-hidden="true"></i> Other <span>{{ counts().other }}</span></button>
+      </div>
+    </header>
+
+    @if (shown().length > 0) {
+      <ul class="rows">
+        @for (c of shown(); track c.kind + (c.id ?? '')) {
+          <li>
+            <a class="row" [routerLink]="link(c)" routerLinkActive="active" [class.kind-birthdays]="c.kind === 'birthdays'">
+              @switch (c.kind) {
+                @case ('group') {
+                  <span class="avatar group" aria-hidden="true"><i class="pi pi-users"></i></span>
+                }
+                @case ('category') {
+                  <span class="avatar category" aria-hidden="true" [style.background]="(c.color ?? '#94a3b8') + '26'" [style.color]="c.color ?? '#475569'">
+                    <i class="pi pi-tag"></i>
+                  </span>
+                }
+                @case ('birthdays') {
+                  <span class="avatar birthday" aria-hidden="true"><i class="pi pi-gift"></i></span>
+                }
+                @default {
+                  <span class="avatar" aria-hidden="true" [style.background]="colors(c.name).bg" [style.color]="colors(c.name).fg">{{ initials(c.name) }}</span>
+                }
+              }
+              <span class="row-text">
+                <span class="row-top">
+                  <strong>{{ c.name }}</strong>
+                  @if (c.lastAt) {<span class="row-time">{{ c.lastAt | date: 'd MMM' }}</span>}
+                </span>
+                <span class="row-bottom">
+                  <span class="tag" [class]="'tag-' + c.kind">{{ kindLabel(c.kind) }}</span>
+                  <small [class.warn]="c.last?.status === 'paused'">{{ subtitle(c) }}</small>
+                  @if (c.last?.status === 'sending') {<span class="live" aria-label="Sending"></span>}
+                </span>
+              </span>
+            </a>
+          </li>
+        }
+      </ul>
+    }
+
+    @if (!loading() && chats().length === 0) {
+      <div class="empty">
+        <span class="empty-icon" aria-hidden="true"><i class="pi pi-comments"></i></span>
+        <strong>No chats yet</strong>
+        <span>Create a group or category in Contacts, and it appears here as a chat you can message. Or send to picked people.</span>
+        <a routerLink="/chats/new" class="empty-cta"><i class="pi pi-pencil" aria-hidden="true"></i> Write your first message</a>
+      </div>
+    }
+
+    <a routerLink="/chats/new" class="fab" aria-label="New message"><i class="pi pi-pencil" aria-hidden="true"></i><span>New message</span></a>
+  </section>
+
+  <section class="chat-pane">
+    <router-outlet />
+    @if (!childOpen()) {
+      <div class="placeholder">
+        <span class="empty-icon" aria-hidden="true"><i class="pi pi-send"></i></span>
+        <strong>Personal messages, sent with care</strong>
+        <p>Open a group, category or Birthdays chat on the left and type a message, or start a new one.</p>
+      </div>
+    }
+  </section>
+</div>

@@ -1,0 +1,12 @@
+import { Component } from '@angular/core';
+import { RouterOutlet } from '@angular/router';
+import { ConfirmDialogModule } from 'primeng/confirmdialog';
+import { ToastModule } from 'primeng/toast';
+
+/** The root component: only the page outlet plus the app-wide toast and confirm dialog. */
+@Component({
+  selector: 'app-root',
+  imports: [RouterOutlet, ToastModule, ConfirmDialogModule],
+  templateUrl: './app.html',
+})
+export class App {}

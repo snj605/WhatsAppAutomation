@@ -1,0 +1,43 @@
+.info { display: flex; flex-direction: column; height: calc(100dvh - var(--sending-bar-h, 0px)); background: var(--ui-bg); color: var(--ui-text); }
+.head { display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: var(--ui-surface); border-bottom: 1px solid var(--ui-border); flex: none; }
+.body { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding: 14px; }
+.card { padding: 16px; border-radius: var(--ui-radius); background: var(--ui-surface); border: 1px solid var(--ui-border); box-shadow: var(--ui-shadow); }
+.hero { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; }
+.big { width: 84px; height: 84px; border-radius: 26px; display: grid; place-items: center; font-size: 2rem; }
+.big.group { background: #e0ecff; color: #1d4ed8; }
+h1 { display: flex; align-items: center; gap: 6px; margin: 6px 0 0; font-size: 1.4rem; }
+h2 { margin: 0; font-size: 1rem; }
+.muted { margin: 0; color: var(--ui-text-2); }
+.hint { margin: 0; font-size: 0.82rem; color: var(--ui-muted); }
+.rename { display: flex; gap: 8px; width: 100%; max-width: 420px; margin-top: 6px; }
+.input { flex: 1; min-width: 0; box-sizing: border-box; border: 1px solid var(--ui-border); border-radius: 12px; padding: 10px 12px; font: inherit; color: var(--ui-text); background: var(--ui-surface-2); outline: none; width: 100%; }
+.input:focus { border-color: var(--ui-accent); box-shadow: 0 0 0 4px var(--ui-accent-ring); }
+.swatches { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 8px; }
+.swatch { width: 30px; height: 30px; border-radius: 50%; border: 3px solid var(--ui-surface); box-shadow: 0 0 0 1px var(--ui-border); cursor: pointer; }
+.swatch.on { box-shadow: 0 0 0 2px var(--ui-text); }
+.card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.icon-btn { width: 40px; height: 40px; border-radius: 12px; border: 0; background: transparent; display: grid; place-items: center; color: var(--ui-text); text-decoration: none; cursor: pointer; flex: none; }
+.icon-btn:hover { background: var(--ui-surface-2); }
+.icon-btn.small { width: 34px; height: 34px; }
+.icon-btn.danger { color: var(--ui-danger); }
+.btn { display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 14px; border-radius: 12px; font: inherit; font-weight: 600; cursor: pointer; border: 1px solid transparent; }
+.btn.primary { background: var(--ui-accent); color: #fff; }
+.btn.primary:disabled { background: #b8c4c9; cursor: default; }
+.btn.ghost { background: var(--ui-surface); border-color: var(--ui-border); color: var(--ui-text); }
+.btn.soft { background: var(--ui-accent-soft); color: var(--ui-accent-strong); }
+.add { display: flex; flex-direction: column; gap: 8px; padding: 10px; margin-bottom: 10px; border-radius: 12px; background: var(--ui-surface-2); }
+.add-list { max-height: 40dvh; overflow-y: auto; }
+.add-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.members { list-style: none; margin: 0; padding: 0; }
+.person { display: flex; align-items: center; gap: 12px; padding: 8px 4px; border-radius: 10px; }
+label.person { cursor: pointer; }
+label.person:hover { background: var(--ui-surface); }
+.person input { width: 20px; height: 20px; accent-color: var(--ui-accent); }
+.members .person + .person { border-top: 1px solid var(--ui-border); border-radius: 0; }
+.avatar { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; font-weight: 600; font-size: 0.85rem; flex: none; }
+.person-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.person-text strong { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.person-text small { color: var(--ui-text-2); }
+.none { padding: 10px 4px; font-size: 0.88rem; }
+.danger-row { display: flex; align-items: center; gap: 10px; color: var(--ui-danger); font: inherit; font-weight: 600; cursor: pointer; text-align: left; }
+.danger-row small { margin-left: auto; color: var(--ui-text-2); font-weight: 400; }

@@ -1,0 +1,46 @@
+:host { display: block; }
+.shell { display: flex; min-height: 100dvh; background: var(--ui-bg); color: var(--ui-text); }
+.content { flex: 1; min-width: 0; display: flex; flex-direction: column; padding-bottom: calc(68px + env(safe-area-inset-bottom)); }
+
+.rail { display: none; }
+.tabbar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; display: flex; gap: 4px;
+  padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+  background: rgb(255 255 255 / 92%); backdrop-filter: blur(12px); border-top: 1px solid var(--ui-border);
+}
+.tab {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 4px 0;
+  font-size: 0.72rem; font-weight: 500; color: var(--ui-text-2); text-decoration: none;
+}
+.tab-icon { width: 56px; height: 30px; border-radius: 15px; display: grid; place-items: center; transition: background 0.2s; }
+.tab .pi { font-size: 1.2rem; }
+.tab.active { color: var(--ui-accent-strong); font-weight: 600; }
+.tab.active .tab-icon { background: var(--ui-accent-soft); }
+.in-conversation .tabbar { display: none; }
+.in-conversation .content { padding-bottom: 0; }
+
+@media (min-width: 900px) {
+  .tabbar { display: none; }
+  .content, .in-conversation .content { padding-bottom: 0; }
+  .rail {
+    display: flex; flex-direction: column; align-items: center; gap: 6px; width: 84px; flex: none;
+    background: var(--ui-surface); border-right: 1px solid var(--ui-border); padding: 16px 0;
+    position: sticky; top: 0; height: 100dvh; box-sizing: border-box;
+  }
+  .rail-logo {
+    width: 44px; height: 44px; border-radius: 14px; display: grid; place-items: center; margin-bottom: 18px;
+    background: linear-gradient(135deg, #10b981, #0d9488); color: #fff; box-shadow: 0 6px 16px rgb(13 148 136 / 30%);
+  }
+  .rail-item {
+    width: 68px; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 0;
+    border-radius: 14px; color: var(--ui-text-2); text-decoration: none; font-size: 0.72rem; font-weight: 500;
+    transition: background 0.15s, color 0.15s;
+  }
+  .rail-item .pi { font-size: 1.25rem; }
+  .rail-item:hover { background: var(--ui-surface-2); color: var(--ui-text); }
+  .rail-item.active { background: var(--ui-accent-soft); color: var(--ui-accent-strong); font-weight: 600; }
+}
+
+/* Full-height screens (chat, new message) subtract the sending bar's height. */
+.shell { --sending-bar-h: 0px; }
+.shell.has-bar { --sending-bar-h: 56px; }

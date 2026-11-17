@@ -1,0 +1,83 @@
+<div class="info">
+  <header class="head">
+    <a [routerLink]="['/chats', kind(), id()]" class="icon-btn" aria-label="Back to chat"><i class="pi pi-arrow-left" aria-hidden="true"></i></a>
+    <strong>{{ kind() === 'group' ? 'Group info' : 'Category info' }}</strong>
+  </header>
+
+  <div class="body">
+    <section class="card hero">
+      @if (kind() === 'group') {
+        <span class="big group" aria-hidden="true"><i class="pi pi-users"></i></span>
+      } @else {
+        <span class="big" aria-hidden="true" [style.background]="(color() ?? '#94a3b8') + '26'" [style.color]="color() ?? '#475569'"><i class="pi pi-tag"></i></span>
+      }
+      @if (editing()) {
+        <div class="rename">
+          <input class="input" maxlength="80" [value]="draftName()" (input)="draftName.set($any($event.target).value)" (keydown.enter)="saveName()" aria-label="Name" />
+          <button type="button" class="btn primary" (click)="saveName()" [disabled]="busy() || !draftName().trim()">Save</button>
+          <button type="button" class="btn ghost" (click)="editing.set(false)">Cancel</button>
+        </div>
+      } @else {
+        <h1>{{ name() }} <button type="button" class="icon-btn small" (click)="startRename()" aria-label="Rename"><i class="pi pi-pencil" aria-hidden="true"></i></button></h1>
+      }
+      <p class="muted">{{ kind() === 'group' ? 'Group' : 'Category' }} · {{ memberTotal() }} {{ memberTotal() === 1 ? 'member' : 'members' }}</p>
+      <p class="hint">{{ kind() === 'group' ? 'A contact can be in many groups.' : 'A contact is in at most one category, for example Elders or Friends.' }}</p>
+
+      @if (kind() === 'category') {
+        <div class="swatches" role="group" aria-label="Colour">
+          @for (c of colors; track c) {
+            <button type="button" class="swatch" [style.background]="c" [class.on]="color() === c" (click)="setColor(c)" [attr.aria-label]="'Colour ' + c" [disabled]="busy()"></button>
+          }
+        </div>
+      }
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>{{ memberTotal() }} {{ memberTotal() === 1 ? 'member' : 'members' }}</h2>
+        @if (!adding()) {<button type="button" class="btn soft" (click)="openAdd()"><i class="pi pi-user-plus" aria-hidden="true"></i> Add members</button>}
+      </div>
+
+      @if (adding()) {
+        <div class="add">
+          <input class="input" type="search" placeholder="Search name or number" [value]="query()" (input)="onSearch($any($event.target).value)" aria-label="Search contacts" />
+          <div class="add-list">
+            @for (c of candidates(); track c.id) {
+              @if (!memberIds().has(c.id)) {
+                <label class="person">
+                  <input type="checkbox" [checked]="toAdd().has(c.id)" (change)="toggleAdd(c.id)" />
+                  <span class="avatar" aria-hidden="true" [style.background]="avatar(displayName(c)).bg" [style.color]="avatar(displayName(c)).fg">{{ initials(displayName(c)) }}</span>
+                  <span class="person-text"><strong>{{ displayName(c) }}</strong><small>{{ c.phoneNumber }}</small></span>
+                </label>
+              }
+            }
+          </div>
+          <div class="add-actions">
+            <button type="button" class="btn ghost" (click)="adding.set(false)">Cancel</button>
+            <button type="button" class="btn primary" (click)="addSelected()" [disabled]="busy() || toAdd().size === 0">Add {{ toAdd().size || '' }}</button>
+          </div>
+        </div>
+      }
+
+      <ul class="members">
+        @for (m of members(); track m.id) {
+          <li class="person">
+            <span class="avatar" aria-hidden="true" [style.background]="avatar(displayName(m)).bg" [style.color]="avatar(displayName(m)).fg">{{ initials(displayName(m)) }}</span>
+            <span class="person-text"><strong>{{ displayName(m) }}</strong><small>{{ m.phoneNumber }}</small></span>
+            <button type="button" class="icon-btn small danger" (click)="remove(m)" [disabled]="busy()" [attr.aria-label]="'Remove ' + displayName(m)"><i class="pi pi-user-minus" aria-hidden="true"></i></button>
+          </li>
+        } @empty {
+          <li class="muted none">Nobody yet. Tap "Add members".</li>
+        }
+        @if (members().length < memberTotal()) {
+          <li class="muted none">Showing {{ members().length }} of {{ memberTotal() }}.</li>
+        }
+      </ul>
+    </section>
+
+    <button type="button" class="card danger-row" (click)="deleteIt()" [disabled]="busy()">
+      <i class="pi pi-trash" aria-hidden="true"></i> Delete {{ label() }}
+      <small>Contacts stay in your contacts</small>
+    </button>
+  </div>
+</div>

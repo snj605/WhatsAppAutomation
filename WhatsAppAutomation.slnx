@@ -1,0 +1,19 @@
+<Solution>
+  <Folder Name="/client/">
+    <Project Path="whatsappautomation.client/whatsappautomation.client.esproj">
+      <Build />
+      <Deploy />
+    </Project>
+  </Folder>
+  <Folder Name="/server/" />
+  <Folder Name="/server/src/">
+    <Project Path="WhatsAppAutomation.Server/src/WhatsAppAutomation.Domain/WhatsAppAutomation.Domain.csproj" />
+    <Project Path="WhatsAppAutomation.Server/src/WhatsAppAutomation.Application/WhatsAppAutomation.Application.csproj" />
+    <Project Path="WhatsAppAutomation.Server/src/WhatsAppAutomation.Infrastructure/WhatsAppAutomation.Infrastructure.csproj" />
+    <Project Path="WhatsAppAutomation.Server/src/WhatsAppAutomation.Api/WhatsAppAutomation.Api.csproj" />
+  </Folder>
+  <Folder Name="/server/tests/">
+    <Project Path="WhatsAppAutomation.Server/tests/WhatsAppAutomation.Application.Tests/WhatsAppAutomation.Application.Tests.csproj" />
+    <Project Path="WhatsAppAutomation.Server/tests/WhatsAppAutomation.Api.Tests/WhatsAppAutomation.Api.Tests.csproj" />
+  </Folder>
+</Solution>

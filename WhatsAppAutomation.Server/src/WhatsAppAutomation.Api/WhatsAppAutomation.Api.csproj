@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!-- Api: the web API host (controllers, authorization, startup). -->
+
+  <PropertyGroup>
+    <UserSecretsId>whatsappautomation-server</UserSecretsId>
+    <SpaRoot>..\..\..\whatsappautomation.client</SpaRoot>
+    <SpaProxyLaunchCommand>npm start</SpaProxyLaunchCommand>
+    <SpaProxyServerUrl>https://localhost:49679</SpaProxyServerUrl>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="WhatsAppAutomation.Api.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.14" />
+    <PackageReference Include="Microsoft.AspNetCore.SpaProxy">
+      <Version>10.*-*</Version>
+    </PackageReference>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.14">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\WhatsAppAutomation.Application\WhatsAppAutomation.Application.csproj" />
+    <ProjectReference Include="..\WhatsAppAutomation.Infrastructure\WhatsAppAutomation.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\whatsappautomation.client\whatsappautomation.client.esproj">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+  </ItemGroup>
+
+</Project>

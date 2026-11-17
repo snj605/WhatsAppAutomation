@@ -1,0 +1,191 @@
+.login {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  background: var(--app-card);
+}
+
+/* Left: brand panel */
+.hero {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  padding: 3rem;
+  color: #fff;
+  background: var(--app-gradient);
+}
+
+.hero::before,
+.hero::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 8%);
+}
+
+.hero::before {
+  width: 28rem;
+  height: 28rem;
+  top: -10rem;
+  right: -8rem;
+}
+
+.hero::after {
+  width: 20rem;
+  height: 20rem;
+  bottom: -8rem;
+  left: -6rem;
+}
+
+.hero-inner {
+  position: relative;
+  z-index: 1;
+  max-width: 28rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+.hero-brand,
+.mobile-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-weight: 700;
+  font-size: 1.15rem;
+}
+
+.hero-brand .mark {
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: rgb(255 255 255 / 18%);
+  backdrop-filter: blur(4px);
+}
+
+.hero h2 {
+  margin: 0;
+  font-size: 2rem;
+  line-height: 1.25;
+  font-weight: 700;
+}
+
+.points {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.points li {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 1rem;
+  opacity: 0.95;
+}
+
+.points i {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: rgb(255 255 255 / 16%);
+}
+
+.bubble {
+  position: absolute;
+  z-index: 1;
+  padding: 0.625rem 0.875rem;
+  border-radius: 14px 14px 14px 4px;
+  background: #fff;
+  color: #0f172a;
+  font-size: 0.9rem;
+  box-shadow: var(--app-shadow-lg);
+}
+
+.b1 {
+  right: 8%;
+  bottom: 22%;
+}
+
+.b2 {
+  right: 18%;
+  bottom: 12%;
+  border-radius: 14px 14px 4px 14px;
+  background: #d9fdd3;
+}
+
+/* Right: the form */
+.panel {
+  display: grid;
+  place-items: center;
+  padding: 2rem 1.5rem;
+}
+
+.form-box {
+  width: 100%;
+  max-width: 24rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.form-box h1 {
+  margin: 0;
+  font-size: 1.85rem;
+  font-weight: 700;
+}
+
+.form-box .form {
+  margin-top: 1.5rem;
+  gap: 1.125rem;
+}
+
+.form-box p-button {
+  margin-top: 0.5rem;
+}
+
+.mobile-brand {
+  display: none;
+  color: var(--p-primary-700);
+  margin-bottom: 1.5rem;
+}
+
+.mobile-brand .mark {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: var(--app-gradient);
+}
+
+@media (max-width: 900px) {
+  .login {
+    grid-template-columns: 1fr;
+    background: var(--app-bg);
+  }
+
+  .hero {
+    display: none;
+  }
+
+  .mobile-brand {
+    display: flex;
+  }
+
+  .form-box {
+    padding: 2rem 1.5rem;
+    border-radius: var(--app-radius);
+    background: var(--app-card);
+    box-shadow: var(--app-shadow);
+  }
+}

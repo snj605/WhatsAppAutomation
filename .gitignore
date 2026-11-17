@@ -1,0 +1,51 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+TestResults/
+*.trx
+coverage/
+
+# Local secrets and environment
+.env
+appsettings.*.local.json
+
+# OS
+.DS_Store
+Thumbs.db
+whatsappautomation.client/obj*
+
+# Local backups made while developing (never commit)
+WhatsAppAutomation.Mobile/_backup_*/
+
+# IDE folders
+.idea/
+*.iml
+
+# Node / Angular
+node_modules/
+dist/
+.angular/
+
+# Flutter
+**/.dart_tool/
+**/build/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+
+# Android signing (never commit)
+*.jks
+*.keystore
+**/android/key.properties
+
+# Server deployment secrets
+deploy/.env
+*.dump
+
+# Backup copies of files (may hold keys pasted for local use)
+*.bak
+
+# Local backups made while editing (never commit)
+/_backup_*/

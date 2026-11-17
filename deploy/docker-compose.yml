@@ -1,0 +1,114 @@
+# Production on one small server (AWS Lightsail, 2 GB RAM).
+# Lives in /opt/whatsapp on the server, next to the .env file with the secrets (never in git).
+# Only Caddy is reachable from the internet (ports 80 and 443). The API, the gateway and PostgreSQL
+# talk on a private Docker network; the API is also reachable on 127.0.0.1:8080 for the health check.
+#
+# Memory budget (2 GB + 2 GB swap): PostgreSQL 384 MB, API 640 MB, gateway 384 MB, Caddy 96 MB.
+
+name: whatsapp
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: whatsapp
+      POSTGRES_USER: whatsapp
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in .env}
+    # Tuned for a small server: little shared memory, few connections, fast writes.
+    command:
+      - postgres
+      - -c
+      - shared_buffers=96MB
+      - -c
+      - effective_cache_size=384MB
+      - -c
+      - work_mem=4MB
+      - -c
+      - maintenance_work_mem=48MB
+      - -c
+      - max_connections=40
+      - -c
+      - wal_buffers=4MB
+      - -c
+      - random_page_cost=1.1
+      - -c
+      - log_min_duration_statement=500
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U whatsapp -d whatsapp"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    mem_limit: 384m
+    shm_size: 64m
+    logging: *logging
+
+  api:
+    image: ghcr.io/${IMAGE_OWNER:?set in .env}/whatsapp-automation-api:${TAG:?set by deploy.sh}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ConnectionStrings__Default: "Host=postgres;Database=whatsapp;Username=whatsapp;Password=${POSTGRES_PASSWORD};Maximum Pool Size=20;Timeout=15"
+      Auth__SigningKey: ${AUTH_SIGNING_KEY:?set in .env}
+      Gateway__BaseUrl: http://gateway:5180
+      Gateway__Secret: ${GATEWAY_SECRET:?set in .env}
+      MediatR__LicenseKey: ${MEDIATR_LICENSE_KEY:-}
+      # Host names the API answers to: the public one, and "api" for the gateway's events.
+      AllowedHosts: "${SITE_HOST:?set in .env};api;localhost;127.0.0.1"
+    ports:
+      - "127.0.0.1:8080:8080"
+    mem_limit: 640m
+    logging: *logging
+
+  gateway:
+    image: ghcr.io/${IMAGE_OWNER}/whatsapp-automation-gateway:${TAG}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      GATEWAY_SECRET: ${GATEWAY_SECRET}
+      GATEWAY_AUTH_KEY: ${GATEWAY_AUTH_KEY:?set in .env}
+      GATEWAY_EVENTS_URL: http://api:8080/internal/whatsapp/events
+      PGHOST: postgres
+      PGPORT: "5432"
+      PGDATABASE: whatsapp
+      PGUSER: whatsapp
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      LOG_LEVEL: info
+    # No ports: only the API can reach it, on the private network.
+    mem_limit: 384m
+    logging: *logging
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      SITE_ADDRESS: ${SITE_HOST}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    mem_limit: 96m
+    logging: *logging
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

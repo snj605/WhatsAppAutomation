@@ -1,0 +1,35 @@
+<div class="chat">
+  <header class="head">
+    <a routerLink="/chats" class="icon-btn back" aria-label="Back"><i class="pi pi-arrow-left" aria-hidden="true"></i></a>
+    <a class="who" routerLink="info" [attr.aria-label]="'Info about ' + (chat()?.name ?? '')">
+      @if (kind() === 'group') {
+        <span class="avatar group" aria-hidden="true"><i class="pi pi-users"></i></span>
+      } @else {
+        <span class="avatar category" aria-hidden="true" [style.background]="(chat()?.color ?? '#94a3b8') + '26'" [style.color]="chat()?.color ?? '#475569'"><i class="pi pi-tag"></i></span>
+      }
+      <span class="who-text">
+        <strong>{{ chat()?.name ?? 'Loading…' }}</strong>
+        <small>{{ kind() === 'group' ? 'Group' : 'Category' }} · {{ chat()?.memberCount ?? 0 }} {{ chat()?.memberCount === 1 ? 'member' : 'members' }} · tap for info</small>
+      </span>
+    </a>
+    <a class="icon-btn" routerLink="info" aria-label="Group info"><i class="pi pi-info-circle" aria-hidden="true"></i></a>
+  </header>
+
+  <div class="thread">
+    <p class="note"><i class="pi pi-lock" aria-hidden="true"></i> Each member gets their own personal message with their name. Nobody sees the others.</p>
+    @for (item of items(); track item.m.summary.id) {
+      @if (item.showDay) {<span class="day">{{ item.m.summary.createdAt | date: 'd MMM y' }}</span>}
+      <app-chat-bubble [message]="item.m" />
+    } @empty {
+      @if (chat()) {
+        <div class="empty">
+          <strong>No messages here yet</strong>
+          <span>Type below and tap send. Use "Name" so each person sees their own name.</span>
+        </div>
+      }
+    }
+  </div>
+
+  <app-message-bar [placeholder]="'Message ' + (chat()?.name ?? '')" [disabled]="!chat() || chat()!.memberCount === 0" [busy]="sending()"
+    (send)="send($event)" />
+</div>

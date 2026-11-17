@@ -1,0 +1,93 @@
+<div class="page">
+<div class="page-header">
+  <div>
+    <h1>Roles</h1>
+    <p class="subtitle">Each role is a set of permissions. Give users one or more roles.</p>
+  </div>
+  @if (canManage()) {
+    <div class="actions">
+      <p-button label="New role" icon="pi pi-plus" (onClick)="openCreate()" />
+    </div>
+  }
+</div>
+
+<section class="card card-flush">
+<p-table [value]="roles()" [loading]="loading()" dataKey="id" [tableStyle]="{ 'min-width': '40rem' }">
+  <ng-template #header>
+    <tr>
+      <th>Name</th>
+      <th>Description</th>
+      <th>Permissions</th>
+      <th>Users</th>
+      @if (canManage()) {
+        <th></th>
+      }
+    </tr>
+  </ng-template>
+  <ng-template #body let-role>
+    <tr>
+      <td>
+        <div class="cell-main">
+          <span class="card-icon" [class.violet]="!role.isSystem"><i class="pi pi-shield" aria-hidden="true"></i></span>
+          <div>
+            <div class="title">{{ role.name }}</div>
+            @if (role.isSystem) {
+              <div class="sub">Built-in</div>
+            }
+          </div>
+        </div>
+      </td>
+      <td>{{ role.description }}</td>
+      <td><p-tag [value]="role.isSystem ? 'All' : role.permissions.length + ''" severity="secondary" [rounded]="true" /></td>
+      <td>{{ role.userCount }}</td>
+      @if (canManage()) {
+        <td>
+          <div class="row-actions">
+            <p-button icon="pi pi-pencil" [text]="true" [rounded]="true" ariaLabel="Edit"
+              [disabled]="role.isSystem" (onClick)="openEdit(role)" />
+            <p-button icon="pi pi-trash" [text]="true" [rounded]="true" severity="danger" ariaLabel="Delete"
+              [disabled]="role.isSystem || role.userCount > 0" (onClick)="remove(role)" />
+          </div>
+        </td>
+      }
+    </tr>
+  </ng-template>
+  <ng-template #emptymessage>
+    <tr><td colspan="5"><div class="empty"><i class="pi pi-shield" aria-hidden="true"></i><strong>No roles</strong></div></td></tr>
+  </ng-template>
+</p-table>
+</section>
+<p class="hint">The Owner role always has every permission and cannot be changed. A role that users still have cannot be deleted.</p>
+</div>
+
+<p-dialog [header]="dialogTitle()" [modal]="true" [visible]="editing() !== null" (visibleChange)="!$event && editing.set(null)"
+  [style]="{ width: '32rem' }" [breakpoints]="{ '575px': '95vw' }">
+  <form class="form" [formGroup]="form" (ngSubmit)="save()" id="role-form" novalidate>
+    <label for="role-name">Name</label>
+    <input pInputText id="role-name" formControlName="name" autocomplete="off" fluid
+      [invalid]="form.controls.name.invalid && form.controls.name.touched" />
+
+    <label for="role-description">Description</label>
+    <textarea pTextarea id="role-description" formControlName="description" rows="2" fluid></textarea>
+
+    <span class="section-label">What this role may do</span>
+    @for (group of groups(); track group.name) {
+      <div class="permission-group">
+        <h3>{{ group.name }}</h3>
+        @for (permission of group.permissions; track permission.name) {
+          <div class="permission">
+            <p-checkbox [inputId]="'perm-' + permission.name" [value]="permission.name" formControlName="permissions" />
+            <label [for]="'perm-' + permission.name">
+              {{ permission.name }}
+              <small>{{ permission.description }}</small>
+            </label>
+          </div>
+        }
+      </div>
+    }
+  </form>
+  <ng-template #footer>
+    <p-button label="Cancel" severity="secondary" [outlined]="true" (onClick)="editing.set(null)" />
+    <p-button label="Save" icon="pi pi-check" [loading]="saving()" (onClick)="save()" />
+  </ng-template>
+</p-dialog>

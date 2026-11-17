@@ -1,0 +1,99 @@
+# Checks every push and pull request: no secrets in git, and every part builds and passes its tests.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  secrets:
+    name: No secrets in git
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  server:
+    name: API (.NET build and tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      # The API project references the website project (.esproj), which needs Node.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Restore
+        run: |
+          dotnet restore WhatsAppAutomation.Server/tests/WhatsAppAutomation.Application.Tests
+          dotnet restore WhatsAppAutomation.Server/tests/WhatsAppAutomation.Api.Tests
+      # Warnings are errors (Directory.Build.props). The API tests start PostgreSQL in Docker (Testcontainers).
+      - name: Test
+        run: |
+          dotnet test WhatsAppAutomation.Server/tests/WhatsAppAutomation.Application.Tests -c Release --no-restore
+          dotnet test WhatsAppAutomation.Server/tests/WhatsAppAutomation.Api.Tests -c Release --no-restore
+
+  web:
+    name: Website (Angular build and tests)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: whatsappautomation.client
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: whatsappautomation.client/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build
+      - run: npm test -- --watch=false
+
+  gateway:
+    name: WhatsApp gateway (types and tests)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: whatsappautomation.gateway
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: whatsappautomation.gateway/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm test
+
+  mobile:
+    name: Mobile app (analyze and tests)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: WhatsAppAutomation.Mobile/whatsapp_automation
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test

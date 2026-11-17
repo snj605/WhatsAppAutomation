@@ -1,0 +1,227 @@
+<div class="page">
+  <header class="page-header">
+    <div>
+      <h1>WhatsApp</h1>
+      <p class="subtitle">Link your number, check its status and send a test message.</p>
+    </div>
+    <div class="actions">
+      <span class="live" [class.off]="!live.connected()">
+        <span class="dot" [class]="live.connected() ? 'success' : 'warn'"></span>
+        {{ live.connected() ? 'Live' : 'Live updates off' }}
+      </span>
+      <p-button label="Refresh" icon="pi pi-refresh" severity="secondary" [outlined]="true" (onClick)="reload()" />
+    </div>
+  </header>
+
+  <!-- Status -->
+  <section class="card status-hero" [class]="'tone-' + status().severity" aria-labelledby="number-title">
+    <div class="status-main">
+      <span class="status-icon"><i class="pi pi-whatsapp" aria-hidden="true"></i></span>
+      <div class="status-text">
+        <div class="card-head">
+          <h2 id="number-title">{{ account()?.phoneNumber ?? 'Your number' }}</h2>
+          <p-tag [value]="status().label" [severity]="status().severity" [rounded]="true" />
+        </div>
+        <p class="muted">{{ status().text }}</p>
+        @if (reason(); as reasonText) {
+          <p class="reason"><i class="pi pi-info-circle" aria-hidden="true"></i> {{ reasonText }}</p>
+        }
+      </div>
+      @if (canLink() && hasNumber() && !isLinking()) {
+        <p-button label="Unlink" icon="pi pi-link" severity="danger" [outlined]="true" [loading]="busy()" (onClick)="unlink()" />
+      }
+    </div>
+
+    @if (account(); as a) {
+      @if (a.phoneNumber) {
+        <dl class="facts">
+          @if (a.profileName) {
+            <div><dt>WhatsApp name</dt><dd>{{ a.profileName }}</dd></div>
+          }
+          @if (a.linkedAt) {
+            <div><dt>Linked on</dt><dd>{{ a.linkedAt | date: 'medium' }}</dd></div>
+          }
+          @if (a.statusChangedAt) {
+            <div><dt>Status since</dt><dd>{{ a.statusChangedAt | date: 'medium' }}</dd></div>
+          }
+        </dl>
+      }
+    }
+  </section>
+
+  <!-- Linking -->
+  @if (canLink()) {
+    @if (isLinking()) {
+      <section class="card linking" aria-labelledby="linking-title">
+        <div class="card-head">
+          <span class="card-icon"><i class="pi pi-mobile" aria-hidden="true"></i></span>
+          <h2 id="linking-title">{{ method() === 'code' || pairingCode() ? 'Enter this code on your phone' : 'Scan this code with your phone' }}</h2>
+          <span class="spacer"></span>
+          @if (secondsLeft() > 0) {
+            <span class="countdown" [style.--p]="timeLeftPercent()" aria-label="Time left">
+              <span>{{ secondsLeft() }}s</span>
+            </span>
+          }
+        </div>
+
+        <div class="linking-body">
+          <div class="code-area">
+            @if (method() === 'code' || pairingCode()) {
+              @if (pairingCode(); as code) {
+                <p class="pair-code" aria-label="Pairing code">
+                  @for (ch of code.split(''); track $index) {
+                    <span>{{ ch }}</span>
+                    @if ($index === 3) {
+                      <b aria-hidden="true">–</b>
+                    }
+                  }
+                </p>
+              } @else {
+                <div class="qr-wait"><i class="pi pi-spin pi-spinner" aria-hidden="true"></i> Getting a code from WhatsApp…</div>
+              }
+            } @else {
+              @if (qrImage(); as image) {
+                <img class="qr" [src]="image" width="264" height="264" alt="QR code to link WhatsApp" />
+              } @else {
+                <div class="qr qr-wait"><i class="pi pi-spin pi-spinner" aria-hidden="true"></i> Waiting for the QR code…</div>
+              }
+            }
+          </div>
+
+          <ol class="steps">
+            <li><span>1</span><div>Open <strong>WhatsApp</strong> on the phone with this number.</div></li>
+            <li><span>2</span><div>Tap <strong>⋮</strong> or <strong>Settings</strong>, then <strong>Linked devices</strong> → <strong>Link a device</strong>.</div></li>
+            @if (method() === 'code' || pairingCode()) {
+              <li><span>3</span><div>Tap <strong>Link with phone number instead</strong> and type the code.</div></li>
+            } @else {
+              <li><span>3</span><div>Point the phone at the code. It changes every 20 seconds; that is normal.</div></li>
+            }
+          </ol>
+        </div>
+
+        <div class="linking-foot">
+          <p-button label="Cancel" severity="secondary" [outlined]="true" [loading]="busy()" (onClick)="cancelLink()" />
+        </div>
+      </section>
+    } @else if (!hasNumber()) {
+      <section class="link-options" aria-label="Ways to link">
+        <article class="card option">
+          <span class="option-icon"><i class="pi pi-qrcode" aria-hidden="true"></i></span>
+          <h3>Scan a QR code</h3>
+          <p class="muted">Best when this screen is on a computer and the phone is in your hand.</p>
+          <p-button label="Show QR code" icon="pi pi-qrcode" [loading]="busy() && method() === 'qr'" [disabled]="busy()"
+            (onClick)="link('qr')" fluid />
+        </article>
+
+        <form class="card option" [formGroup]="codeForm" (ngSubmit)="link('code')">
+          <span class="option-icon blue"><i class="pi pi-key" aria-hidden="true"></i></span>
+          <h3>Use a phone code</h3>
+          <p class="muted">Works when this screen is on the same phone.</p>
+          <div class="field">
+            <label for="link-phone">Number to link, with country code</label>
+            <input pInputText id="link-phone" formControlName="phoneNumber" placeholder="+91 98765 43210" autocomplete="tel"
+              inputmode="tel" fluid [invalid]="codeForm.controls.phoneNumber.invalid && codeForm.controls.phoneNumber.touched" />
+          </div>
+          <p-button type="submit" label="Get code" icon="pi pi-key" severity="secondary" [loading]="busy() && method() === 'code'"
+            [disabled]="busy()" fluid />
+        </form>
+      </section>
+
+      <p-message severity="warn" icon="pi pi-exclamation-triangle" styleClass="risk-note">
+        WhatsApp does not officially allow automated sending from personal numbers. Numbers that message people who do not
+        expect it can be restricted or banned, so send only to people who know you.
+      </p-message>
+    }
+  }
+
+  <!-- Test message -->
+  @if (canSend()) {
+    <section class="card" aria-labelledby="test-title">
+      <div class="card-head">
+        <span class="card-icon blue"><i class="pi pi-send" aria-hidden="true"></i></span>
+        <div>
+          <h2 id="test-title">Send a test message</h2>
+          <p class="muted small">Sends one message right away from your linked number.</p>
+        </div>
+      </div>
+
+      <div class="send-grid">
+        <form class="form" [formGroup]="sendForm" (ngSubmit)="send()">
+          <div class="field">
+            <label for="send-to">To (with country code)</label>
+            <p-iconfield>
+              <p-inputicon class="pi pi-phone" />
+              <input pInputText id="send-to" formControlName="to" placeholder="+91 98765 43210" autocomplete="off" inputmode="tel" fluid
+                [invalid]="sendForm.controls.to.invalid && sendForm.controls.to.touched" />
+            </p-iconfield>
+          </div>
+          <div class="field">
+            <label for="send-text">Message</label>
+            <textarea pTextarea id="send-text" formControlName="text" rows="4" [autoResize]="true" fluid
+              placeholder="Type your message…"
+              [invalid]="sendForm.controls.text.invalid && sendForm.controls.text.touched"></textarea>
+            <small class="hint counter">{{ sendForm.controls.text.value.length }} / 4096</small>
+          </div>
+          <div class="send-actions">
+            <p-button type="submit" label="Send" icon="pi pi-send" [loading]="sending()" [disabled]="!isConnected() || sending()" />
+            @if (!isConnected()) {
+              <span class="hint">Link and connect a number first.</span>
+            }
+          </div>
+        </form>
+
+        <div class="preview" aria-label="Preview">
+          <div class="preview-head">
+            <span class="initials small" aria-hidden="true"><i class="pi pi-user"></i></span>
+            <div>
+              <strong>{{ sendForm.controls.to.value || 'Recipient' }}</strong>
+              <small>Preview</small>
+            </div>
+          </div>
+          <div class="preview-body">
+            @if (sendForm.controls.text.value) {
+              <div class="bubble">{{ sendForm.controls.text.value }}<span class="bubble-time">now <i class="pi pi-check" aria-hidden="true"></i></span></div>
+            } @else {
+              <p class="preview-empty">Your message appears here as the recipient will see it.</p>
+            }
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card card-flush" aria-labelledby="history-title">
+      <div class="table-toolbar">
+        <h2 id="history-title" class="table-title">Recent messages</h2>
+        <span class="hint">Ticks update by themselves.</span>
+      </div>
+      @if (messages().length === 0) {
+        <div class="empty">
+          <i class="pi pi-inbox" aria-hidden="true"></i>
+          <strong>No messages yet</strong>
+          <span>Send a test message to see it here.</span>
+        </div>
+      } @else {
+        <p-table [value]="messages()" [tableStyle]="{ 'min-width': '40rem' }">
+          <ng-template #header>
+            <tr>
+              <th>To</th>
+              <th>Message</th>
+              <th>Status</th>
+              <th>Time</th>
+            </tr>
+          </ng-template>
+          <ng-template #body let-m>
+            <tr>
+              <td class="nowrap">{{ m.toPhoneNumber }}</td>
+              <td class="text-cell">{{ m.text }}</td>
+              <td>
+                <span class="tick" [class]="m.status"><i [class]="tick(m.status).icon" aria-hidden="true"></i> {{ tick(m.status).label }}</span>
+              </td>
+              <td class="nowrap">{{ m.createdAt | date: 'short' }}</td>
+            </tr>
+          </ng-template>
+        </p-table>
+      }
+    </section>
+  }
+</div>
