@@ -3,9 +3,13 @@ using System.Net.Http.Json;
 using Microsoft.Extensions.DependencyInjection;
 using WhatsAppAutomation.Api.Contracts;
 using WhatsAppAutomation.Api.Tests.Infrastructure;
+using WhatsAppAutomation.Api.Controllers;
 using WhatsAppAutomation.Application.Features.Broadcasts;
+using WhatsAppAutomation.Application.Features.Broadcasts.Queries;
+using WhatsAppAutomation.Application.Features.Chats;
+using WhatsAppAutomation.Application.Features.Modules;
+using WhatsAppAutomation.Application.Features.Sending;
 using WhatsAppAutomation.Application.Features.Contacts;
-using WhatsAppAutomation.Application.Features.Contacts.Queries;
 using WhatsAppAutomation.Application.Features.Files;
 using WhatsAppAutomation.Application.Features.Templates;
 using WhatsAppAutomation.Domain.Authorization;
@@ -76,8 +80,7 @@ public sealed class BroadcastsApiTests(ApiFactory factory)
 
         var pacing = (await client.GetFromJsonAsync<PacingDto>("/api/v1/broadcasts/pacing", Ct))!;
         Assert.Equal(2, pacing.SentToday);
-        Assert.Equal(20, pacing.DailyCap);
-        Assert.Equal(1, pacing.WarmUpWeek);
+        Assert.Equal(300, pacing.DailyLimit);
     }
 
     [Fact]
@@ -360,52 +363,162 @@ public sealed class BroadcastsApiTests(ApiFactory factory)
     }
 
     [Fact]
-    public async Task Todays_birthdays_are_listed_with_the_new_age()
+    public async Task A_birthday_module_lists_todays_people_with_their_status_and_sends_wishes_before_broadcasts()
     {
         var (client, _) = await ConnectedOwnerAsync();
         var today = TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, TimeZoneInfo.FindSystemTimeZoneById("Asia/Kolkata"));
-        var created = await client.PostAsJsonAsync(
-            "/api/v1/contacts",
-            new ContactInput("+919825088888", "Kiran", "Kiran", null, null, "en", null, null, new BirthdayDto(today.Day, today.Month, 1990), null, null),
-            Ct);
-        Assert.True(created.IsSuccessStatusCode, await created.Content.ReadAsStringAsync(Ct));
+        var birthday = await ModuleAsync(client, "Birthday", "birthday");
+        var kiran = await ContactWithBirthdayAsync(client, "+919825088888", "Kiran", new BirthdayDto(today.Day, today.Month, 1990));
+        var list = await CategoryAsync(client, "Friends");
+        await ContactAsync(client, "+919825088889", list, "en", nameEn: "Ravi");
 
-        var list = (await client.GetFromJsonAsync<List<UpcomingBirthdayDto>>("/api/v1/birthdays?days=0", Ct))!;
+        // A broadcast first, then the birthday wishes: the wishes still go first.
+        await CreateAsync(client, Input([list], en: "Hello {name}"));
+        var days = (await client.GetFromJsonAsync<List<ModuleDayPersonDto>>($"/api/v1/modules/{birthday.Id}/days?days=0", Ct))!;
+        var person = Assert.Single(days);
+        Assert.Equal(0, person.DaysUntil);
+        Assert.Equal(today.Year - 1990, person.Years);
+        Assert.Equal("not_sent", person.Status);
 
-        var kiran = Assert.Single(list);
-        Assert.Equal(0, kiran.DaysUntil);
-        Assert.Equal(today.Year - 1990, kiran.TurnsAge);
-        Assert.False(kiran.OptedOut);
-        Assert.Equal("not_sent", kiran.Status);
+        var wish = new BroadcastInput("Birthday", null, null, null, null, null, [kiran], "Happy birthday {{name}}", ModuleId: birthday.Id);
+        await CreateAsync(client, wish);
+        await RunSenderAsync();
+        Assert.Contains(factory.Gateway.Calls, c => c.Contains("+919825088888", StringComparison.Ordinal));
+        Assert.DoesNotContain(factory.Gateway.Calls, c => c.Contains("+919825088889", StringComparison.Ordinal));
+
+        days = (await client.GetFromJsonAsync<List<ModuleDayPersonDto>>($"/api/v1/modules/{birthday.Id}/days?days=0", Ct))!;
+        Assert.Equal("sent", Assert.Single(days).Status);
+
+        // Occasion wishes are not in the Chats list.
+        var chats = (await client.GetFromJsonAsync<List<ChatListItemDto>>("/api/v1/chats", Ct))!;
+        Assert.DoesNotContain(chats, c => c.Name == "Birthday");
     }
 
     [Fact]
-    public async Task Automatic_birthday_wishes_switched_on_after_their_time_start_tomorrow()
+    public async Task A_yearly_module_with_a_second_name_fills_for_name_and_its_automatic_wishes_start_once_a_day()
     {
         var (client, _) = await ConnectedOwnerAsync();
-        var zone = TimeZoneInfo.FindSystemTimeZoneById("Asia/Kolkata");
-        var saved = await client.PostAsJsonAsync("/api/v1/templates", new SaveTemplateRequest("Birthday", "Happy birthday {{name}}"), Ct);
-        var template = (await saved.Content.ReadFromJsonAsync<TemplateDto>(Ct))!;
+        var today = TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, TimeZoneInfo.FindSystemTimeZoneById("Asia/Kolkata"));
+        var module = await ModuleAsync(client, "Asthi visarjan", "yearly", "In memory of");
+        var mohan = await ContactWithBirthdayAsync(client, "+919825077701", "Mohan", null);
+        var noName = await ContactWithBirthdayAsync(client, "+919825077702", "Geeta", null);
 
-        // A time is needed, and a template, before they can be switched on.
-        var missing = await client.PutAsJsonAsync("/api/v1/birthdays/settings", new BirthdaySettingsRequest(true, "07:15", null), Ct);
+        Assert.Equal(HttpStatusCode.NoContent, (await client.PutAsJsonAsync(
+            $"/api/v1/modules/{module.Id}/entries/{mohan}", new ModuleEntryRequest(today.Day, today.Month, 2020, "Shantaben"), Ct)).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await client.PutAsJsonAsync(
+            $"/api/v1/modules/{module.Id}/entries/{noName}", new ModuleEntryRequest(today.Day, today.Month, null, null), Ct)).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PutAsJsonAsync(
+            $"/api/v1/modules/{module.Id}/entries/{mohan}", new ModuleEntryRequest(31, 2, null, null), Ct)).StatusCode);
+
+        var entries = (await client.GetFromJsonAsync<ModuleEntriesPage>($"/api/v1/modules/{module.Id}/entries", Ct))!;
+        Assert.Equal(2, entries.Total);
+
+        var saved = await client.PostAsJsonAsync("/api/v1/templates", new SaveTemplateRequest("Asthi", "{{name}}, remembering {{for_name}}"), Ct);
+        var template = (await saved.Content.ReadFromJsonAsync<TemplateDto>(Ct))!;
+        var missing = await client.PutAsJsonAsync($"/api/v1/modules/{module.Id}/sending", new ModuleSendingRequest(true, "07:15", null), Ct);
         Assert.Equal(HttpStatusCode.BadRequest, missing.StatusCode);
 
-        // 00:00 has always passed today, so the first automatic wishes are tomorrow, not right now.
-        var response = await client.PutAsJsonAsync("/api/v1/birthdays/settings", new BirthdaySettingsRequest(true, "00:00", template.Id), Ct);
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var settings = (await response.Content.ReadFromJsonAsync<BirthdaySettingsDto>(Ct))!;
-        Assert.True(settings.Enabled);
-        Assert.Equal("00:00", settings.Time);
-        Assert.Equal("Birthday", settings.TemplateName);
-        var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, zone).DateTime);
-        var next = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(settings.NextRunAt!.Value, zone).DateTime);
-        Assert.Equal(today.AddDays(1), next);
+        // 00:00 has always passed today, so switching on starts tomorrow, not right now.
+        var on = (await (await client.PutAsJsonAsync(
+            $"/api/v1/modules/{module.Id}/sending", new ModuleSendingRequest(true, "00:00", template.Id), Ct)).Content.ReadFromJsonAsync<ModuleDto>(Ct))!;
+        Assert.True(on.AutoSend);
+        Assert.Equal(2, on.TodayCount);
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            Assert.Equal(0, await scope.ServiceProvider.GetRequiredService<ModuleAutoSender>().RunOnceAsync(Ct));
+        }
 
-        await using var scope = factory.Services.CreateAsyncScope();
-        Assert.Equal(0, await scope.ServiceProvider.GetRequiredService<BirthdayAutoSender>().RunOnceAsync(Ct));
-        var again = (await client.GetFromJsonAsync<BirthdaySettingsDto>("/api/v1/birthdays/settings", Ct))!;
-        Assert.Equal(template.Id, again.TemplateId);
+        // Sent by hand: Mohan gets the name filled in, Geeta is skipped because the second name is missing.
+        var wish = await CreateAsync(client, new BroadcastInput("Asthi", null, null, null, null, null, [mohan, noName], template.Text, ModuleId: module.Id));
+        Assert.Equal((1, 1), (wish.Counts.Pending, wish.Counts.Skipped));
+        var details = (await client.GetFromJsonAsync<BroadcastDetailsDto>($"/api/v1/broadcasts/{wish.Id}", Ct))!;
+        Assert.Contains(details.Recipients, r => r.Text == "Mohan, remembering Shantaben");
+    }
+
+    [Fact]
+    public async Task Sending_settings_are_the_users_own_and_the_daily_limit_is_300_to_500()
+    {
+        var (client, _) = await ConnectedOwnerAsync();
+        var defaults = (await client.GetFromJsonAsync<SendingSettingsDto>("/api/v1/sending/settings", Ct))!;
+        Assert.Equal(300, defaults.DailyLimit);
+
+        var tooLow = await client.PutAsJsonAsync("/api/v1/sending/settings", new SetSendingSettingsRequest(200, 50, 15, "09:00", "21:00", 30, 90), Ct);
+        Assert.Equal(HttpStatusCode.BadRequest, tooLow.StatusCode);
+        var tooHigh = await client.PutAsJsonAsync("/api/v1/sending/settings", new SetSendingSettingsRequest(501, 50, 15, "09:00", "21:00", 30, 90), Ct);
+        Assert.Equal(HttpStatusCode.BadRequest, tooHigh.StatusCode);
+
+        var saved = (await (await client.PutAsJsonAsync(
+            "/api/v1/sending/settings", new SetSendingSettingsRequest(500, 100, 5, "07:00", "22:00", 10, 20), Ct)).Content.ReadFromJsonAsync<SendingSettingsDto>(Ct))!;
+        Assert.Equal((500, 100, 5, "07:00", "22:00"), (saved.DailyLimit, saved.ChunkSize, saved.ChunkRestMinutes, saved.SendFrom, saved.SendUntil));
+        Assert.Equal(500, saved.FitsPerDay);
+    }
+
+    [Fact]
+    public async Task The_queue_puts_occasions_first_moves_broadcasts_up_and_down_and_shows_expected_times()
+    {
+        var (client, _) = await ConnectedOwnerAsync();
+        var first = await CategoryAsync(client, "First");
+        var second = await CategoryAsync(client, "Second");
+        await ContactAsync(client, "+919825066601", first, "en", nameEn: "A");
+        await ContactAsync(client, "+919825066602", second, "en", nameEn: "B");
+        var one = await CreateAsync(client, Input([first], en: "One {name}"));
+        var two = await CreateAsync(client, Input([second], en: "Two {name}"));
+
+        var queue = (await client.GetFromJsonAsync<QueueDto>("/api/v1/broadcasts/queue", Ct))!;
+        Assert.Equal([one.Id, two.Id], queue.Items.Select(i => i.Id));
+        Assert.All(queue.Items, i => Assert.NotNull(i.ExpectedStart));
+        Assert.True(queue.Items[1].ExpectedStart >= queue.Items[0].ExpectedFinish);
+
+        Assert.Equal(HttpStatusCode.NoContent, (await client.PostAsJsonAsync($"/api/v1/broadcasts/{two.Id}/move", new MoveBroadcastRequest("up"), Ct)).StatusCode);
+        queue = (await client.GetFromJsonAsync<QueueDto>("/api/v1/broadcasts/queue", Ct))!;
+        Assert.Equal([two.Id, one.Id], queue.Items.Select(i => i.Id));
+        Assert.False(queue.Items[0].CanMoveUp);
+
+        await RunSenderAsync();
+        Assert.Contains(factory.Gateway.Calls, c => c.Contains("+919825066602", StringComparison.Ordinal));
+        Assert.DoesNotContain(factory.Gateway.Calls, c => c.Contains("+919825066601", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Failed_messages_are_sent_again_only_when_the_user_asks_and_lists_show_each_result()
+    {
+        var (client, _) = await ConnectedOwnerAsync();
+        var list = await CategoryAsync(client, "Retry");
+        factory.Gateway.FailNumbers.Add("+919825099901");
+        await ContactAsync(client, "+919825099901", list, "en", nameEn: "Fails");
+        await ContactAsync(client, "+919825099902", list, "en", nameEn: "Works");
+        var created = await CreateAsync(client, Input([list], en: "Hi {name}"));
+        await RunSenderAsync();
+        await RunSenderAsync();
+
+        var failed = (await client.GetFromJsonAsync<RecipientsPage>($"/api/v1/broadcasts/{created.Id}/recipients?status=failed", Ct))!;
+        Assert.Equal(1, failed.Total);
+        var sent = (await client.GetFromJsonAsync<RecipientsPage>($"/api/v1/broadcasts/{created.Id}/recipients?status=sent", Ct))!;
+        Assert.Equal("Works", Assert.Single(sent.Items).Name);
+        Assert.Equal(0, await RunSenderAsync());
+
+        factory.Gateway.FailNumbers.Clear();
+        var retried = await client.PostAsJsonAsync($"/api/v1/broadcasts/{created.Id}/retry", new RetryBroadcastRequest(null), Ct);
+        Assert.Equal(HttpStatusCode.OK, retried.StatusCode);
+        Assert.Equal(1, await RunSenderAsync());
+        var summary = await SummaryAsync(client, created.Id);
+        Assert.Equal((2, 0), (summary.Counts.Sent, summary.Counts.Failed));
+        Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsJsonAsync($"/api/v1/broadcasts/{created.Id}/retry", new RetryBroadcastRequest(null), Ct)).StatusCode);
+    }
+
+    private static async Task<ModuleDto> ModuleAsync(HttpClient client, string name, string kind, string? forNameLabel = null)
+    {
+        var response = await client.PostAsJsonAsync("/api/v1/modules", new CreateModuleRequest(name, kind, forNameLabel), Ct);
+        Assert.True(response.IsSuccessStatusCode, await response.Content.ReadAsStringAsync(Ct));
+        return (await response.Content.ReadFromJsonAsync<ModuleDto>(Ct))!;
+    }
+
+    private static async Task<Guid> ContactWithBirthdayAsync(HttpClient client, string phone, string name, BirthdayDto? birthday)
+    {
+        var response = await client.PostAsJsonAsync(
+            "/api/v1/contacts", new ContactInput(phone, name, name, null, null, "en", null, null, birthday, null, null), Ct);
+        Assert.True(response.IsSuccessStatusCode, await response.Content.ReadAsStringAsync(Ct));
+        return (await response.Content.ReadFromJsonAsync<ContactDto>(Ct))!.Id;
     }
 
     private static BroadcastInput Input(Guid[] categories, string? en = null, string? hi = null, string? gu = null) =>

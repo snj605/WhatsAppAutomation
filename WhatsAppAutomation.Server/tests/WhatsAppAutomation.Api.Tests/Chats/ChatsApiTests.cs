@@ -53,34 +53,6 @@ public sealed class ChatsApiTests(ApiFactory factory)
     }
 
     [Fact]
-    public async Task Todays_birthdays_are_one_chat_with_who_got_wishes_and_who_did_not()
-    {
-        var (client, _) = await ConnectedOwnerAsync();
-        var today = TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, TimeZoneInfo.FindSystemTimeZoneById("Asia/Kolkata"));
-        var kiran = await ContactAsync(client, "+919825053333", "Kiran", new BirthdayDto(today.Day, today.Month, 1990));
-        await ContactAsync(client, "+919825054444", "Meena", new BirthdayDto(today.Day, today.Month, null));
-
-        var before = (await client.GetFromJsonAsync<BirthdaysChatDto>("/api/v1/chats/birthdays", Ct))!;
-        Assert.Equal(2, before.People.Count);
-        Assert.All(before.People, p => Assert.Equal("not_sent", p.Status));
-        Assert.Equal(today.Year - 1990, before.People.Single(p => p.ContactId == kiran).TurnsAge);
-
-        var wish = new BroadcastInput("Birthday", null, null, null, null, null, [kiran], "Happy birthday {{name}}", ForBirthday: true);
-        Assert.Equal(HttpStatusCode.OK, (await client.PostAsJsonAsync("/api/v1/broadcasts", wish, Ct)).StatusCode);
-        await RunSenderAsync();
-
-        var after = (await client.GetFromJsonAsync<BirthdaysChatDto>("/api/v1/chats/birthdays", Ct))!;
-        Assert.Equal("sent", after.People.Single(p => p.ContactId == kiran).Status);
-        Assert.Equal("not_sent", after.People.Single(p => p.ContactId != kiran).Status);
-        Assert.Single(after.Messages);
-
-        var chats = (await client.GetFromJsonAsync<List<ChatListItemDto>>("/api/v1/chats", Ct))!;
-        // Birthday wishes have their own view, so the Chats list stays clean.
-        Assert.DoesNotContain(chats, c => c.Kind == "birthdays");
-        Assert.DoesNotContain(chats, c => c.Kind == "broadcast");
-    }
-
-    [Fact]
     public async Task One_off_chats_leave_the_screen_five_days_after_they_finish()
     {
         var (client, userId) = await ConnectedOwnerAsync();

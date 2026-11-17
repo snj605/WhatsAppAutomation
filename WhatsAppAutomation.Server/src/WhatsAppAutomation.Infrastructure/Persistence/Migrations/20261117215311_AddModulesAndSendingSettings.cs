@@ -11,34 +11,6 @@ namespace WhatsAppAutomation.Infrastructure.Persistence.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropForeignKey(
-                name: "fk_user_preferences_message_templates_birthday_template_id",
-                table: "user_preferences");
-
-            migrationBuilder.DropIndex(
-                name: "ix_user_preferences_birthday_auto_send",
-                table: "user_preferences");
-
-            migrationBuilder.DropIndex(
-                name: "ix_user_preferences_birthday_template_id",
-                table: "user_preferences");
-
-            migrationBuilder.DropColumn(
-                name: "birthday_auto_send",
-                table: "user_preferences");
-
-            migrationBuilder.DropColumn(
-                name: "birthday_auto_sent_on",
-                table: "user_preferences");
-
-            migrationBuilder.DropColumn(
-                name: "birthday_send_time",
-                table: "user_preferences");
-
-            migrationBuilder.DropColumn(
-                name: "birthday_template_id",
-                table: "user_preferences");
-
             migrationBuilder.AddColumn<int>(
                 name: "chunk_rest_minutes",
                 table: "user_preferences",
@@ -194,6 +166,57 @@ namespace WhatsAppAutomation.Infrastructure.Persistence.Migrations
                 name: "ix_occasion_modules_user_id_sort_order",
                 table: "occasion_modules",
                 columns: new[] { "user_id", "sort_order" });
+
+            // Hand-written: keep every user's birthday wishes. Each user (not the platform admin) gets a Birthday
+            // module with their saved time, template and "already sent today" day; earlier birthday wishes are
+            // linked to it, and the existing broadcasts keep their order in the new queue.
+            migrationBuilder.Sql("""
+                INSERT INTO occasion_modules (id, user_id, name, kind, for_name_label, sort_order, auto_send, send_time, template_id, auto_sent_on, created_at)
+                SELECT gen_random_uuid(), u.id, 'Birthday', 'Birthday', NULL, 1,
+                       COALESCE(p.birthday_auto_send, false), p.birthday_send_time, p.birthday_template_id, p.birthday_auto_sent_on, now()
+                FROM users u
+                LEFT JOIN user_preferences p ON p.user_id = u.id
+                WHERE u.kind <> 'platform_admin';
+
+                UPDATE broadcasts b
+                SET target_id = m.id
+                FROM occasion_modules m
+                WHERE b.target = 4 AND b.target_id IS NULL AND m.user_id = b.user_id AND m.kind = 'Birthday';
+
+                UPDATE broadcasts b
+                SET queue_position = q.position
+                FROM (SELECT id, row_number() OVER (PARTITION BY user_id ORDER BY created_at) AS position FROM broadcasts) q
+                WHERE b.id = q.id;
+                """);
+
+            // Last, once the birthday settings were copied above.
+            migrationBuilder.DropForeignKey(
+                name: "fk_user_preferences_message_templates_birthday_template_id",
+                table: "user_preferences");
+
+            migrationBuilder.DropIndex(
+                name: "ix_user_preferences_birthday_auto_send",
+                table: "user_preferences");
+
+            migrationBuilder.DropIndex(
+                name: "ix_user_preferences_birthday_template_id",
+                table: "user_preferences");
+
+            migrationBuilder.DropColumn(
+                name: "birthday_auto_send",
+                table: "user_preferences");
+
+            migrationBuilder.DropColumn(
+                name: "birthday_auto_sent_on",
+                table: "user_preferences");
+
+            migrationBuilder.DropColumn(
+                name: "birthday_send_time",
+                table: "user_preferences");
+
+            migrationBuilder.DropColumn(
+                name: "birthday_template_id",
+                table: "user_preferences");
         }
 
         /// <inheritdoc />
