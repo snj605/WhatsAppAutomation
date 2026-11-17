@@ -29,7 +29,7 @@ The repository is public. **No secret is ever in git.** They live in GitHub Secr
 Connect (Lightsail > Connect using SSH, or `ssh ubuntu@<ip>`), then:
 
 ```bash
-curl -fsSLO https://raw.githubusercontent.com/snj605/WhatsApp_Automation/main/deploy/setup-server.sh
+curl -fsSLO https://raw.githubusercontent.com/snj605/WhatsAppAutomation/main/deploy/setup-server.sh
 bash setup-server.sh 13-233-10-20.sslip.io
 exit        # log in again so docker works without sudo
 ```

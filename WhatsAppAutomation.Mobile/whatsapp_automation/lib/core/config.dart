@@ -13,7 +13,7 @@ class AppConfig {
   /// Where new versions of the Android app are published (GitHub Releases of this public repository).
   static const String updateRepository = String.fromEnvironment(
     'UPDATE_REPOSITORY',
-    defaultValue: 'snj605/WhatsApp_Automation',
+    defaultValue: 'snj605/WhatsAppAutomation',
   );
 
   /// The app locks itself after this long in the background (when unlocking by fingerprint or face is on).
