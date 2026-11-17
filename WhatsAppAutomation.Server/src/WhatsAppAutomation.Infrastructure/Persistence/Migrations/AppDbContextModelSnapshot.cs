@@ -181,6 +181,10 @@ namespace WhatsAppAutomation.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(200)")
                         .HasColumnName("pause_reason");
 
+                    b.Property<int>("QueuePosition")
+                        .HasColumnType("integer")
+                        .HasColumnName("queue_position");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -235,6 +239,9 @@ namespace WhatsAppAutomation.Infrastructure.Persistence.Migrations
                     b.HasIndex("UserId", "CreatedAt")
                         .HasDatabaseName("ix_broadcasts_user_id_created_at");
 
+                    b.HasIndex("UserId", "Status", "QueuePosition")
+                        .HasDatabaseName("ix_broadcasts_user_id_status_queue_position");
+
                     b.HasIndex("UserId", "Target", "TargetId")
                         .HasDatabaseName("ix_broadcasts_user_id_target_target_id");
 
@@ -246,6 +253,10 @@ namespace WhatsAppAutomation.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("uuid")
                         .HasColumnName("id");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("integer")
+                        .HasColumnName("attempts");
 
                     b.Property<Guid>("BroadcastId")
                         .HasColumnType("uuid")
@@ -490,6 +501,50 @@ namespace WhatsAppAutomation.Infrastructure.Persistence.Migrations
                     b.ToTable("contact_groups", (string)null);
                 });
 
+            modelBuilder.Entity("WhatsAppAutomation.Domain.Entities.ContactOccasion", b =>
+                {
+                    b.Property<Guid>("ModuleId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("module_id");
+
+                    b.Property<Guid>("ContactId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("contact_id");
+
+                    b.Property<int>("Day")
+                        .HasColumnType("integer")
+                        .HasColumnName("day");
+
+                    b.Property<string>("ForName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("for_name");
+
+                    b.Property<int>("Month")
+                        .HasColumnType("integer")
+                        .HasColumnName("month");
+
+                    b.Property<int?>("Year")
+                        .HasColumnType("integer")
+                        .HasColumnName("year");
+
+                    b.HasKey("ModuleId", "ContactId")
+                        .HasName("pk_contact_occasions");
+
+                    b.HasIndex("ContactId")
+                        .HasDatabaseName("ix_contact_occasions_contact_id");
+
+                    b.HasIndex("ModuleId", "Month", "Day")
+                        .HasDatabaseName("ix_contact_occasions_module_id_month_day");
+
+                    b.ToTable("contact_occasions", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_contact_occasions_day", "day BETWEEN 1 AND 31");
+
+                            t.HasCheckConstraint("ck_contact_occasions_month", "month BETWEEN 1 AND 12");
+                        });
+                });
+
             modelBuilder.Entity("WhatsAppAutomation.Domain.Entities.MessageTemplate", b =>
                 {
                     b.Property<Guid>("Id")
@@ -527,6 +582,72 @@ namespace WhatsAppAutomation.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_message_templates_user_id");
 
                     b.ToTable("message_templates", (string)null);
+                });
+
+            modelBuilder.Entity("WhatsAppAutomation.Domain.Entities.OccasionModule", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<bool>("AutoSend")
+                        .HasColumnType("boolean")
+                        .HasColumnName("auto_send");
+
+                    b.Property<DateOnly?>("AutoSentOn")
+                        .HasColumnType("date")
+                        .HasColumnName("auto_sent_on");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("ForNameLabel")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("for_name_label");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("kind");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("name");
+
+                    b.Property<TimeOnly?>("SendTime")
+                        .HasColumnType("time without time zone")
+                        .HasColumnName("send_time");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("sort_order");
+
+                    b.Property<Guid?>("TemplateId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("template_id");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_occasion_modules");
+
+                    b.HasIndex("AutoSend")
+                        .HasDatabaseName("ix_occasion_modules_auto_send");
+
+                    b.HasIndex("TemplateId")
+                        .HasDatabaseName("ix_occasion_modules_template_id");
+
+                    b.HasIndex("UserId", "SortOrder")
+                        .HasDatabaseName("ix_occasion_modules_user_id_sort_order");
+
+                    b.ToTable("occasion_modules", (string)null);
                 });
 
             modelBuilder.Entity("WhatsAppAutomation.Domain.Entities.OutgoingMessage", b =>
@@ -859,21 +980,23 @@ namespace WhatsAppAutomation.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("user_id");
 
-                    b.Property<bool>("BirthdayAutoSend")
-                        .HasColumnType("boolean")
-                        .HasColumnName("birthday_auto_send");
+                    b.Property<int>("ChunkRestMinutes")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(15)
+                        .HasColumnName("chunk_rest_minutes");
 
-                    b.Property<DateOnly?>("BirthdayAutoSentOn")
-                        .HasColumnType("date")
-                        .HasColumnName("birthday_auto_sent_on");
+                    b.Property<int>("ChunkSize")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(50)
+                        .HasColumnName("chunk_size");
 
-                    b.Property<TimeOnly?>("BirthdaySendTime")
-                        .HasColumnType("time without time zone")
-                        .HasColumnName("birthday_send_time");
-
-                    b.Property<Guid?>("BirthdayTemplateId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("birthday_template_id");
+                    b.Property<int>("DailyLimit")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(300)
+                        .HasColumnName("daily_limit");
 
                     b.Property<string>("DefaultLanguage")
                         .IsRequired()
@@ -881,14 +1004,32 @@ namespace WhatsAppAutomation.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(2)")
                         .HasColumnName("default_language");
 
+                    b.Property<int>("MaxGapSeconds")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(90)
+                        .HasColumnName("max_gap_seconds");
+
+                    b.Property<int>("MinGapSeconds")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(30)
+                        .HasColumnName("min_gap_seconds");
+
+                    b.Property<TimeOnly>("SendFrom")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("time without time zone")
+                        .HasDefaultValue(new TimeOnly(9, 0, 0))
+                        .HasColumnName("send_from");
+
+                    b.Property<TimeOnly>("SendUntil")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("time without time zone")
+                        .HasDefaultValue(new TimeOnly(21, 0, 0))
+                        .HasColumnName("send_until");
+
                     b.HasKey("UserId")
                         .HasName("pk_user_preferences");
-
-                    b.HasIndex("BirthdayAutoSend")
-                        .HasDatabaseName("ix_user_preferences_birthday_auto_send");
-
-                    b.HasIndex("BirthdayTemplateId")
-                        .HasDatabaseName("ix_user_preferences_birthday_template_id");
 
                     b.ToTable("user_preferences", (string)null);
                 });
@@ -1307,6 +1448,23 @@ namespace WhatsAppAutomation.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_contact_groups_users_user_id");
                 });
 
+            modelBuilder.Entity("WhatsAppAutomation.Domain.Entities.ContactOccasion", b =>
+                {
+                    b.HasOne("WhatsAppAutomation.Domain.Entities.Contact", null)
+                        .WithMany()
+                        .HasForeignKey("ContactId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_contact_occasions_contacts_contact_id");
+
+                    b.HasOne("WhatsAppAutomation.Domain.Entities.OccasionModule", null)
+                        .WithMany()
+                        .HasForeignKey("ModuleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_contact_occasions_occasion_modules_module_id");
+                });
+
             modelBuilder.Entity("WhatsAppAutomation.Domain.Entities.MessageTemplate", b =>
                 {
                     b.HasOne("WhatsAppAutomation.Infrastructure.Identity.AppUser", null)
@@ -1315,6 +1473,22 @@ namespace WhatsAppAutomation.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_message_templates_users_user_id");
+                });
+
+            modelBuilder.Entity("WhatsAppAutomation.Domain.Entities.OccasionModule", b =>
+                {
+                    b.HasOne("WhatsAppAutomation.Domain.Entities.MessageTemplate", null)
+                        .WithMany()
+                        .HasForeignKey("TemplateId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_occasion_modules_message_templates_template_id");
+
+                    b.HasOne("WhatsAppAutomation.Infrastructure.Identity.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_occasion_modules_users_user_id");
                 });
 
             modelBuilder.Entity("WhatsAppAutomation.Domain.Entities.OutgoingMessage", b =>
@@ -1366,12 +1540,6 @@ namespace WhatsAppAutomation.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("WhatsAppAutomation.Domain.Entities.UserPreferences", b =>
                 {
-                    b.HasOne("WhatsAppAutomation.Domain.Entities.MessageTemplate", null)
-                        .WithMany()
-                        .HasForeignKey("BirthdayTemplateId")
-                        .OnDelete(DeleteBehavior.SetNull)
-                        .HasConstraintName("fk_user_preferences_message_templates_birthday_template_id");
-
                     b.HasOne("WhatsAppAutomation.Infrastructure.Identity.AppUser", null)
                         .WithOne()
                         .HasForeignKey("WhatsAppAutomation.Domain.Entities.UserPreferences", "UserId")
