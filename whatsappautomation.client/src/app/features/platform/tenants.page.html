@@ -1,0 +1,148 @@
+<div class="ap-page">
+  <header class="ap-header">
+    <div class="ap-header-row">
+      <div class="spacer">
+        <h1 class="ap-title">Tenants</h1>
+        <p class="ap-sub">Counts only. Contacts and messages of tenants are never shown here.</p>
+      </div>
+      <button type="button" class="ap-btn primary" (click)="openCreate()"><i class="pi pi-plus" aria-hidden="true"></i>New tenant</button>
+    </div>
+  </header>
+
+  <div class="ap-body">
+    <section class="kpis" aria-label="Totals">
+      <div class="ap-card kpi"><span>Tenants</span><strong>{{ totals().tenants }}</strong></div>
+      <div class="ap-card kpi"><span>Turned on</span><strong>{{ totals().active }}</strong></div>
+      <div class="ap-card kpi"><span>People</span><strong>{{ totals().users }}</strong></div>
+    </section>
+
+    <section class="ap-card table-wrap">
+      <table class="ap-table">
+        <thead>
+          <tr><th>Tenant</th><th>People</th><th>Admins</th><th>Status</th><th>Added</th></tr>
+        </thead>
+        <tbody>
+          @for (t of tenants(); track t.id) {
+            <tr class="clickable" [class.selected]="t.id === selectedId()" (click)="choose(t)" (keydown.enter)="choose(t)" tabindex="0">
+              <td><strong>{{ t.name }}</strong></td>
+              <td>{{ t.users }}</td>
+              <td>{{ t.admins }}</td>
+              <td><span class="status"><span class="ap-dot" [class.good]="t.isActive"></span>{{ t.isActive ? 'On' : 'Off' }}</span></td>
+              <td>{{ t.createdAt | date: 'd MMM y' }}</td>
+            </tr>
+          } @empty {
+            <tr><td colspan="5"><div class="ap-empty">@if (loading()) { Loading… } @else { <strong>No tenants yet</strong><span>Add the first one with New tenant.</span> }</div></td></tr>
+          }
+        </tbody>
+      </table>
+    </section>
+
+    @if (selected(); as t) {
+      <h2 class="ap-section-title">{{ t.name }}</h2>
+      <div class="ap-card">
+        <div class="name-row">
+          <label class="sr-only" for="tenant-name">Tenant name</label>
+          <input id="tenant-name" type="text" [(ngModel)]="editName" maxlength="100" />
+          <button type="button" class="ap-btn" [disabled]="saving() || editName.trim() === t.name" (click)="saveName(t)">Save</button>
+        </div>
+      </div>
+
+      <div class="ap-header-row">
+        <h2 class="ap-section-title spacer">Admins</h2>
+        <button type="button" class="ap-btn" (click)="openAddAdmin()"><i class="pi pi-plus" aria-hidden="true"></i>Add admin</button>
+      </div>
+      <div class="ap-card">
+        @for (a of admins(); track a.id) {
+          <div class="ap-row">
+            <span class="ap-avatar" aria-hidden="true">{{ initials(a.displayName) }}</span>
+            <span class="ap-text">
+              <strong>{{ a.displayName }}</strong>
+              <small><span class="ap-dot" [class.good]="a.isActive"></span>{{ a.userName }} · {{ a.isActive ? 'On' : 'Turned off' }}</small>
+            </span>
+            <span class="row-actions">
+              <button type="button" class="ap-btn" [disabled]="saving()" (click)="resetAdmin(a)">Password</button>
+              <button type="button" class="ap-btn" [disabled]="saving()" (click)="toggleAdmin(t, a)">{{ a.isActive ? 'Turn off' : 'Turn on' }}</button>
+              <button type="button" class="ap-btn danger icon" [disabled]="saving()" aria-label="Delete admin" (click)="removeAdmin(t, a)"><i class="pi pi-trash" aria-hidden="true"></i></button>
+            </span>
+          </div>
+        } @empty {
+          <div class="ap-empty">No admins</div>
+        }
+      </div>
+      <p class="ap-note">The last active admin of a tenant cannot be turned off or deleted. Add another admin first.</p>
+
+      <div class="ap-actions">
+        <button type="button" class="ap-btn" [disabled]="saving()" (click)="toggleActive(t)">
+          <i [class]="t.isActive ? 'pi pi-ban' : 'pi pi-check-circle'" aria-hidden="true"></i>{{ t.isActive ? 'Turn off tenant' : 'Turn on tenant' }}
+        </button>
+        @if (!t.isActive) {
+          <button type="button" class="ap-btn danger" [disabled]="saving()" (click)="remove(t)"><i class="pi pi-trash" aria-hidden="true"></i>Delete tenant</button>
+        }
+      </div>
+    }
+  </div>
+</div>
+
+<p-dialog header="New tenant" [modal]="true" [visible]="createOpen()" (visibleChange)="createOpen.set($event)"
+  [style]="{ width: '30rem' }" [breakpoints]="{ '575px': '95vw' }">
+  <form class="ap-form" (ngSubmit)="saveCreate()" id="create-tenant" novalidate>
+    <label for="t-name">Tenant name</label>
+    <input id="t-name" name="name" type="text" [(ngModel)]="create.name" maxlength="100" autocomplete="off" />
+    <span class="ap-hint">A business or a family, e.g. "Bhakti Enterprise".</span>
+
+    <label for="t-admin-name">First admin's name</label>
+    <input id="t-admin-name" name="adminDisplayName" type="text" [(ngModel)]="create.adminDisplayName" maxlength="100" autocomplete="off" />
+
+    <label for="t-admin-user">First admin's user name</label>
+    <input id="t-admin-user" name="adminUserName" type="text" [(ngModel)]="create.adminUserName" maxlength="50" autocomplete="off" />
+
+    <label for="t-admin-pw">First password</label>
+    <input id="t-admin-pw" name="adminPassword" type="password" [(ngModel)]="create.adminPassword" autocomplete="new-password" />
+    <span class="ap-hint">At least 12 characters. Share it privately; the admin chooses their own at the first sign-in.</span>
+
+    @if (createError(); as e) {
+      <p class="ap-error" role="alert">{{ e }}</p>
+    }
+  </form>
+  <ng-template #footer>
+    <button type="button" class="ap-btn" (click)="createOpen.set(false)">Cancel</button>
+    <button type="submit" form="create-tenant" class="ap-btn primary" [disabled]="saving()">{{ saving() ? 'Adding…' : 'Add tenant' }}</button>
+  </ng-template>
+</p-dialog>
+
+<p-dialog header="Add admin" [modal]="true" [visible]="adminOpen()" (visibleChange)="adminOpen.set($event)"
+  [style]="{ width: '28rem' }" [breakpoints]="{ '575px': '95vw' }">
+  @if (selected(); as t) {
+    <form class="ap-form" (ngSubmit)="saveAdmin(t)" id="add-admin" novalidate>
+      <label for="a-name">Name</label>
+      <input id="a-name" name="displayName" type="text" [(ngModel)]="newAdmin.displayName" maxlength="100" autocomplete="off" />
+      <label for="a-user">User name</label>
+      <input id="a-user" name="userName" type="text" [(ngModel)]="newAdmin.userName" maxlength="50" autocomplete="off" />
+      <label for="a-pw">First password</label>
+      <input id="a-pw" name="password" type="password" [(ngModel)]="newAdmin.password" autocomplete="new-password" />
+      <span class="ap-hint">At least 12 characters.</span>
+      @if (adminError(); as e) {
+        <p class="ap-error" role="alert">{{ e }}</p>
+      }
+    </form>
+  }
+  <ng-template #footer>
+    <button type="button" class="ap-btn" (click)="adminOpen.set(false)">Cancel</button>
+    <button type="submit" form="add-admin" class="ap-btn primary" [disabled]="saving()">Add admin</button>
+  </ng-template>
+</p-dialog>
+
+<p-dialog header="Set a new password" [modal]="true" [visible]="resetFor() !== null" (visibleChange)="!$event && resetFor.set(null)"
+  [style]="{ width: '26rem' }" [breakpoints]="{ '575px': '95vw' }">
+  @if (selected(); as t) {
+    <form class="ap-form" (ngSubmit)="saveReset(t)" id="reset-admin" novalidate>
+      <label for="r-pw">New password for {{ resetFor()?.displayName }}</label>
+      <input id="r-pw" name="password" type="password" [(ngModel)]="resetPassword" autocomplete="new-password" />
+      <span class="ap-hint">At least 12 characters. They are signed out everywhere and choose their own at the next sign-in.</span>
+    </form>
+  }
+  <ng-template #footer>
+    <button type="button" class="ap-btn" (click)="resetFor.set(null)">Cancel</button>
+    <button type="submit" form="reset-admin" class="ap-btn primary" [disabled]="saving() || resetPassword.length < 12">Set password</button>
+  </ng-template>
+</p-dialog>

@@ -1,0 +1,92 @@
+/*
+ * The approved look (design canvas): light grey page, white cards with a 1px border, teal only for the main
+ * action, large titles, status as a dot plus text. Shared by the screens that already use it.
+ */
+:host {
+  --ap-bg: #f7f8fa;
+  --ap-card: #ffffff;
+  --ap-border: #eaecf0;
+  --ap-line: #f2f4f7;
+  --ap-text: #101828;
+  --ap-text-2: #475467;
+  --ap-muted: #667085;
+  --ap-accent: #0f766e;
+  --ap-accent-hover: #115e59;
+  --ap-accent-soft: #f0fdf9;
+  --ap-good: #17b26a;
+  --ap-warn: #f79009;
+  --ap-bad: #d92d20;
+  --ap-off: #98a2b3;
+  display: block;
+  min-height: 100%;
+  background: var(--ap-bg);
+  color: var(--ap-text);
+  font-feature-settings: 'tnum' 1;
+}
+
+.ap-page { max-width: 880px; margin: 0 auto; padding-bottom: 2rem; }
+.ap-header { background: var(--ap-card); border-bottom: 1px solid var(--ap-border); padding: 20px 20px 14px; display: flex; flex-direction: column; gap: 14px; }
+.ap-header-row { display: flex; align-items: center; gap: 10px; }
+.ap-title { margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -0.02em; }
+.ap-sub { margin: 4px 0 0; font-size: 13px; color: var(--ap-text-2); }
+.ap-body { padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+.ap-section-title { font-size: 14px; font-weight: 600; padding: 0 4px; margin: 0; }
+.ap-note { font-size: 12px; color: var(--ap-muted); padding: 0 4px; line-height: 1.45; margin: 0; }
+.spacer { flex: 1; }
+
+.ap-card { background: var(--ap-card); border: 1px solid var(--ap-border); border-radius: 14px; overflow: hidden; }
+.ap-card.pad { padding: 16px; }
+.ap-row { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 0; border-bottom: 1px solid var(--ap-line); background: transparent; width: 100%; text-align: left; font: inherit; color: inherit; }
+.ap-row:last-child { border-bottom: 0; }
+button.ap-row { cursor: pointer; }
+button.ap-row:hover { background: #fafbfc; }
+.ap-row.selected { background: var(--ap-accent-soft); }
+.ap-avatar { width: 40px; height: 40px; border-radius: 20px; background: var(--ap-line); color: #344054; display: grid; place-items: center; font-weight: 600; font-size: 14px; flex: none; }
+.ap-icon { width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--ap-border); color: #344054; display: grid; place-items: center; flex: none; }
+.ap-text { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.ap-text strong { font-size: 14px; font-weight: 600; }
+.ap-text small { font-size: 12px; color: var(--ap-muted); display: flex; align-items: center; gap: 5px; }
+.ap-dot { width: 6px; height: 6px; border-radius: 3px; background: var(--ap-off); flex: none; }
+.ap-dot.good { background: var(--ap-good); }
+.ap-dot.warn { background: var(--ap-warn); }
+.ap-dot.bad { background: var(--ap-bad); }
+.ap-tag { font-size: 12px; font-weight: 500; color: var(--ap-text-2); border: 1px solid var(--ap-border); border-radius: 6px; padding: 2px 8px; white-space: nowrap; }
+
+.ap-btn { height: 40px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--ap-border); background: var(--ap-card); color: #344054; font: inherit; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; }
+.ap-btn:hover { background: #f9fafb; }
+.ap-btn.primary { background: var(--ap-accent); border-color: var(--ap-accent); color: #fff; }
+.ap-btn.primary:hover { background: var(--ap-accent-hover); }
+.ap-btn.danger { color: var(--ap-bad); }
+.ap-btn:disabled { opacity: 0.55; cursor: default; }
+.ap-btn.icon { width: 40px; padding: 0; }
+.ap-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* A switch: a button with role="switch" and aria-checked. */
+.ap-switch { width: 44px; height: 24px; border-radius: 12px; border: 0; padding: 2px; background: #e4e7ec; display: flex; justify-content: flex-start; cursor: pointer; flex: none; transition: background 0.15s; }
+.ap-switch::after { content: ''; width: 20px; height: 20px; border-radius: 10px; background: #fff; box-shadow: 0 1px 2px rgb(16 24 40 / 20%); }
+.ap-switch[aria-checked='true'] { background: var(--ap-accent); justify-content: flex-end; }
+.ap-switch:disabled { opacity: 0.5; cursor: default; }
+.ap-switch:focus-visible, .ap-btn:focus-visible, button.ap-row:focus-visible { outline: 2px solid var(--ap-accent); outline-offset: 2px; }
+
+.ap-form { display: flex; flex-direction: column; gap: 6px; }
+.ap-form label { font-size: 13px; font-weight: 600; margin-top: 6px; }
+.ap-form input[type='text'], .ap-form input[type='password'] { height: 44px; border: 1px solid #d0d5dd; border-radius: 10px; padding: 0 12px; font: inherit; font-size: 15px; background: #fff; color: var(--ap-text); }
+.ap-form input:focus { outline: 2px solid var(--ap-accent); outline-offset: 0; border-color: var(--ap-accent); }
+.ap-form input.invalid { border-color: var(--ap-bad); }
+.ap-hint { font-size: 12px; color: var(--ap-muted); }
+.ap-error { font-size: 13px; color: var(--ap-bad); margin: 0; }
+.ap-empty { padding: 28px 16px; text-align: center; color: var(--ap-muted); display: flex; flex-direction: column; gap: 6px; align-items: center; }
+
+.ap-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.ap-table th { text-align: left; color: var(--ap-text-2); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; padding: 10px 14px; }
+.ap-table td { padding: 12px 14px; border-top: 1px solid var(--ap-line); }
+.ap-table tr.clickable { cursor: pointer; }
+.ap-table tr.clickable:hover td { background: #fafbfc; }
+.ap-table tr.selected td { background: var(--ap-accent-soft); }
+
+@media (min-width: 900px) {
+  .ap-header { padding: 28px 28px 18px; }
+  .ap-body { padding: 24px 28px; }
+}
+
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }

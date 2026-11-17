@@ -95,5 +95,5 @@ describe('authInterceptor', () => {
 });
 
 function user() {
-  return { id: '1', userName: 'dhaval', displayName: 'Dhaval', roles: ['Owner'] };
+  return { id: '1', userName: 'dhaval', displayName: 'Dhaval', kind: 'tenant_admin', tenantName: 'Test', mustChangePassword: false };
 }

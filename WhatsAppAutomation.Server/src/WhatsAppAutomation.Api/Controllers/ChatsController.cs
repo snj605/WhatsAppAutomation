@@ -18,7 +18,7 @@ namespace WhatsAppAutomation.Api.Controllers;
 public sealed class ChatsController(ISender mediator) : ControllerBase
 {
     [HttpGet]
-    [HasPermission(Permissions.Broadcasts.Send)]
+    [HasPermission(Permissions.Messages.Send)]
     [ProducesResponseType<IReadOnlyList<ChatListItemDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAll(CancellationToken cancellationToken) =>
         this.ToActionResult(await mediator.Send(new GetChatsQuery(), cancellationToken), Ok);
@@ -38,7 +38,7 @@ public sealed class ChatsController(ISender mediator) : ControllerBase
         this.ToActionResult(await mediator.Send(new GetTargetChatQuery(BroadcastTarget.Category, id), cancellationToken), Ok);
 
     [HttpGet("birthdays")]
-    [HasPermission(Permissions.Broadcasts.Send)]
+    [HasPermission(Permissions.Modules.Manage)]
     [ProducesResponseType<BirthdaysChatDto>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetBirthdays(CancellationToken cancellationToken) =>
         this.ToActionResult(await mediator.Send(new GetBirthdaysChatQuery(), cancellationToken), Ok);

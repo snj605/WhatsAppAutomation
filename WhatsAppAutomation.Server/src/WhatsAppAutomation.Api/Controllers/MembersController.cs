@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Mvc;
 using WhatsAppAutomation.Api.Authorization;
 using WhatsAppAutomation.Api.Contracts;
 using WhatsAppAutomation.Api.Extensions;
-using WhatsAppAutomation.Application.Common.Interfaces;
 using WhatsAppAutomation.Application.Features.Members.Commands;
 using WhatsAppAutomation.Application.Features.Members.Queries;
 using WhatsAppAutomation.Domain.Authorization;
@@ -22,7 +21,7 @@ public sealed class MembersController(ISender mediator) : ControllerBase
     public async Task<IActionResult> GetMembers(CancellationToken cancellationToken)
     {
         var result = await mediator.Send(new GetMembersQuery(), cancellationToken);
-        return this.ToActionResult(result, users => Ok(users.Select(ToResponse)));
+        return this.ToActionResult(result, members => Ok(members.Select(ToResponse)));
     }
 
     [HttpPost]
@@ -69,6 +68,14 @@ public sealed class MembersController(ISender mediator) : ControllerBase
     public async Task<IActionResult> DeleteMember(Guid id, CancellationToken cancellationToken) =>
         this.ToActionResult(await mediator.Send(new DeleteMemberCommand(id), cancellationToken));
 
-    private static MemberResponse ToResponse(UserDetails user) => new(
-        user.Id, user.UserName, user.DisplayName, UserKinds.ToCode(user.Kind), user.IsActive, user.Switches, user.CreatedAt);
+    private static MemberResponse ToResponse(MemberDto member) => new(
+        member.User.Id,
+        member.User.UserName,
+        member.User.DisplayName,
+        UserKinds.ToCode(member.User.Kind),
+        member.User.IsActive,
+        member.User.Switches,
+        member.WhatsAppStatus,
+        member.WhatsAppNumber,
+        member.User.CreatedAt);
 }

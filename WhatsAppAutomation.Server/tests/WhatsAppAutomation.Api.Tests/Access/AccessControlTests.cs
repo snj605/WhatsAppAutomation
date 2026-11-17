@@ -1,5 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using WhatsAppAutomation.Api.Contracts;
 using WhatsAppAutomation.Api.Tests.Infrastructure;
 using WhatsAppAutomation.Domain.Authorization;
@@ -10,6 +12,11 @@ namespace WhatsAppAutomation.Api.Tests.Access;
 public sealed class AccessControlTests(ApiFactory factory)
 {
     private const string AdminPassword = "a-long-admin-password-42";
+
+    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
+    {
+        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.SnakeCaseLower) },
+    };
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -80,7 +87,7 @@ public sealed class AccessControlTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.NoContent, update.StatusCode);
 
         Assert.Equal(HttpStatusCode.OK, (await member.PostAsJsonAsync("/api/v1/templates", save, Ct)).StatusCode);
-        var listed = Assert.Single((await admin.GetFromJsonAsync<List<MemberResponse>>("/api/v1/members", Ct))!, m => m.Id == memberId);
+        var listed = Assert.Single((await admin.GetFromJsonAsync<List<MemberResponse>>("/api/v1/members", Json, Ct))!, m => m.Id == memberId);
         Assert.Equal("Renamed", listed.DisplayName);
         Assert.Equal([Permissions.Templates.Manage], listed.Switches);
     }
@@ -118,7 +125,7 @@ public sealed class AccessControlTests(ApiFactory factory)
         var memberB = await factory.CreateUserAsync();
         var memberBId = await factory.UserIdAsync(memberB);
 
-        var listed = await adminA.GetFromJsonAsync<List<MemberResponse>>("/api/v1/members", Ct);
+        var listed = await adminA.GetFromJsonAsync<List<MemberResponse>>("/api/v1/members", Json, Ct);
         Assert.DoesNotContain(listed!, m => m.Id == memberBId);
         Assert.Equal(HttpStatusCode.NotFound,
             (await adminA.PutAsJsonAsync($"/api/v1/members/{memberBId}/active", new SetActiveRequest(false), Ct)).StatusCode);

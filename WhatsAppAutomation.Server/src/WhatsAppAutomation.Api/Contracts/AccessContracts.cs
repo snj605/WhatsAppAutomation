@@ -1,3 +1,5 @@
+using WhatsAppAutomation.Domain.Entities;
+
 namespace WhatsAppAutomation.Api.Contracts;
 
 public sealed record CreatedResponse(Guid Id);
@@ -5,8 +7,17 @@ public sealed record CreatedResponse(Guid Id);
 /// <summary>A person of the tenant as the members screen shows them.</summary>
 /// <param name="Kind">"tenant_admin" or "member".</param>
 /// <param name="Switches">For members: the switches that are on. Empty for admins, who may do everything.</param>
+/// <param name="WhatsAppStatus">The state of their WhatsApp link, like GET /api/v1/whatsapp.</param>
 public sealed record MemberResponse(
-    Guid Id, string UserName, string DisplayName, string Kind, bool IsActive, IReadOnlyList<string> Switches, DateTimeOffset CreatedAt);
+    Guid Id,
+    string UserName,
+    string DisplayName,
+    string Kind,
+    bool IsActive,
+    IReadOnlyList<string> Switches,
+    WhatsAppConnectionStatus WhatsAppStatus,
+    string? WhatsAppNumber,
+    DateTimeOffset CreatedAt);
 
 public sealed record CreateMemberRequest(
     string UserName, string DisplayName, string Password, bool IsAdmin, IReadOnlyList<string>? Switches);

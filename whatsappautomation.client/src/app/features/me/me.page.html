@@ -5,7 +5,7 @@
     <span class="avatar" aria-hidden="true">{{ initials() }}</span>
     <div class="profile-text">
       <strong>{{ auth.user()?.displayName }}</strong>
-      <small>{{ auth.user()?.roles?.join(', ') }}</small>
+      <small>{{ who() }}</small>
     </div>
   </section>
 
@@ -46,6 +46,16 @@
       }
     </ul>
   }
+
+  <ul class="items">
+    <li>
+      <a routerLink="/account/password" class="item">
+        <span class="item-icon dark" aria-hidden="true"><i class="pi pi-lock"></i></span>
+        <span class="item-text"><strong>Change password</strong><small>Choose a new one</small></span>
+        <i class="pi pi-chevron-right chev" aria-hidden="true"></i>
+      </a>
+    </li>
+  </ul>
 
   <button type="button" class="item sign-out" (click)="signOut()">
     <span class="item-icon red" aria-hidden="true"><i class="pi pi-sign-out"></i></span>

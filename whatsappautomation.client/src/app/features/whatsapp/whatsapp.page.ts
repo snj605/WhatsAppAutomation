@@ -21,6 +21,7 @@ import { connectionStatus, messageTick } from './whatsapp.status';
 
 const REASONS: Record<string, string> = {
   link_timeout: 'Linking timed out after 3 minutes. Start again when you are ready.',
+  number_in_use: 'This WhatsApp number is already linked by another user on the platform, so it was logged out here. Link a different number.',
   link_failed: 'Linking did not finish. Try again.',
   cannot_reach_whatsapp:
     'The app could not reach WhatsApp. Check that this computer is online and that a firewall or proxy is not blocking WhatsApp, then try again.',

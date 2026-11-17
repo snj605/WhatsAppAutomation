@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { guestGuard, permissionGuard, signedInGuard } from './core/guards/auth.guards';
+import { guestGuard, homeRedirect, permissionGuard, signedInGuard, signedInOnlyGuard } from './core/guards/auth.guards';
 import { ChatLayout } from './layouts/chat-layout/chat-layout';
 
 /** Pages are loaded only when first visited (loadComponent), which keeps the start-up download small. */
@@ -10,15 +10,21 @@ export const routes: Routes = [
     loadComponent: () => import('./features/auth/login/login.page').then((m) => m.LoginPage),
   },
   {
+    path: 'change-password',
+    title: 'Choose your password',
+    canActivate: [signedInOnlyGuard],
+    loadComponent: () => import('./features/account/change-password.page').then((m) => m.ChangePasswordPage),
+  },
+  {
     path: '',
     component: ChatLayout,
     canActivate: [signedInGuard],
     children: [
-      { path: '', pathMatch: 'full', redirectTo: 'chats' },
+      { path: '', pathMatch: 'full', redirectTo: homeRedirect },
       {
         path: 'chats',
         title: 'Chats',
-        canActivate: [permissionGuard('broadcasts.send')],
+        canActivate: [permissionGuard('messages.send')],
         loadComponent: () => import('./features/chats/chats-shell').then((m) => m.ChatsShell),
         children: [
           {
@@ -74,7 +80,7 @@ export const routes: Routes = [
       {
         path: 'templates',
         title: 'Templates',
-        canActivate: [permissionGuard('broadcasts.send')],
+        canActivate: [permissionGuard('templates.manage')],
         loadComponent: () => import('./features/templates/templates.page').then((m) => m.TemplatesPage),
       },
       {
@@ -109,21 +115,28 @@ export const routes: Routes = [
       {
         path: 'contacts/import',
         title: 'Import contacts',
-        canActivate: [permissionGuard('contacts.manage')],
+        canActivate: [permissionGuard('contacts.import')],
         loadComponent: () => import('./features/contacts/import.page').then((m) => m.ImportPage),
       },
       {
-        path: 'settings/users',
-        title: 'Users',
-        canActivate: [permissionGuard('users.view')],
-        loadComponent: () => import('./features/settings/users/users.page').then((m) => m.UsersPage),
+        path: 'members',
+        title: 'Members',
+        canActivate: [permissionGuard('members.manage')],
+        loadComponent: () => import('./features/members/members.page').then((m) => m.MembersPage),
       },
       {
-        path: 'settings/roles',
-        title: 'Roles',
-        canActivate: [permissionGuard('roles.view')],
-        loadComponent: () => import('./features/settings/roles/roles.page').then((m) => m.RolesPage),
+        path: 'platform/tenants',
+        title: 'Tenants',
+        canActivate: [permissionGuard('platform.tenants')],
+        loadComponent: () => import('./features/platform/tenants.page').then((m) => m.TenantsPage),
       },
+      {
+        path: 'account/password',
+        title: 'Change password',
+        loadComponent: () => import('./features/account/change-password.page').then((m) => m.ChangePasswordPage),
+      },
+      // Older links.
+      { path: 'settings/users', redirectTo: 'members' },
     ],
   },
   { path: '**', redirectTo: '' },

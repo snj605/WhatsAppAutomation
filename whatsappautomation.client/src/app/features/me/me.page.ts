@@ -1,5 +1,6 @@
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { KIND_LABELS } from '../../core/auth/auth.models';
 import { AuthService } from '../../core/auth/auth.service';
 import { initialsOf } from '../chats/chat-format';
 import { WhatsAppApi } from '../whatsapp/whatsapp.api';
@@ -15,15 +16,15 @@ interface Item {
 }
 
 const ITEMS: Item[] = [
-  { label: 'Message templates', hint: 'Your saved messages', icon: 'pi pi-bookmark', link: '/templates', permissions: ['broadcasts.send'] },
-  { label: 'Import contacts', hint: 'From an Excel or CSV file', icon: 'pi pi-file-import', link: '/contacts/import', permissions: ['contacts.manage'] },
+  { label: 'Message templates', hint: 'Your saved messages', icon: 'pi pi-bookmark', link: '/templates', permissions: ['templates.manage'] },
+  { label: 'Import contacts', hint: 'From an Excel or CSV file', icon: 'pi pi-file-import', link: '/contacts/import', permissions: ['contacts.import'] },
   { label: 'Categories and groups', hint: 'Family, friends, elders…', icon: 'pi pi-tags', link: '/contacts/lists', permissions: ['contacts.view'] },
   { label: 'Sending overview', hint: 'Recent messages and ticks', icon: 'pi pi-chart-bar', link: '/home', permissions: ['messages.send'] },
 ];
 
 const ADMIN: Item[] = [
-  { label: 'Users', hint: 'Create accounts and give roles', icon: 'pi pi-users', link: '/settings/users', permissions: ['users.view'] },
-  { label: 'Roles', hint: 'What each role may do', icon: 'pi pi-shield', link: '/settings/roles', permissions: ['roles.view'] },
+  { label: 'Members', hint: 'Add people and choose what they may do', icon: 'pi pi-users', link: '/members', permissions: ['members.manage'] },
+  { label: 'Tenants', hint: 'Customers and their admins', icon: 'pi pi-building', link: '/platform/tenants', permissions: ['platform.tenants'] },
 ];
 
 /** Me: your WhatsApp number, tools, admin pages (only for admins) and sign out. */
@@ -45,6 +46,11 @@ export class MePage implements OnInit {
     return this.auth.can('whatsapp.link') || this.auth.can('messages.send');
   });
   protected readonly items = computed(() => this.allowed(ITEMS));
+  /** "Admin · Bhakti Enterprise", "Member · …" or "Platform admin". */
+  protected readonly who = computed(() => {
+    const user = this.auth.user();
+    return user ? [KIND_LABELS[user.kind], user.tenantName].filter(Boolean).join(' · ') : '';
+  });
   protected readonly admin = computed(() => this.allowed(ADMIN));
 
   async ngOnInit(): Promise<void> {

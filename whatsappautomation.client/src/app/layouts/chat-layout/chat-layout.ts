@@ -14,7 +14,8 @@ interface Tab {
 }
 
 const TABS: Tab[] = [
-  { label: 'Chats', icon: 'pi pi-comments', link: '/chats', permissions: ['broadcasts.send'] },
+  { label: 'Tenants', icon: 'pi pi-building', link: '/platform/tenants', permissions: ['platform.tenants'] },
+  { label: 'Chats', icon: 'pi pi-comments', link: '/chats', permissions: ['messages.send'] },
   { label: 'Contacts', icon: 'pi pi-address-book', link: '/contacts', permissions: ['contacts.view'] },
   { label: 'Birthdays', icon: 'pi pi-gift', link: '/birthdays', permissions: ['contacts.view'] },
   { label: 'Me', icon: 'pi pi-user', link: '/me' },
@@ -40,10 +41,10 @@ export class ChatLayout {
     return TABS.filter((t) => !t.permissions || t.permissions.some((p) => this.auth.can(p)));
   });
 
-  /** The global sending bar is for users who send broadcasts. */
+  /** The global sending bar is for users who send messages. */
   protected readonly canSend = computed(() => {
     this.auth.user();
-    return this.auth.can('broadcasts.send');
+    return this.auth.can('messages.send');
   });
 
   /** In a chat or composing: the screen gets the whole height on a phone. */

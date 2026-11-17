@@ -28,6 +28,8 @@ export class AuthService {
 
   readonly user = this.currentUser.asReadonly();
   readonly isSignedIn = computed(() => this.currentUser() !== null);
+  readonly mustChangePassword = computed(() => this.currentUser()?.mustChangePassword === true);
+  readonly isPlatformAdmin = computed(() => this.currentUser()?.kind === 'platform_admin');
 
   get token(): string | null {
     return this.accessToken;
@@ -53,6 +55,12 @@ export class AuthService {
   async signIn(userName: string, password: string): Promise<void> {
     const session = await firstValueFrom(this.http.post<WebSession>(`${WEB_AUTH}/login`, { userName, password }));
     this.keep(session);
+    await this.loadMe();
+  }
+
+  /** Changes the signed-in user's own password, then reloads what they may do (it changes after a forced change). */
+  async changePassword(currentPassword: string, newPassword: string): Promise<void> {
+    await firstValueFrom(this.http.put<void>('/api/v1/auth/password', { currentPassword, newPassword }));
     await this.loadMe();
   }
 

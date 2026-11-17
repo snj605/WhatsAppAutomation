@@ -70,7 +70,7 @@ export class BirthdaysPage implements OnInit {
   protected readonly selectedCount = computed(() => this.selected().size);
   protected readonly canSend = computed(() => {
     this.auth.user();
-    return this.auth.can('broadcasts.send');
+    return this.auth.can('modules.manage');
   });
   protected readonly ready = computed(() => {
     const s = this.settings();

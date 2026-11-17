@@ -28,8 +28,8 @@ const ACTIONS: QuickAction[] = [
     link: '/whatsapp',
     permissions: ['whatsapp.link', 'messages.send'],
   },
-  { label: 'Users', text: 'Add people and choose what they may do', icon: 'pi pi-users', tone: 'blue', link: '/settings/users', permissions: ['users.view'] },
-  { label: 'Roles', text: 'Decide which permissions each role has', icon: 'pi pi-shield', tone: 'violet', link: '/settings/roles', permissions: ['roles.view'] },
+  { label: 'Members', text: 'Add people and choose what they may do', icon: 'pi pi-users', tone: 'blue', link: '/members', permissions: ['members.manage'] },
+  { label: 'Tenants', text: 'Customers and their admins', icon: 'pi pi-building', tone: 'violet', link: '/platform/tenants', permissions: ['platform.tenants'] },
 ];
 
 /** Home: a greeting, the WhatsApp status, recent message results and shortcuts. */
@@ -49,7 +49,7 @@ export class HomePage implements OnInit {
   protected readonly birthdaysToday = signal<UpcomingBirthday[]>([]);
   protected readonly canBroadcast = computed(() => {
     this.auth.user();
-    return this.auth.can('broadcasts.send');
+    return this.auth.can('modules.manage');
   });
 
   /** Today's birthdays are one chat with a checklist of who got wishes. */

@@ -1,0 +1,136 @@
+<div class="ap-page">
+  <header class="ap-header">
+    <div class="ap-header-row">
+      <a routerLink="/me" class="ap-btn icon" aria-label="Back"><i class="pi pi-chevron-left" aria-hidden="true"></i></a>
+      <span class="spacer"></span>
+      <button type="button" class="ap-btn primary" (click)="openAdd()"><i class="pi pi-plus" aria-hidden="true"></i>Add member</button>
+    </div>
+    <div>
+      <h1 class="ap-title">Members</h1>
+      <p class="ap-sub">{{ title() }}</p>
+    </div>
+  </header>
+
+  <div class="ap-body layout">
+    <div class="ap-card" role="list" aria-label="People">
+      @for (m of members(); track m.id) {
+        <button type="button" role="listitem" class="ap-row" [class.selected]="m.id === selectedId()" (click)="choose(m)">
+          <span class="ap-avatar" aria-hidden="true">{{ initials(m.displayName) }}</span>
+          <span class="ap-text">
+            <strong>{{ m.displayName }}</strong>
+            <small><span class="ap-dot" [class]="line(m).dot"></span>{{ line(m).text }}</small>
+          </span>
+          <span class="ap-tag">{{ tag(m) }}</span>
+        </button>
+      } @empty {
+        <div class="ap-empty">
+          @if (loading()) { Loading… } @else { <i class="pi pi-users" aria-hidden="true"></i><strong>Nobody yet</strong> }
+        </div>
+      }
+    </div>
+
+    @if (selected(); as m) {
+      <section class="detail" aria-live="polite">
+        @if (isMe(m)) {
+          <p class="ap-note">This is you. Change your own password on the Me screen.</p>
+        } @else {
+          <h2 class="ap-section-title">{{ m.displayName }} · {{ m.userName }}</h2>
+          <div class="ap-card">
+            <div class="name-row">
+              <label class="sr-only" for="member-name">Name</label>
+              <input id="member-name" type="text" [(ngModel)]="editName" maxlength="100" />
+              <button type="button" class="ap-btn" [disabled]="saving() || editName.trim() === m.displayName" (click)="saveName(m)">Save</button>
+            </div>
+          </div>
+
+          <h2 class="ap-section-title">What {{ m.displayName.split(' ')[0] }} may do</h2>
+          <div class="ap-card">
+            <div class="ap-row">
+              <span class="ap-icon" aria-hidden="true"><i class="pi pi-shield"></i></span>
+              <span class="ap-text"><strong>Admin</strong><small>May do everything, and manages members</small></span>
+              <button type="button" role="switch" class="ap-switch" [attr.aria-checked]="m.kind === 'tenant_admin'"
+                aria-label="Admin" [disabled]="saving()" (click)="toggleAdmin(m)"></button>
+            </div>
+            @if (m.kind === 'member') {
+              @for (s of switches; track s.permission) {
+                <div class="ap-row">
+                  <span class="ap-icon" aria-hidden="true"><i [class]="s.icon"></i></span>
+                  <span class="ap-text"><strong>{{ s.label }}</strong><small>{{ s.sub }}</small></span>
+                  <button type="button" role="switch" class="ap-switch" [attr.aria-checked]="has(m, s.permission)"
+                    [attr.aria-label]="s.label" [disabled]="saving() || !m.isActive" (click)="toggleSwitch(m, s.permission)"></button>
+                </div>
+              }
+            }
+          </div>
+          <p class="ap-note">Every member links their own WhatsApp number, keeps their own contacts and may send single messages. A number already used by anyone on the platform is refused.</p>
+
+          <div class="ap-actions">
+            <button type="button" class="ap-btn" [disabled]="saving()" (click)="openReset()"><i class="pi pi-key" aria-hidden="true"></i>Set new password</button>
+            <button type="button" class="ap-btn" [disabled]="saving()" (click)="toggleActive(m)">
+              <i [class]="m.isActive ? 'pi pi-ban' : 'pi pi-check-circle'" aria-hidden="true"></i>{{ m.isActive ? 'Turn off' : 'Turn on' }}
+            </button>
+            <button type="button" class="ap-btn danger" [disabled]="saving()" (click)="remove(m)"><i class="pi pi-trash" aria-hidden="true"></i>Delete</button>
+          </div>
+        }
+      </section>
+    } @else if (members().length > 0) {
+      <p class="ap-note">Choose a person to see and change what they may do.</p>
+    }
+  </div>
+</div>
+
+<p-dialog header="Add member" [modal]="true" [visible]="addOpen()" (visibleChange)="addOpen.set($event)"
+  [style]="{ width: '30rem' }" [breakpoints]="{ '575px': '95vw' }">
+  <form class="ap-form" (ngSubmit)="saveAdd()" id="add-member" novalidate>
+    <label for="add-name">Name</label>
+    <input id="add-name" name="displayName" type="text" [(ngModel)]="add.displayName" maxlength="100" autocomplete="off" />
+
+    <label for="add-user">User name</label>
+    <input id="add-user" name="userName" type="text" [(ngModel)]="add.userName" maxlength="50" autocomplete="off" />
+    <span class="ap-hint">Used to sign in. Letters, digits, ".", "_" and "-".</span>
+
+    <label for="add-password">First password</label>
+    <input id="add-password" name="password" type="password" [(ngModel)]="add.password" autocomplete="new-password" />
+    <span class="ap-hint">At least {{ add.isAdmin ? 12 : 6 }} characters. Share it privately; they choose their own at the first sign-in.</span>
+
+    <div class="ap-card add-switches">
+      <div class="ap-row">
+        <span class="ap-text"><strong>Admin</strong><small>May do everything, and manages members</small></span>
+        <button type="button" role="switch" class="ap-switch" [attr.aria-checked]="add.isAdmin" aria-label="Admin"
+          (click)="add.isAdmin = !add.isAdmin"></button>
+      </div>
+      @if (!add.isAdmin) {
+        @for (s of switches; track s.permission) {
+          <div class="ap-row">
+            <span class="ap-text"><strong>{{ s.label }}</strong><small>{{ s.sub }}</small></span>
+            <button type="button" role="switch" class="ap-switch" [attr.aria-checked]="add.switches.includes(s.permission)"
+              [attr.aria-label]="s.label" (click)="toggleAddSwitch(s.permission)"></button>
+          </div>
+        }
+      }
+    </div>
+
+    @if (addError(); as e) {
+      <p class="ap-error" role="alert">{{ e }}</p>
+    }
+  </form>
+  <ng-template #footer>
+    <button type="button" class="ap-btn" (click)="addOpen.set(false)">Cancel</button>
+    <button type="submit" form="add-member" class="ap-btn primary" [disabled]="saving()">{{ saving() ? 'Adding…' : 'Add' }}</button>
+  </ng-template>
+</p-dialog>
+
+<p-dialog header="Set a new password" [modal]="true" [visible]="resetOpen()" (visibleChange)="resetOpen.set($event)"
+  [style]="{ width: '26rem' }" [breakpoints]="{ '575px': '95vw' }">
+  @if (selected(); as m) {
+    <form class="ap-form" (ngSubmit)="saveReset(m)" id="reset-password" novalidate>
+      <label for="reset-pw">New password for {{ m.displayName }}</label>
+      <input id="reset-pw" name="password" type="password" [(ngModel)]="resetPasswordValue" autocomplete="new-password" />
+      <span class="ap-hint">They are signed out everywhere and choose their own at the next sign-in.</span>
+    </form>
+  }
+  <ng-template #footer>
+    <button type="button" class="ap-btn" (click)="resetOpen.set(false)">Cancel</button>
+    <button type="submit" form="reset-password" class="ap-btn primary" [disabled]="saving() || !resetPasswordValue">Set password</button>
+  </ng-template>
+</p-dialog>

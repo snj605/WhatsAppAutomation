@@ -6,6 +6,7 @@ using WhatsAppAutomation.Application.Common.Models;
 using WhatsAppAutomation.Application.Features.Broadcasts;
 using WhatsAppAutomation.Application.Features.Broadcasts.Queries;
 using WhatsAppAutomation.Application.Features.Contacts;
+using WhatsAppAutomation.Domain.Authorization;
 using WhatsAppAutomation.Domain.Entities;
 
 namespace WhatsAppAutomation.Application.Features.Chats;
@@ -69,7 +70,7 @@ internal static class ChatReads
 /// <summary>The Chats list: every group and category, and one-off sends still on screen. Birthdays have their own view.</summary>
 public sealed record GetChatsQuery : IQuery<IReadOnlyList<ChatListItemDto>>;
 
-internal sealed class GetChatsQueryHandler(IAppDbContext db, ICurrentUser currentUser, TimeProvider clock)
+internal sealed class GetChatsQueryHandler(IAppDbContext db, ICurrentUser currentUser, IPermissionService permissions, TimeProvider clock)
     : IQueryHandler<GetChatsQuery, IReadOnlyList<ChatListItemDto>>
 {
     public async Task<Result<IReadOnlyList<ChatListItemDto>>> Handle(GetChatsQuery query, CancellationToken cancellationToken)
@@ -98,7 +99,10 @@ internal sealed class GetChatsQueryHandler(IAppDbContext db, ICurrentUser curren
         string? Text(Guid id) => texts.GetValueOrDefault(id);
 
         var items = new List<ChatListItemDto>();
-        var groups = await db.ContactGroups.AsNoTracking().Where(g => g.UserId == userId)
+
+        // Group and category chats are for members with the Broadcasts switch; everyone sees their single messages.
+        var mayBroadcast = (await permissions.GetPermissionsAsync(userId, cancellationToken)).Contains(Permissions.Broadcasts.Send);
+        var groups = await db.ContactGroups.AsNoTracking().Where(g => g.UserId == userId && mayBroadcast)
             .Select(g => new { g.Id, g.Name, Count = g.Contacts.Count }).ToListAsync(cancellationToken);
         foreach (var g in groups)
         {
@@ -107,7 +111,7 @@ internal sealed class GetChatsQueryHandler(IAppDbContext db, ICurrentUser curren
                 last is null ? null : summaries[last.Id]));
         }
 
-        var categories = await db.Categories.AsNoTracking().Where(c => c.UserId == userId)
+        var categories = await db.Categories.AsNoTracking().Where(c => c.UserId == userId && mayBroadcast)
             .Select(c => new { c.Id, c.Name, c.Color, Count = db.Contacts.Count(x => x.CategoryId == c.Id) }).ToListAsync(cancellationToken);
         foreach (var c in categories)
         {
