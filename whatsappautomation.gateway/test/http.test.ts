@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict';
+import { randomBytes } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
 import { after, before, test } from 'node:test';
 import { pino } from 'pino';
 import { createHttpServer, type Sessions } from '../src/http.ts';
 import { GatewayError } from '../src/session.ts';
 
-const secret = 'test-secret-that-is-long-enough-0123456789';
+// Made fresh for each run, so no secret-looking value is kept in git.
+const secret = randomBytes(32).toString('base64url');
 const accountId = '0b7c2f1e-1d2a-4c3b-9e8f-7a6b5c4d3e2f';
 const calls: string[] = [];
 
