@@ -632,27 +632,15 @@ namespace WhatsAppAutomation.Infrastructure.Persistence.Migrations
                     b.HasData(
                         new
                         {
-                            Name = "users.view",
-                            Description = "See the list of users and their roles.",
-                            Group = "Users"
+                            Name = "platform.tenants",
+                            Description = "Create tenants and their admins, turn them on or off.",
+                            Group = "Platform"
                         },
                         new
                         {
-                            Name = "users.manage",
-                            Description = "Create users, change their roles, and enable or disable them.",
-                            Group = "Users"
-                        },
-                        new
-                        {
-                            Name = "roles.view",
-                            Description = "See roles and the permissions each one has.",
-                            Group = "Roles"
-                        },
-                        new
-                        {
-                            Name = "roles.manage",
-                            Description = "Create, edit and delete roles and choose their permissions.",
-                            Group = "Roles"
+                            Name = "members.manage",
+                            Description = "Add members to the tenant, turn their switches on or off, remove them.",
+                            Group = "Members"
                         },
                         new
                         {
@@ -669,20 +657,38 @@ namespace WhatsAppAutomation.Infrastructure.Persistence.Migrations
                         new
                         {
                             Name = "contacts.view",
-                            Description = "See your own contacts, categories and groups.",
+                            Description = "See your own contacts and groups.",
                             Group = "Contacts"
                         },
                         new
                         {
                             Name = "contacts.manage",
-                            Description = "Add, edit, import and delete your own contacts, categories and groups.",
+                            Description = "Add, edit and delete your own contacts and groups.",
+                            Group = "Contacts"
+                        },
+                        new
+                        {
+                            Name = "contacts.import",
+                            Description = "Import many contacts at once from Excel or CSV.",
                             Group = "Contacts"
                         },
                         new
                         {
                             Name = "broadcasts.send",
-                            Description = "Create, start, pause and cancel your own broadcasts, and see their progress.",
+                            Description = "Send to your own groups and lists, pause and stop them, see their results.",
                             Group = "Broadcasts"
+                        },
+                        new
+                        {
+                            Name = "templates.manage",
+                            Description = "Make, change and delete message templates.",
+                            Group = "Templates"
+                        },
+                        new
+                        {
+                            Name = "modules.manage",
+                            Description = "Make your own occasion modules (like Birthday) and send their wishes.",
+                            Group = "Modules"
                         });
                 });
 
@@ -748,26 +754,6 @@ namespace WhatsAppAutomation.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_refresh_tokens_user_id_device_id");
 
                     b.ToTable("refresh_tokens", (string)null);
-                });
-
-            modelBuilder.Entity("WhatsAppAutomation.Domain.Entities.RolePermission", b =>
-                {
-                    b.Property<Guid>("RoleId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("role_id");
-
-                    b.Property<string>("Permission")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("permission");
-
-                    b.HasKey("RoleId", "Permission")
-                        .HasName("pk_role_permissions");
-
-                    b.HasIndex("Permission")
-                        .HasDatabaseName("ix_role_permissions_permission");
-
-                    b.ToTable("role_permissions", (string)null);
                 });
 
             modelBuilder.Entity("WhatsAppAutomation.Domain.Entities.SendingPace", b =>
@@ -841,6 +827,32 @@ namespace WhatsAppAutomation.Infrastructure.Persistence.Migrations
                     b.ToTable("stored_files", (string)null);
                 });
 
+            modelBuilder.Entity("WhatsAppAutomation.Domain.Entities.Tenant", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
+
+                    b.HasKey("Id")
+                        .HasName("pk_tenants");
+
+                    b.ToTable("tenants", (string)null);
+                });
+
             modelBuilder.Entity("WhatsAppAutomation.Domain.Entities.UserPreferences", b =>
                 {
                     b.Property<Guid>("UserId")
@@ -879,6 +891,26 @@ namespace WhatsAppAutomation.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_user_preferences_birthday_template_id");
 
                     b.ToTable("user_preferences", (string)null);
+                });
+
+            modelBuilder.Entity("WhatsAppAutomation.Domain.Entities.UserSwitch", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.Property<string>("Permission")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("permission");
+
+                    b.HasKey("UserId", "Permission")
+                        .HasName("pk_user_switches");
+
+                    b.HasIndex("Permission")
+                        .HasDatabaseName("ix_user_switches_permission");
+
+                    b.ToTable("user_switches", (string)null);
                 });
 
             modelBuilder.Entity("WhatsAppAutomation.Domain.Entities.WhatsAppAccount", b =>
@@ -926,6 +958,11 @@ namespace WhatsAppAutomation.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_whatsapp_accounts");
+
+                    b.HasIndex("PhoneNumber")
+                        .IsUnique()
+                        .HasDatabaseName("ix_whatsapp_accounts_phone_number")
+                        .HasFilter("phone_number IS NOT NULL");
 
                     b.HasIndex("UserId")
                         .IsUnique()
@@ -1014,6 +1051,14 @@ namespace WhatsAppAutomation.Infrastructure.Persistence.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("is_active");
 
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("kind")
+                        .HasDefaultValueSql("'member'");
+
                     b.Property<bool>("LockoutEnabled")
                         .HasColumnType("boolean")
                         .HasColumnName("lockout_enabled");
@@ -1021,6 +1066,10 @@ namespace WhatsAppAutomation.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset?>("LockoutEnd")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("lockout_end");
+
+                    b.Property<bool>("MustChangePassword")
+                        .HasColumnType("boolean")
+                        .HasColumnName("must_change_password");
 
                     b.Property<string>("NormalizedEmail")
                         .HasMaxLength(256)
@@ -1048,6 +1097,10 @@ namespace WhatsAppAutomation.Infrastructure.Persistence.Migrations
                         .HasColumnType("text")
                         .HasColumnName("security_stamp");
 
+                    b.Property<Guid?>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
                     b.Property<bool>("TwoFactorEnabled")
                         .HasColumnType("boolean")
                         .HasColumnName("two_factor_enabled");
@@ -1066,6 +1119,9 @@ namespace WhatsAppAutomation.Infrastructure.Persistence.Migrations
                     b.HasIndex("NormalizedUserName")
                         .IsUnique()
                         .HasDatabaseName("UserNameIndex");
+
+                    b.HasIndex("TenantId", "Kind")
+                        .HasDatabaseName("ix_users_tenant_id_kind");
 
                     b.ToTable("users", (string)null);
                 });
@@ -1288,23 +1344,6 @@ namespace WhatsAppAutomation.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_refresh_tokens_users_user_id");
                 });
 
-            modelBuilder.Entity("WhatsAppAutomation.Domain.Entities.RolePermission", b =>
-                {
-                    b.HasOne("WhatsAppAutomation.Domain.Entities.Permission", null)
-                        .WithMany()
-                        .HasForeignKey("Permission")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_role_permissions_permissions_permission");
-
-                    b.HasOne("WhatsAppAutomation.Infrastructure.Identity.AppRole", null)
-                        .WithMany()
-                        .HasForeignKey("RoleId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_role_permissions_roles_role_id");
-                });
-
             modelBuilder.Entity("WhatsAppAutomation.Domain.Entities.SendingPace", b =>
                 {
                     b.HasOne("WhatsAppAutomation.Domain.Entities.WhatsAppAccount", null)
@@ -1341,6 +1380,23 @@ namespace WhatsAppAutomation.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_user_preferences_users_user_id");
                 });
 
+            modelBuilder.Entity("WhatsAppAutomation.Domain.Entities.UserSwitch", b =>
+                {
+                    b.HasOne("WhatsAppAutomation.Domain.Entities.Permission", null)
+                        .WithMany()
+                        .HasForeignKey("Permission")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_user_switches_permissions_permission");
+
+                    b.HasOne("WhatsAppAutomation.Infrastructure.Identity.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_user_switches_users_user_id");
+                });
+
             modelBuilder.Entity("WhatsAppAutomation.Domain.Entities.WhatsAppAccount", b =>
                 {
                     b.HasOne("WhatsAppAutomation.Infrastructure.Identity.AppUser", null)
@@ -1349,6 +1405,15 @@ namespace WhatsAppAutomation.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_whatsapp_accounts_users_user_id");
+                });
+
+            modelBuilder.Entity("WhatsAppAutomation.Infrastructure.Identity.AppUser", b =>
+                {
+                    b.HasOne("WhatsAppAutomation.Domain.Entities.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .HasConstraintName("fk_users_tenants_tenant_id");
                 });
 
             modelBuilder.Entity("WhatsAppAutomation.Infrastructure.Persistence.Configurations.WhatsAppAuthEntry", b =>
