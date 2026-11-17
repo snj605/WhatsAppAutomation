@@ -56,6 +56,7 @@ internal sealed class BroadcastConfiguration : IEntityTypeConfiguration<Broadcas
         builder.Property(b => b.Name).HasMaxLength(Broadcast.NameMaxLength).IsRequired();
         builder.Property(b => b.Text).HasMaxLength(Broadcast.TextMaxLength);
         builder.HasIndex(b => new { b.UserId, b.Target, b.TargetId });
+        builder.HasIndex(b => new { b.UserId, b.Status, b.QueuePosition });
         builder.HasOne<StoredFile>().WithMany().HasForeignKey(b => b.AttachmentId).OnDelete(DeleteBehavior.SetNull);
         builder.Property(b => b.TextEn).HasMaxLength(Broadcast.TextMaxLength);
         builder.Property(b => b.TextHi).HasMaxLength(Broadcast.TextMaxLength);

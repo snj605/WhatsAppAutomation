@@ -86,8 +86,50 @@ internal sealed class UserPreferencesConfiguration : IEntityTypeConfiguration<Us
             .HasConversion(l => ContactLanguages.ToCode(l), s => ContactLanguages.Parse(s)!.Value);
         builder.HasOne<AppUser>().WithOne().HasForeignKey<UserPreferences>(p => p.UserId).OnDelete(DeleteBehavior.Cascade);
 
+        // Defaults for rows made before sending settings existed (and the same as a new row).
+        builder.Property(p => p.DailyLimit).HasDefaultValue(UserPreferences.MinDailyLimit);
+        builder.Property(p => p.ChunkSize).HasDefaultValue(50);
+        builder.Property(p => p.ChunkRestMinutes).HasDefaultValue(15);
+        builder.Property(p => p.SendFrom).HasDefaultValue(new TimeOnly(9, 0));
+        builder.Property(p => p.SendUntil).HasDefaultValue(new TimeOnly(21, 0));
+        builder.Property(p => p.MinGapSeconds).HasDefaultValue(30);
+        builder.Property(p => p.MaxGapSeconds).HasDefaultValue(90);
+    }
+}
+
+internal sealed class OccasionModuleConfiguration : IEntityTypeConfiguration<OccasionModule>
+{
+    public void Configure(EntityTypeBuilder<OccasionModule> builder)
+    {
+        builder.ToTable("occasion_modules");
+        builder.HasKey(m => m.Id);
+        builder.Property(m => m.Id).ValueGeneratedNever();
+        builder.Property(m => m.Name).HasMaxLength(OccasionModule.NameMaxLength).IsRequired();
+        builder.Property(m => m.ForNameLabel).HasMaxLength(OccasionModule.ForNameLabelMaxLength);
+        builder.Property(m => m.Kind).HasConversion<string>().HasMaxLength(20);
+        builder.HasIndex(m => new { m.UserId, m.SortOrder });
+        builder.HasIndex(m => m.AutoSend);
+        builder.HasOne<AppUser>().WithMany().HasForeignKey(m => m.UserId).OnDelete(DeleteBehavior.Cascade);
+
         // A deleted template only switches the automatic wishes off.
-        builder.HasOne<MessageTemplate>().WithMany().HasForeignKey(p => p.BirthdayTemplateId).OnDelete(DeleteBehavior.SetNull);
-        builder.HasIndex(p => p.BirthdayAutoSend);
+        builder.HasOne<MessageTemplate>().WithMany().HasForeignKey(m => m.TemplateId).OnDelete(DeleteBehavior.SetNull);
+    }
+}
+
+internal sealed class ContactOccasionConfiguration : IEntityTypeConfiguration<ContactOccasion>
+{
+    public void Configure(EntityTypeBuilder<ContactOccasion> builder)
+    {
+        builder.ToTable("contact_occasions", t =>
+        {
+            t.HasCheckConstraint("ck_contact_occasions_day", "day BETWEEN 1 AND 31");
+            t.HasCheckConstraint("ck_contact_occasions_month", "month BETWEEN 1 AND 12");
+        });
+        builder.HasKey(o => new { o.ModuleId, o.ContactId });
+        builder.Property(o => o.ForName).HasMaxLength(ContactOccasion.ForNameMaxLength);
+        builder.HasIndex(o => new { o.ModuleId, o.Month, o.Day });
+        builder.HasIndex(o => o.ContactId);
+        builder.HasOne<OccasionModule>().WithMany().HasForeignKey(o => o.ModuleId).OnDelete(DeleteBehavior.Cascade);
+        builder.HasOne<Contact>().WithMany().HasForeignKey(o => o.ContactId).OnDelete(DeleteBehavior.Cascade);
     }
 }

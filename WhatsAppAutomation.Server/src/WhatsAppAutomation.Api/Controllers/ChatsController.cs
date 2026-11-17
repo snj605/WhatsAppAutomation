@@ -9,8 +9,8 @@ using WhatsAppAutomation.Domain.Entities;
 namespace WhatsAppAutomation.Api.Controllers;
 
 /// <summary>
-/// The chat-style views: the Chats list, a group's or category's chat, and today's Birthdays chat. Sending still
-/// goes through POST /api/v1/broadcasts (with one group, one category, or forBirthday).
+/// The chat-style views: the Chats list and a group's or category's chat. Sending goes through
+/// POST /api/v1/broadcasts (with one group or one category).
 /// </summary>
 [ApiController]
 [Route("api/v1/chats")]
@@ -37,9 +37,4 @@ public sealed class ChatsController(ISender mediator) : ControllerBase
     public async Task<IActionResult> GetCategory(Guid id, CancellationToken cancellationToken) =>
         this.ToActionResult(await mediator.Send(new GetTargetChatQuery(BroadcastTarget.Category, id), cancellationToken), Ok);
 
-    [HttpGet("birthdays")]
-    [HasPermission(Permissions.Modules.Manage)]
-    [ProducesResponseType<BirthdaysChatDto>(StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetBirthdays(CancellationToken cancellationToken) =>
-        this.ToActionResult(await mediator.Send(new GetBirthdaysChatQuery(), cancellationToken), Ok);
 }

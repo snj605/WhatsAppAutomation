@@ -70,4 +70,48 @@ public sealed class BroadcastsController(ISender mediator) : ControllerBase
     [ProducesResponseType<PacingDto>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetPacing(CancellationToken cancellationToken) =>
         this.ToActionResult(await mediator.Send(new GetPacingQuery(), cancellationToken), Ok);
+
+    /// <summary>Today's queue in sending order (occasions first), with the expected time of each item.</summary>
+    [HttpGet("queue")]
+    [HasPermission(Permissions.Messages.Send)]
+    [ProducesResponseType<QueueDto>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetQueue(CancellationToken cancellationToken) =>
+        this.ToActionResult(await mediator.Send(new GetQueueQuery(), cancellationToken), Ok);
+
+    /// <summary>Moves a waiting broadcast one place sooner ("up") or later ("down").</summary>
+    [HttpPost("{id:guid}/move")]
+    [HasPermission(Permissions.Messages.Send)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Move(Guid id, MoveBroadcastRequest request, CancellationToken cancellationToken) =>
+        request.Direction is "up" or "down"
+            ? this.ToActionResult(await mediator.Send(new MoveBroadcastCommand(id, request.Direction == "up"), cancellationToken))
+            : this.ToProblem(Application.Common.Models.Error.Validation("Direction must be \"up\" or \"down\"."));
+
+    /// <summary>Sends failed messages again (all, or the ones listed). Numbers not on WhatsApp are not retried.</summary>
+    [HttpPost("{id:guid}/retry")]
+    [HasPermission(Permissions.Messages.Send)]
+    [ProducesResponseType<BroadcastSummaryDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Retry(Guid id, RetryBroadcastRequest? request, CancellationToken cancellationToken) =>
+        this.ToActionResult(await mediator.Send(new RetryBroadcastCommand(id, request?.RecipientIds), cancellationToken), Ok);
+
+    /// <summary>One result list of a broadcast, a page at a time: all, pending, sent, delivered, read, failed or skipped.</summary>
+    [HttpGet("{id:guid}/recipients")]
+    [HasPermission(Permissions.Messages.Send)]
+    [ProducesResponseType<RecipientsPage>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Recipients(
+        Guid id, [FromQuery] string status = "all", [FromQuery] int page = 1, [FromQuery] int pageSize = 50, CancellationToken cancellationToken = default) =>
+        this.ToActionResult(await mediator.Send(new GetBroadcastRecipientsQuery(id, status, page, pageSize), cancellationToken), Ok);
 }
+
+/// <param name="Direction">"up" (sooner) or "down" (later).</param>
+public sealed record MoveBroadcastRequest(string Direction);
+
+/// <param name="RecipientIds">The failed recipients to send again; empty or missing: all failed ones.</param>
+public sealed record RetryBroadcastRequest(IReadOnlyList<Guid>? RecipientIds);

@@ -135,26 +135,6 @@ public sealed class ContactsController(ISender mediator, IContactSpreadsheet spr
         this.ToActionResult(await mediator.Send(new RequestWhatsAppCheckCommand(request.ContactIds), cancellationToken), Ok);
 
     /// <summary>Contacts with a birthday today or in the next <paramref name="days"/> days (0–60), soonest first.</summary>
-    [HttpGet("birthdays")]
-    [HasPermission(Permissions.Contacts.View)]
-    [ProducesResponseType<IReadOnlyList<UpcomingBirthdayDto>>(StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetBirthdays([FromQuery] int days = 7, CancellationToken cancellationToken = default) =>
-        this.ToActionResult(await mediator.Send(new GetUpcomingBirthdaysQuery(days), cancellationToken), Ok);
-
-    /// <summary>Automatic birthday wishes: on or off, the time (HH:mm) and the template, and when they next start.</summary>
-    [HttpGet("birthdays/settings")]
-    [HasPermission(Permissions.Contacts.View)]
-    [ProducesResponseType<BirthdaySettingsDto>(StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetBirthdaySettings(CancellationToken cancellationToken) =>
-        this.ToActionResult(await mediator.Send(new GetBirthdaySettingsQuery(), cancellationToken), Ok);
-
-    [HttpPut("birthdays/settings")]
-    [HasPermission(Permissions.Modules.Manage)]
-    [ProducesResponseType<BirthdaySettingsDto>(StatusCodes.Status200OK)]
-    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> SetBirthdaySettings(BirthdaySettingsRequest request, CancellationToken cancellationToken) =>
-        this.ToActionResult(await mediator.Send(new SetBirthdaySettingsCommand(request.Enabled, request.Time, request.TemplateId), cancellationToken), Ok);
-
     [HttpGet("contacts/{id:guid}")]
     [HasPermission(Permissions.Contacts.View)]
     [ProducesResponseType<ContactDto>(StatusCodes.Status200OK)]

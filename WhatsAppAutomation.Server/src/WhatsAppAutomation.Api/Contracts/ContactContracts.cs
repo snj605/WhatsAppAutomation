@@ -19,5 +19,3 @@ public sealed record SetOptOutRequest(bool OptedOut);
 
 public sealed record SetPreferencesRequest(string DefaultLanguage);
 
-/// <param name="Time">"HH:mm" in the sending time zone, e.g. "07:15".</param>
-public sealed record BirthdaySettingsRequest(bool Enabled, string? Time, Guid? TemplateId);

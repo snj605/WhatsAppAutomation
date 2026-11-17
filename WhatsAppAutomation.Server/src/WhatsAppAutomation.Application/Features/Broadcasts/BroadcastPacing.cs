@@ -1,5 +1,5 @@
 using System.Collections.Concurrent;
-using WhatsAppAutomation.Domain.Entities;
+using WhatsAppAutomation.Application.Features.Sending;
 
 namespace WhatsAppAutomation.Application.Features.Broadcasts;
 
@@ -27,48 +27,60 @@ public sealed class AccountPacing
     public string? Waiting { get; set; }
 }
 
-/// <summary>Daily limit and sending hours, worked out from the options.</summary>
+/// <summary>The user's sending hours and "today", in the sending time zone.</summary>
 internal sealed class PacingRules(BroadcastOptions options)
 {
     private readonly TimeZoneInfo _zone = TimeZoneInfo.FindSystemTimeZoneById(options.TimeZone);
 
-    public string SendingHours => options.SendFrom == options.SendUntil
-        ? "any time"
-        : $"{options.SendFrom:HH\\:mm}–{options.SendUntil:HH\\:mm} ({options.TimeZone})";
+    public TimeZoneInfo Zone => _zone;
 
-    public bool InSendingHours(DateTimeOffset now)
+    public static string Hours(UserSending s) => s.AnyTime ? "any time" : $"{s.SendFrom:HH\\:mm}–{s.SendUntil:HH\\:mm}";
+
+    public bool InWindow(UserSending s, DateTimeOffset now)
     {
-        if (options.SendFrom == options.SendUntil)
+        if (s.AnyTime)
         {
             return true;
         }
 
         var local = TimeOnly.FromDateTime(TimeZoneInfo.ConvertTime(now, _zone).DateTime);
-        return options.SendFrom < options.SendUntil
-            ? local >= options.SendFrom && local < options.SendUntil
-            : local >= options.SendFrom || local < options.SendUntil;
+        return s.SendFrom < s.SendUntil
+            ? local >= s.SendFrom && local < s.SendUntil
+            : local >= s.SendFrom || local < s.SendUntil;
     }
 
-    /// <summary>Midnight today in the configured time zone, as a UTC instant.</summary>
+    /// <summary>The next moment (now or later) inside the sending hours.</summary>
+    public DateTimeOffset NextWindowStart(UserSending s, DateTimeOffset from)
+    {
+        if (InWindow(s, from))
+        {
+            return from;
+        }
+
+        var local = TimeZoneInfo.ConvertTime(from, _zone);
+        var day = DateOnly.FromDateTime(local.DateTime);
+        for (var i = 0; i < 3; i++)
+        {
+            var start = At(day.AddDays(i), s.SendFrom);
+            if (start > from)
+            {
+                return start;
+            }
+        }
+
+        return from;
+    }
+
+    /// <summary>Midnight today in the sending time zone, as a UTC instant.</summary>
     public DateTimeOffset StartOfToday(DateTimeOffset now)
     {
         var local = TimeZoneInfo.ConvertTime(now, _zone);
-        var midnight = new DateTime(local.Year, local.Month, local.Day, 0, 0, 0, DateTimeKind.Unspecified);
-        return new DateTimeOffset(midnight, _zone.GetUtcOffset(midnight)).ToUniversalTime();
+        return At(DateOnly.FromDateTime(local.DateTime), TimeOnly.MinValue);
     }
 
-    /// <summary>1 in the first week after linking, 2 in the second… null once warm-up is over.</summary>
-    public int? WarmUpWeek(WhatsAppAccount account, DateTimeOffset now)
+    public DateTimeOffset At(DateOnly day, TimeOnly time)
     {
-        if (account.LinkedAt is not { } linkedAt)
-        {
-            return options.WarmUp.Length > 0 ? 1 : null;
-        }
-
-        var week = (int)((now - linkedAt).TotalDays / 7) + 1;
-        return week <= options.WarmUp.Length ? week : null;
+        var local = day.ToDateTime(time);
+        return new DateTimeOffset(local, _zone.GetUtcOffset(local)).ToUniversalTime();
     }
-
-    public int DailyCap(WhatsAppAccount account, DateTimeOffset now) =>
-        WarmUpWeek(account, now) is { } week ? Math.Min(options.WarmUp[week - 1], options.DailyCap) : options.DailyCap;
 }

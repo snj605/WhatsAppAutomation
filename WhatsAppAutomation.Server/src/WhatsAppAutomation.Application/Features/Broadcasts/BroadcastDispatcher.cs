@@ -4,6 +4,7 @@ using Microsoft.Extensions.Options;
 using WhatsAppAutomation.Application.Common.Interfaces;
 using WhatsAppAutomation.Application.Common.Models;
 using WhatsAppAutomation.Application.Features.Contacts;
+using WhatsAppAutomation.Application.Features.Sending;
 using WhatsAppAutomation.Application.Features.WhatsApp;
 using WhatsAppAutomation.Domain.Entities;
 
@@ -11,8 +12,9 @@ namespace WhatsAppAutomation.Application.Features.Broadcasts;
 
 /// <summary>
 /// The paced sender. Each run releases at most one message per WhatsApp number, and only when every rule
-/// allows it: number connected, inside sending hours, under the daily limit, and the random delay since the
-/// last message has passed. It pauses broadcasts on the safety stops (blueprint section 2.4).
+/// allows it: number connected, inside the user's sending hours, under the user's daily limit, and the random
+/// gap since the last message (plus the rest after each chunk) has passed. Occasions go first, then broadcasts in
+/// the user's queue order. It pauses broadcasts on the safety stops (blueprint section 2.4).
 /// </summary>
 public sealed class BroadcastDispatcher(
     IAppDbContext db,
@@ -85,7 +87,7 @@ public sealed class BroadcastDispatcher(
         var pace = await db.SendingPaces.SingleOrDefaultAsync(p => p.AccountId == account.Id, cancellationToken);
         if (pace is null)
         {
-            pace = new SendingPace(account.Id, now.AddSeconds(_options.MinDelaySeconds));
+            pace = new SendingPace(account.Id, now);
             db.SendingPaces.Add(pace);
             await db.SaveChangesAsync(cancellationToken);
         }
@@ -99,22 +101,25 @@ public sealed class BroadcastDispatcher(
             return false;
         }
 
-        if (!_rules.InSendingHours(now))
+        var settings = await UserSending.ForAsync(db, userId, cancellationToken);
+        if (_options.NoWaits)
         {
-            state.Waiting = $"Outside sending hours ({_rules.SendingHours}).";
+            settings = settings with { SendFrom = TimeOnly.MinValue, SendUntil = TimeOnly.MinValue, MinGapSeconds = 0, MaxGapSeconds = 0, ChunkRestMinutes = 0 };
+        }
+
+        if (!_rules.InWindow(settings, now))
+        {
+            state.NextSendAt = _rules.NextWindowStart(settings, now);
+            state.Waiting = $"Outside your sending hours ({PacingRules.Hours(settings)}). Sending starts at the next start time.";
             return false;
         }
 
+        // Only a note for the user: the pace and the limit stay what the user chose.
         var deliveredRatio = await DeliveredRatioAsync(account.Id, now, cancellationToken);
-        var slowed = deliveredRatio is { } ratio && ratio < _options.MinDeliveredRatio;
-        var slowNote = slowed
-            ? $"Sending slower: only {deliveredRatio:P0} of recent messages reached the phone. Check that people know your number."
+        var slowNote = deliveredRatio is { } ratio && ratio < _options.MinDeliveredRatio
+            ? $"Only {ratio:P0} of recent messages reached the phone. Check that people know your number."
             : null;
-        var cap = _rules.DailyCap(account, now);
-        if (slowed)
-        {
-            cap = Math.Max(1, cap / _options.SlowDownFactor);
-        }
+        var cap = settings.DailyLimit;
         var startOfDay = _rules.StartOfToday(now);
         var sentToday = await db.OutgoingMessages.CountAsync(
             m => m.AccountId == account.Id && m.CreatedAt >= startOfDay && m.Status != OutgoingMessageStatus.Failed, cancellationToken);
@@ -133,8 +138,10 @@ public sealed class BroadcastDispatcher(
         var recipient = await db.BroadcastRecipients
             .Where(r => r.Status == RecipientStatus.Pending &&
                 db.Broadcasts.Any(b => b.Id == r.BroadcastId && b.UserId == userId && b.Status == BroadcastStatus.Sending))
-            // Birthday wishes always go first, then broadcasts oldest first.
-            .OrderBy(r => db.Broadcasts.Where(b => b.Id == r.BroadcastId).Select(b => b.Target == BroadcastTarget.Birthday ? 0 : 1).First())
+            // Occasion wishes always go first (oldest first), then broadcasts in the user's queue order.
+            .OrderBy(r => db.Broadcasts.Where(b => b.Id == r.BroadcastId).Select(b => b.Target == BroadcastTarget.Occasion ? 0 : 1).First())
+            .ThenBy(r => db.Broadcasts.Where(b => b.Id == r.BroadcastId)
+                .Select(b => b.Target == BroadcastTarget.Occasion ? 0 : b.QueuePosition).First())
             .ThenBy(r => db.Broadcasts.Where(b => b.Id == r.BroadcastId).Select(b => b.CreatedAt).First())
             .ThenBy(r => r.Order)
             .FirstOrDefaultAsync(cancellationToken);
@@ -227,16 +234,10 @@ public sealed class BroadcastDispatcher(
             pace.ResetFailures();
         }
 
-        var delay = TimeSpan.FromSeconds(Random.Shared.Next(_options.MinDelaySeconds, Math.Max(_options.MinDelaySeconds, _options.MaxDelaySeconds) + 1));
-        if (pace.CountSent(_options.BatchSize))
+        var delay = TimeSpan.FromSeconds(Random.Shared.Next(settings.MinGapSeconds, Math.Max(settings.MinGapSeconds, settings.MaxGapSeconds) + 1));
+        if (pace.CountSent(settings.ChunkSize))
         {
-            delay += TimeSpan.FromMinutes(Random.Shared.Next(
-                _options.BatchRestMinMinutes, Math.Max(_options.BatchRestMinMinutes, _options.BatchRestMaxMinutes) + 1));
-        }
-
-        if (slowed)
-        {
-            delay *= _options.SlowDownFactor;
+            delay += TimeSpan.FromMinutes(settings.ChunkRestMinutes);
         }
 
         pace.ScheduleNext(done + delay);

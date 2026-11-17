@@ -15,8 +15,11 @@ public enum BroadcastTarget
     /// <summary>One category: shows in that category's chat.</summary>
     Category = 3,
 
-    /// <summary>Birthday wishes of one day: shows in that day's Birthdays chat.</summary>
-    Birthday = 4,
+    /// <summary>
+    /// Wishes of one occasion module (Birthday, Asthi visarjan, …) for one day. TargetId is the module, TargetDate the
+    /// day. Occasions always go before broadcasts.
+    /// </summary>
+    Occasion = 4,
 }
 
 public enum BroadcastStatus
@@ -81,14 +84,14 @@ public sealed class Broadcast
     /// <summary>The group or category for Group and Category targets.</summary>
     public Guid? TargetId { get; private set; }
 
-    /// <summary>The day, for Birthday targets (in the sending time zone).</summary>
+    /// <summary>The day, for Occasion targets (in the sending time zone).</summary>
     public DateOnly? TargetDate { get; private set; }
 
     public void SetTarget(BroadcastTarget target, Guid? targetId, DateOnly? targetDate)
     {
         Target = target;
-        TargetId = target is BroadcastTarget.Group or BroadcastTarget.Category ? targetId : null;
-        TargetDate = target == BroadcastTarget.Birthday ? targetDate : null;
+        TargetId = target is BroadcastTarget.Group or BroadcastTarget.Category or BroadcastTarget.Occasion ? targetId : null;
+        TargetDate = target == BroadcastTarget.Occasion ? targetDate : null;
     }
 
     /// <summary>A file sent with the message (the message is its caption). Null when there is none.</summary>
@@ -103,6 +106,14 @@ public sealed class Broadcast
     public string? TextGu { get; private set; }
 
     public BroadcastStatus Status { get; private set; }
+
+    /// <summary>
+    /// Place in the user's queue: lower goes first. Occasions always go before broadcasts whatever their place;
+    /// the user moves broadcasts up and down.
+    /// </summary>
+    public int QueuePosition { get; private set; }
+
+    public void PlaceInQueue(int position) => QueuePosition = position;
 
     public string? PauseReason { get; private set; }
 
@@ -155,6 +166,16 @@ public sealed class Broadcast
         PauseReason = null;
         FinishedAt = now;
         return true;
+    }
+
+    /// <summary>Sends again to recipients put back in the queue (see BroadcastRecipient.Retry).</summary>
+    public void Reopen()
+    {
+        if (Status == BroadcastStatus.Completed)
+        {
+            Status = BroadcastStatus.Sending;
+            FinishedAt = null;
+        }
     }
 
     public void Complete(DateTimeOffset now)
@@ -243,6 +264,25 @@ public sealed class BroadcastRecipient
     public void Skip(string reason, DateTimeOffset now) => Finish(RecipientStatus.Skipped, reason, now);
 
     public void Fail(string reason, DateTimeOffset now) => Finish(RecipientStatus.Failed, reason, now);
+
+    /// <summary>A failed message goes back in the queue because the user asked to send it again.</summary>
+    public bool Retry()
+    {
+        if (Status != RecipientStatus.Failed)
+        {
+            return false;
+        }
+
+        Status = RecipientStatus.Pending;
+        Reason = null;
+        OutgoingMessageId = null;
+        ProcessedAt = null;
+        Attempts++;
+        return true;
+    }
+
+    /// <summary>How many times the user asked to send this one again.</summary>
+    public int Attempts { get; private set; }
 
     public void MarkSent(Guid outgoingMessageId, DateTimeOffset now)
     {

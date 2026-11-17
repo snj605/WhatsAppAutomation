@@ -8,6 +8,8 @@ namespace WhatsAppAutomation.Application.Features.Broadcasts;
 /// <see cref="Text"/>: one message for everyone, with {{name}}, {{name_en}}, {{name_hi}}, {{name_gu}} and
 /// {{salutation}} filled in per person. The per-language texts are the older way and are used only when Text is empty.
 /// <see cref="AllContacts"/> sends to every contact of the user (the lists are then not needed).
+/// <see cref="ModuleId"/> makes it today's wishes of that occasion module: they go before broadcasts, show on the
+/// module's screen, and {{for_name}} is filled from each person's entry in the module.
 /// </summary>
 public sealed record BroadcastInput(
     string Name,
@@ -20,11 +22,11 @@ public sealed record BroadcastInput(
     string? Text = null,
     bool AllContacts = false,
     Guid? AttachmentId = null,
-    bool ForBirthday = false)
+    Guid? ModuleId = null)
 {
     /// <summary>One contact picked by hand: a single message, which every member may send.</summary>
     public bool IsSingleMessage =>
-        !AllContacts && !ForBirthday && CategoryIds is not { Count: > 0 } && GroupIds is not { Count: > 0 } &&
+        !AllContacts && ModuleId is null && CategoryIds is not { Count: > 0 } && GroupIds is not { Count: > 0 } &&
         ContactIds is { Count: 1 };
 }
 
@@ -42,7 +44,7 @@ public sealed record BroadcastPreviewDto(
     IReadOnlyDictionary<string, int> ByLanguage,
     IReadOnlyList<SkippedRecipientDto> Skipped,
     IReadOnlyList<SampleMessageDto> Samples,
-    int DailyCap,
+    int DailyLimit,
     int EstimatedDays);
 
 public sealed record BroadcastCountsDto(int Total, int Pending, int Sent, int Delivered, int Read, int Failed, int Skipped);
@@ -81,8 +83,7 @@ public sealed record BroadcastDetailsDto(
 public sealed record PacingDto(
     bool Connected,
     int SentToday,
-    int DailyCap,
-    int? WarmUpWeek,
+    int DailyLimit,
     bool InSendingHours,
     string SendingHours,
     DateTimeOffset? NextSendAt,

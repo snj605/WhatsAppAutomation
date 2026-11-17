@@ -43,7 +43,7 @@ internal sealed class CreateMemberCommandValidator : AbstractValidator<CreateMem
 }
 
 internal sealed class CreateMemberCommandHandler(
-    MemberAccess access, IIdentityService identity, IAppDbContext db) : ICommandHandler<CreateMemberCommand, Guid>
+    MemberAccess access, IIdentityService identity, IAppDbContext db, TimeProvider clock) : ICommandHandler<CreateMemberCommand, Guid>
 {
     public async Task<Result<Guid>> Handle(CreateMemberCommand command, CancellationToken cancellationToken)
     {
@@ -81,10 +81,18 @@ internal sealed class CreateMemberCommandHandler(
             return MemberErrors.UserNameTaken;
         }
 
-        return await identity.CreateUserAsync(
+        var created = await identity.CreateUserAsync(
             new NewUser(userName, command.DisplayName.Trim(), command.Password, kind, tenantId,
                 kind == UserKind.Member ? command.Switches : [], MustChangePassword: true),
             cancellationToken);
+
+        // Tenant admins start with a Birthday occasion; members make their own.
+        if (created.IsSuccess && kind == UserKind.TenantAdmin)
+        {
+            await Modules.DefaultModules.AddBirthdayAsync(db, created.Value, clock.GetUtcNow(), cancellationToken);
+        }
+
+        return created;
     }
 }
 

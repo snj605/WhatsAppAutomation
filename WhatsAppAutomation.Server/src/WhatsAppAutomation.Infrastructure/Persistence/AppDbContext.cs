@@ -41,6 +41,10 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
 
     public DbSet<StoredFile> StoredFiles => Set<StoredFile>();
 
+    public DbSet<OccasionModule> OccasionModules => Set<OccasionModule>();
+
+    public DbSet<ContactOccasion> ContactOccasions => Set<ContactOccasion>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);

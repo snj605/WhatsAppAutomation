@@ -29,7 +29,8 @@ internal static partial class BroadcastPlanner
         ContactLanguage defaultLanguage,
         int contactGapDays,
         DateTimeOffset now,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IReadOnlyDictionary<Guid, string>? forNames = null)
     {
         var categoryIds = input.CategoryIds ?? [];
         var groupIds = input.GroupIds ?? [];
@@ -56,7 +57,8 @@ internal static partial class BroadcastPlanner
         if (IsSingleText(input))
         {
             var single = input.Text!.Trim();
-            return contacts.Select(c => PlanSingle(c, single, recentlySent.Contains(c.PhoneNumber) ? contactGapDays : 0)).ToList();
+            return contacts.Select(c => PlanSingle(
+                c, single, recentlySent.Contains(c.PhoneNumber) ? contactGapDays : 0, forNames?.GetValueOrDefault(c.Id))).ToList();
         }
 
         var texts = new Dictionary<ContactLanguage, string?>
@@ -93,10 +95,11 @@ internal static partial class BroadcastPlanner
 
     /// <summary>
     /// Fills one message for one person. {{name}} is their English name, else how they are saved; {{name_en}},
-    /// {{name_hi}} and {{name_gu}} are the name in that language; {{salutation}} may be empty. Returns the text, or
+    /// {{name_hi}} and {{name_gu}} are the name in that language; {{salutation}} may be empty; {{for_name}} is the
+    /// name in the person's entry of an occasion module (for example who is remembered). Returns the text, or
     /// what is missing ("Hindi name") when the message needs a detail this person does not have.
     /// </summary>
-    internal static (string? Text, string? Missing) RenderFor(string text, Contact c, Random random)
+    internal static (string? Text, string? Missing) RenderFor(string text, Contact c, Random random, string? forName = null)
     {
         string? missing = null;
         var chosen = Choices().Replace(text, m =>
@@ -127,6 +130,15 @@ internal static partial class BroadcastPlanner
             return value ?? string.Empty;
         });
         rendered = SalutationToken().Replace(rendered, c.Salutation ?? string.Empty);
+        rendered = ForNameToken().Replace(rendered, _ =>
+        {
+            if (string.IsNullOrEmpty(forName))
+            {
+                missing ??= "name for this occasion";
+            }
+
+            return forName ?? string.Empty;
+        });
         if (missing is not null)
         {
             return (null, missing);
@@ -136,7 +148,7 @@ internal static partial class BroadcastPlanner
         return (string.Join('\n', lines).Trim(), null);
     }
 
-    private static PlannedRecipient PlanSingle(Contact c, string text, int recentGapDays)
+    private static PlannedRecipient PlanSingle(Contact c, string text, int recentGapDays, string? forName)
     {
         var display = DisplayName(c);
         if (c.IsNotOnWhatsApp)
@@ -154,7 +166,7 @@ internal static partial class BroadcastPlanner
             return new PlannedRecipient(c, display, null, null, $"Already got a broadcast in the last {recentGapDays} days.");
         }
 
-        var (rendered, missing) = RenderFor(text, c, Random.Shared);
+        var (rendered, missing) = RenderFor(text, c, Random.Shared, forName);
         if (missing is not null)
         {
             return new PlannedRecipient(c, display, null, null, $"Needs details: no {missing}.");
@@ -202,7 +214,7 @@ internal static partial class BroadcastPlanner
             return new PlannedRecipient(c, display, lang, null, $"Needs details: no {ContactLanguages.DisplayName(lang)} name.");
         }
 
-        var rendered = Render(text, name, c.Salutation);
+        var rendered = ForNameToken().Replace(Render(text, name, c.Salutation), string.Empty);
         return rendered.Length > Broadcast.TextMaxLength
             ? new PlannedRecipient(c, display, lang, null, "The message is too long with this contact's details.")
             : new PlannedRecipient(c, display, lang, rendered, null);
@@ -225,6 +237,10 @@ internal static partial class BroadcastPlanner
 
     [GeneratedRegex(@"\{\{\s*salutation\s*\}\}|\{salutation\}", RegexOptions.IgnoreCase)]
     private static partial Regex SalutationToken();
+
+    /// <summary>"{{for_name}}" or "{for_name}", any letter case.</summary>
+    [GeneratedRegex(@"\{\{\s*for_name\s*\}\}|\{for_name\}", RegexOptions.IgnoreCase)]
+    private static partial Regex ForNameToken();
 
     /// <summary>"{a|b|c}": at least one "|" and no braces inside, so it never matches a placeholder.</summary>
     [GeneratedRegex(@"\{([^{}|]*(?:\|[^{}|]*)+)\}")]

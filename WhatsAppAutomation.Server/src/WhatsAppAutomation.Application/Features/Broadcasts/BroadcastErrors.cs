@@ -6,6 +6,15 @@ public static class BroadcastErrors
 {
     public static readonly Error NotSignedIn = new("broadcasts.not_signed_in", "Sign in first.", ErrorKind.Unauthorized);
 
+    public static readonly Error ModuleNotFound =
+        new("broadcasts.module_not_found", "This occasion does not exist any more.", ErrorKind.NotFound);
+
+    public static readonly Error NothingToRetry =
+        new("broadcasts.nothing_to_retry", "There are no failed messages to send again.", ErrorKind.Conflict);
+
+    public static readonly Error NotMovable =
+        new("broadcasts.not_movable", "Only broadcasts waiting to send can be moved. Occasions always go first.", ErrorKind.Conflict);
+
     public static readonly Error OnlySingleMessages = new(
         "broadcasts.only_single", "You can send to one contact at a time. Ask your admin to turn on Broadcasts.", ErrorKind.Forbidden);
 

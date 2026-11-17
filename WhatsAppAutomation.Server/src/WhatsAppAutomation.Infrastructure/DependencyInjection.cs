@@ -89,12 +89,11 @@ public static class DependencyInjection
         services.AddOptions<BroadcastOptions>()
             .Bind(configuration.GetSection(BroadcastOptions.SectionName))
             .ValidateDataAnnotations()
-            .Validate(o => o.MaxDelaySeconds >= o.MinDelaySeconds && o.BatchRestMaxMinutes >= o.BatchRestMinMinutes, "Maximum values must not be below the minimums.")
             .Validate(o => TimeZoneInfo.TryFindSystemTimeZoneById(o.TimeZone, out _), "Broadcasting:TimeZone is not a known time zone.")
             .ValidateOnStart();
         services.AddHostedService<BroadcastSenderService>();
         services.AddHostedService<WhatsAppNumberCheckService>();
-        services.AddHostedService<BirthdayAutoSendService>();
+        services.AddHostedService<Modules.ModuleAutoSendService>();
 
         services.AddOptions<GatewayOptions>().Bind(configuration.GetSection(GatewayOptions.SectionName));
         services.AddHttpClient<IWhatsAppGateway, HttpWhatsAppGateway>((sp, http) =>

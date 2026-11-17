@@ -87,12 +87,7 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 
         // The tests run the paced sender step by step, with no waiting and no sending hours.
         builder.UseSetting("Broadcasting:Enabled", "false");
-        builder.UseSetting("Broadcasting:MinDelaySeconds", "0");
-        builder.UseSetting("Broadcasting:MaxDelaySeconds", "0");
-        builder.UseSetting("Broadcasting:BatchRestMinMinutes", "0");
-        builder.UseSetting("Broadcasting:BatchRestMaxMinutes", "0");
-        builder.UseSetting("Broadcasting:SendFrom", "00:00");
-        builder.UseSetting("Broadcasting:SendUntil", "00:00");
+        builder.UseSetting("Broadcasting:NoWaits", "true");
         builder.ConfigureServices(services =>
         {
             services.RemoveAll<IWhatsAppGateway>();

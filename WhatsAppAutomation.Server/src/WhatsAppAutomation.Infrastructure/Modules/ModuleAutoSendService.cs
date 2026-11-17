@@ -3,16 +3,16 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using WhatsAppAutomation.Application.Features.Broadcasts;
-using WhatsAppAutomation.Application.Features.Contacts;
+using WhatsAppAutomation.Application.Features.Modules;
 
-namespace WhatsAppAutomation.Infrastructure.Contacts;
+namespace WhatsAppAutomation.Infrastructure.Modules;
 
 /// <summary>
-/// Checks every 30 seconds whose automatic birthday wishes are due (see BirthdayAutoSender). Switched off together with
+/// Checks every 30 seconds which occasion modules' automatic wishes are due (see ModuleAutoSender). Switched off together with
 /// the broadcast sender (Broadcasting:Enabled = false), as in the automated tests.
 /// </summary>
-internal sealed class BirthdayAutoSendService(
-    IServiceScopeFactory scopes, IOptions<BroadcastOptions> options, ILogger<BirthdayAutoSendService> logger) : BackgroundService
+internal sealed class ModuleAutoSendService(
+    IServiceScopeFactory scopes, IOptions<BroadcastOptions> options, ILogger<ModuleAutoSendService> logger) : BackgroundService
 {
     private static readonly TimeSpan Tick = TimeSpan.FromSeconds(30);
 
@@ -29,7 +29,7 @@ internal sealed class BirthdayAutoSendService(
             try
             {
                 await using var scope = scopes.CreateAsyncScope();
-                await scope.ServiceProvider.GetRequiredService<BirthdayAutoSender>().RunOnceAsync(stoppingToken);
+                await scope.ServiceProvider.GetRequiredService<ModuleAutoSender>().RunOnceAsync(stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -37,7 +37,7 @@ internal sealed class BirthdayAutoSendService(
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "The automatic birthday wishes failed; they are tried again in {Seconds} seconds.", Tick.TotalSeconds);
+                logger.LogError(ex, "The automatic occasion wishes failed; they are tried again in {Seconds} seconds.", Tick.TotalSeconds);
             }
         }
     }

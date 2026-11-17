@@ -32,7 +32,7 @@ public static class DependencyInjection
         services.AddSingleton<BroadcastPacing>();
         services.AddScoped<BroadcastDispatcher>();
         services.AddScoped<WhatsAppNumberChecker>();
-        services.AddScoped<BirthdayAutoSender>();
+        services.AddScoped<Features.Modules.ModuleAutoSender>();
         return services;
     }
 }

@@ -33,6 +33,10 @@ public interface IAppDbContext
 
     DbSet<StoredFile> StoredFiles { get; }
 
+    DbSet<OccasionModule> OccasionModules { get; }
+
+    DbSet<ContactOccasion> ContactOccasions { get; }
+
     DatabaseFacade Database { get; }
 
     /// <summary>Change tracking for one entity, e.g. to read it again from the database.</summary>

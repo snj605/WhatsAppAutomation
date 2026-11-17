@@ -6,6 +6,7 @@ using WhatsAppAutomation.Application.Common.Models;
 using WhatsAppAutomation.Application.Features.Broadcasts.Commands;
 using WhatsAppAutomation.Application.Features.Contacts;
 using WhatsAppAutomation.Application.Features.Contacts.Queries;
+using WhatsAppAutomation.Application.Features.Sending;
 using WhatsAppAutomation.Domain.Entities;
 
 namespace WhatsAppAutomation.Application.Features.Broadcasts.Queries;
@@ -42,10 +43,10 @@ internal sealed class PreviewBroadcastQueryHandler(
         var skipped = plan.Where(p => p.SkipReason is not null).Take(500)
             .Select(p => new SkippedRecipientDto(p.Contact.Id, p.Name, p.Contact.PhoneNumber, p.SkipReason!)).ToList();
 
-        var account = await db.WhatsAppAccounts.AsNoTracking().SingleOrDefaultAsync(a => a.UserId == userId, cancellationToken);
-        var rules = new PacingRules(options.Value);
-        var cap = account is null ? options.Value.DailyCap : rules.DailyCap(account, now);
-        var days = sending.Count == 0 ? 0 : (int)Math.Ceiling(sending.Count / (double)cap);
+        var settings = await UserSending.ForAsync(db, userId, cancellationToken);
+        var perDay = Math.Max(1, settings.FitsPerDay);
+        var days = sending.Count == 0 ? 0 : (int)Math.Ceiling(sending.Count / (double)perDay);
+        var cap = settings.DailyLimit;
         return new BroadcastPreviewDto(plan.Count, sending.Count, byLanguage, skipped, samples, cap, days);
     }
 }
@@ -133,10 +134,12 @@ internal sealed class GetPacingQueryHandler(
 
         var now = clock.GetUtcNow();
         var rules = new PacingRules(options.Value);
+        var settings = await UserSending.ForAsync(db, userId, cancellationToken);
         var account = await db.WhatsAppAccounts.AsNoTracking().SingleOrDefaultAsync(a => a.UserId == userId, cancellationToken);
         if (account is null)
         {
-            return new PacingDto(false, 0, options.Value.DailyCap, null, rules.InSendingHours(now), rules.SendingHours, null, "WhatsApp is not linked.");
+            return new PacingDto(
+                false, 0, settings.DailyLimit, rules.InWindow(settings, now), PacingRules.Hours(settings), null, "WhatsApp is not linked.");
         }
 
         var startOfDay = rules.StartOfToday(now);
@@ -147,10 +150,9 @@ internal sealed class GetPacingQueryHandler(
         return new PacingDto(
             account.CanSend,
             sentToday,
-            rules.DailyCap(account, now),
-            rules.WarmUpWeek(account, now),
-            rules.InSendingHours(now),
-            rules.SendingHours,
+            settings.DailyLimit,
+            rules.InWindow(settings, now),
+            PacingRules.Hours(settings),
             sending ? state?.NextSendAt : null,
             sending ? state?.Waiting : null);
     }

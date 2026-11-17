@@ -60,7 +60,7 @@ internal sealed class CreateBroadcastCommandHandler(
     }
 }
 
-/// <summary>Creates and starts a broadcast for a user. Used by the send screens and by the automatic birthday wishes.</summary>
+/// <summary>Creates and starts a broadcast for a user. Used by the send screens and by the automatic occasion wishes.</summary>
 internal static class BroadcastCreation
 {
     public static async Task<Result<Guid>> CreateAsync(
@@ -78,7 +78,21 @@ internal static class BroadcastCreation
             return WhatsAppAutomation.Application.Features.Files.FileErrors.NotFound;
         }
 
-        var plan = await BroadcastPlanner.PlanAsync(db, userId, input, defaultLanguage, options.ContactGapDays, now, cancellationToken);
+        IReadOnlyDictionary<Guid, string>? forNames = null;
+        if (input.ModuleId is { } moduleId)
+        {
+            if (!await db.OccasionModules.AnyAsync(m => m.Id == moduleId && m.UserId == userId, cancellationToken))
+            {
+                return BroadcastErrors.ModuleNotFound;
+            }
+
+            forNames = await db.ContactOccasions.AsNoTracking()
+                .Where(o => o.ModuleId == moduleId && o.ForName != null)
+                .ToDictionaryAsync(o => o.ContactId, o => o.ForName!, cancellationToken);
+        }
+
+        var plan = await BroadcastPlanner.PlanAsync(
+            db, userId, input, defaultLanguage, options.ContactGapDays, now, cancellationToken, forNames);
         if (!plan.Any(p => p.SkipReason is null))
         {
             return BroadcastErrors.NobodyToSend;
@@ -93,7 +107,11 @@ internal static class BroadcastCreation
         }
 
         var (target, targetId) = BroadcastTargets.Of(input);
-        broadcast.SetTarget(target, targetId, target == BroadcastTarget.Birthday ? BroadcastTargets.Today(options, now) : null);
+        broadcast.SetTarget(target, targetId, target == BroadcastTarget.Occasion ? BroadcastTargets.Today(options, now) : null);
+
+        // A new broadcast joins the end of the queue; the user can move it up. Occasions go first anyway.
+        var last = await db.Broadcasts.Where(b => b.UserId == userId).MaxAsync(b => (int?)b.QueuePosition, cancellationToken);
+        broadcast.PlaceInQueue((last ?? 0) + 1);
         db.Broadcasts.Add(broadcast);
         var order = 0;
         foreach (var p in plan)

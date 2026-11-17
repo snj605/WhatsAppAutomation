@@ -19,6 +19,6 @@ internal static class BroadcastAccess
         }
 
         var granted = await permissions.GetPermissionsAsync(userId, cancellationToken);
-        return granted.Contains(input.ForBirthday ? Permissions.Modules.Manage : Permissions.Broadcasts.Send);
+        return granted.Contains(input.ModuleId is not null ? Permissions.Modules.Manage : Permissions.Broadcasts.Send);
     }
 }

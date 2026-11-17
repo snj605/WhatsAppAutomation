@@ -64,6 +64,7 @@ internal sealed class CreateTenantCommandHandler(IAppDbContext db, IIdentityServ
             return admin.Error!;
         }
 
+        await Modules.DefaultModules.AddBirthdayAsync(db, admin.Value, clock.GetUtcNow(), cancellationToken);
         return tenant.Id;
     }
 
