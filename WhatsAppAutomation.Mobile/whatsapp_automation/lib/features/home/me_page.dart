@@ -6,8 +6,8 @@ import '../../app/confirm_dialog.dart';
 import '../../app/theme_mode.dart';
 import '../../core/providers.dart';
 import '../../core/ui.dart';
-import '../admin/roles_page.dart';
-import '../admin/users_page.dart';
+import '../account/change_password_page.dart';
+import '../admin/members_page.dart';
 import '../auth/auth_models.dart';
 import '../auth/session_controller.dart';
 import '../contacts/import_page.dart';
@@ -110,10 +110,11 @@ class _MePageState extends ConsumerState<MePage> {
             child: Text(user.displayName, style: theme.typography.display.xl.copyWith(fontWeight: FontWeight.w700)),
           ),
           Center(
-            child: Text('@${user.userName}', style: theme.typography.body.sm.copyWith(color: theme.colors.mutedForeground)),
+            child: Text('@${user.userName} · ${user.kindLine}', style: theme.typography.body.sm.copyWith(color: theme.colors.mutedForeground)),
           ),
           const SizedBox(height: 8),
         ],
+        if (can('whatsapp.link'))
         CardSection(
           title: 'WhatsApp',
           children: <Widget>[
@@ -142,10 +143,11 @@ class _MePageState extends ConsumerState<MePage> {
               ),
           ],
         ),
+        if (can('contacts.view'))
         CardSection(
           title: 'Messages & contacts',
           children: <Widget>[
-            if (can('broadcasts.send'))
+            if (can('templates.manage'))
               ListRow(
                 leading: const IconBadge(FLucideIcons.fileText),
                 title: 'Templates',
@@ -161,7 +163,7 @@ class _MePageState extends ConsumerState<MePage> {
                 trailing: chevron,
                 onTap: () => pushPage<void>(context, const ListsPage()),
               ),
-            if (can('contacts.manage'))
+            if (can('contacts.import'))
               ListRow(
                 leading: const IconBadge(FLucideIcons.fileSpreadsheet, color: Color(0xFF10B981)),
                 title: 'Import contacts',
@@ -171,10 +173,17 @@ class _MePageState extends ConsumerState<MePage> {
               ),
           ],
         ),
-        if (_biometricsAvailable)
           CardSection(
             title: 'Security',
             children: <Widget>[
+              ListRow(
+                leading: const IconBadge(FLucideIcons.lock, color: Color(0xFF475467)),
+                title: 'Change password',
+                subtitle: 'Choose a new one',
+                trailing: chevron,
+                onTap: () => pushPage<void>(context, const ChangePasswordPage()),
+              ),
+              if (_biometricsAvailable)
               ListRow(
                 leading: const IconBadge(FLucideIcons.fingerprint, color: Color(0xFFEC4899)),
                 title: 'Fingerprint or face',
@@ -184,25 +193,17 @@ class _MePageState extends ConsumerState<MePage> {
               ),
             ],
           ),
-        if (can('users.view') || can('roles.view'))
+        if (can('members.manage'))
           CardSection(
             title: 'Admin',
             children: <Widget>[
-              if (can('users.view'))
+              if (can('members.manage'))
                 ListRow(
                   leading: const IconBadge(FLucideIcons.users, color: Color(0xFF6366F1)),
-                  title: 'Accounts',
-                  subtitle: 'Create, turn on or off, roles',
+                  title: 'Members',
+                  subtitle: 'Add people and choose what they may do',
                   trailing: chevron,
-                  onTap: () => pushPage<void>(context, const UsersPage()),
-                ),
-              if (can('roles.view'))
-                ListRow(
-                  leading: const IconBadge(FLucideIcons.shield, color: Color(0xFF6366F1)),
-                  title: 'Roles',
-                  subtitle: 'What each role may do',
-                  trailing: chevron,
-                  onTap: () => pushPage<void>(context, const RolesPage()),
+                  onTap: () => pushPage<void>(context, const MembersPage()),
                 ),
             ],
           ),

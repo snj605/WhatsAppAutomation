@@ -6,111 +6,155 @@ import '../../core/providers.dart';
 
 final Provider<AdminApi> adminApiProvider = Provider<AdminApi>((Ref ref) => AdminApi(ref.watch(apiClientProvider)));
 
-/// Shapes of /api/v1/users, /roles and /permissions (same as the website's settings.models.ts).
-
-class Permission {
-  const Permission({required this.name, required this.group, required this.description});
-
-  factory Permission.fromJson(Json json) => Permission(
-        name: json['name'] as String,
-        group: json['group'] as String? ?? '',
-        description: json['description'] as String? ?? '',
-      );
-
-  final String name;
-  final String group;
-  final String description;
-}
-
-class Role {
-  const Role({
+/// A person of the tenant (same as the website's members.models.ts).
+class Member {
+  const Member({
     required this.id,
-    required this.name,
-    required this.description,
-    required this.isSystem,
-    required this.permissions,
-    required this.userCount,
+    required this.userName,
+    required this.displayName,
+    required this.isAdmin,
+    required this.isActive,
+    required this.switches,
+    required this.whatsAppStatus,
+    required this.whatsAppNumber,
   });
 
-  factory Role.fromJson(Json json) => Role(
+  factory Member.fromJson(Json json) => Member(
+        id: json['id'] as String,
+        userName: json['userName'] as String? ?? '',
+        displayName: json['displayName'] as String? ?? '',
+        isAdmin: json['kind'] == 'tenant_admin',
+        isActive: asBool(json['isActive']),
+        switches: asStrings(json['switches']),
+        whatsAppStatus: json['whatsAppStatus'] as String? ?? 'not_linked',
+        whatsAppNumber: json['whatsAppNumber'] as String?,
+      );
+
+  final String id;
+  final String userName;
+  final String displayName;
+  final bool isAdmin;
+  final bool isActive;
+  final List<String> switches;
+
+  /// Like GET /api/v1/whatsapp: "connected", "not_linked", …
+  final String whatsAppStatus;
+  final String? whatsAppNumber;
+}
+
+/// A tenant as the platform admin sees it: counts only.
+class Tenant {
+  const Tenant({
+    required this.id,
+    required this.name,
+    required this.isActive,
+    required this.users,
+    required this.admins,
+  });
+
+  factory Tenant.fromJson(Json json) => Tenant(
         id: json['id'] as String,
         name: json['name'] as String? ?? '',
-        description: json['description'] as String?,
-        isSystem: asBool(json['isSystem']),
-        permissions: asStrings(json['permissions']),
-        userCount: asInt(json['userCount']),
+        isActive: asBool(json['isActive']),
+        users: asInt(json['users']),
+        admins: asInt(json['admins']),
       );
 
   final String id;
   final String name;
-  final String? description;
-  final bool isSystem;
-  final List<String> permissions;
-  final int userCount;
+  final bool isActive;
+  final int users;
+  final int admins;
 }
 
-class UserDetails {
-  const UserDetails({
-    required this.id,
-    required this.userName,
-    required this.displayName,
-    required this.isActive,
-    required this.roles,
-  });
+class TenantAdmin {
+  const TenantAdmin({required this.id, required this.userName, required this.displayName, required this.isActive});
 
-  factory UserDetails.fromJson(Json json) => UserDetails(
+  factory TenantAdmin.fromJson(Json json) => TenantAdmin(
         id: json['id'] as String,
         userName: json['userName'] as String? ?? '',
         displayName: json['displayName'] as String? ?? '',
         isActive: asBool(json['isActive']),
-        roles: asList(json['roles']).map((Json r) => (id: r['id'] as String, name: r['name'] as String? ?? '')).toList(),
       );
 
   final String id;
   final String userName;
   final String displayName;
   final bool isActive;
-  final List<({String id, String name})> roles;
 }
 
+/// /api/v1/members (tenant admin) and /api/v1/platform/tenants (platform admin).
 class AdminApi {
   const AdminApi(this._api);
 
   final ApiClient _api;
 
-  Future<List<Permission>> permissions() async =>
-      asList(await _api.get('/api/v1/permissions')).map(Permission.fromJson).toList();
+  static const String _tenants = '/api/v1/platform/tenants';
 
-  Future<List<Role>> roles() async => asList(await _api.get('/api/v1/roles')).map(Role.fromJson).toList();
+  Future<List<Member>> members() async => asList(await _api.get('/api/v1/members')).map(Member.fromJson).toList();
 
-  Future<void> saveRole(String? id, {required String name, String? description, required List<String> permissions}) {
-    final Json body = <String, dynamic>{'name': name, 'description': description, 'permissions': permissions};
-    return id == null ? _api.post('/api/v1/roles', body) : _api.put('/api/v1/roles/$id', body);
-  }
-
-  Future<void> deleteRole(String id) => _api.delete('/api/v1/roles/$id');
-
-  Future<List<UserDetails>> users() async => asList(await _api.get('/api/v1/users')).map(UserDetails.fromJson).toList();
-
-  Future<void> createUser({
+  Future<void> createMember({
     required String userName,
     required String displayName,
     required String password,
-    required List<String> roleIds,
+    required bool isAdmin,
+    required List<String> switches,
   }) =>
-      _api.post('/api/v1/users', <String, dynamic>{
+      _api.post('/api/v1/members', <String, dynamic>{
         'userName': userName,
         'displayName': displayName,
         'password': password,
-        'roleIds': roleIds,
+        'isAdmin': isAdmin,
+        'switches': switches,
       });
 
-  Future<void> setUserRoles(String id, List<String> roleIds) =>
-      _api.put('/api/v1/users/$id/roles', <String, dynamic>{'roleIds': roleIds});
+  Future<void> updateMember(String id, {required String displayName, required bool isAdmin, required List<String> switches}) =>
+      _api.put('/api/v1/members/$id', <String, dynamic>{'displayName': displayName, 'isAdmin': isAdmin, 'switches': switches});
 
-  /// Deletes the account and everything that is theirs (contacts, messages, linked WhatsApp). Cannot be undone.
-  Future<void> deleteUser(String id) => _api.delete('/api/v1/users/$id');
+  Future<void> setMemberActive(String id, {required bool isActive}) =>
+      _api.put('/api/v1/members/$id/active', <String, dynamic>{'isActive': isActive});
 
-  Future<void> setUserActive(String id, {required bool isActive}) =>
-      _api.put('/api/v1/users/$id/active', <String, dynamic>{'isActive': isActive});
+  /// They are signed out and choose their own password at the next sign-in.
+  Future<void> resetMemberPassword(String id, String password) =>
+      _api.put('/api/v1/members/$id/password', <String, dynamic>{'password': password});
+
+  /// Deletes the person and everything that is theirs. Cannot be undone.
+  Future<void> deleteMember(String id) => _api.delete('/api/v1/members/$id');
+
+  Future<List<Tenant>> tenants() async => asList(await _api.get(_tenants)).map(Tenant.fromJson).toList();
+
+  Future<void> createTenant({
+    required String name,
+    required String adminUserName,
+    required String adminDisplayName,
+    required String adminPassword,
+  }) =>
+      _api.post(_tenants, <String, dynamic>{
+        'name': name,
+        'adminUserName': adminUserName,
+        'adminDisplayName': adminDisplayName,
+        'adminPassword': adminPassword,
+      });
+
+  Future<void> renameTenant(String id, String name) => _api.put('$_tenants/$id', <String, dynamic>{'name': name});
+
+  Future<void> setTenantActive(String id, {required bool isActive}) =>
+      _api.put('$_tenants/$id/active', <String, dynamic>{'isActive': isActive});
+
+  /// Only a turned-off tenant; removes all its people and their data.
+  Future<void> deleteTenant(String id) => _api.delete('$_tenants/$id');
+
+  Future<List<TenantAdmin>> tenantAdmins(String id) async =>
+      asList(await _api.get('$_tenants/$id/admins')).map(TenantAdmin.fromJson).toList();
+
+  Future<void> addTenantAdmin(String id, {required String userName, required String displayName, required String password}) =>
+      _api.post('$_tenants/$id/admins', <String, dynamic>{'userName': userName, 'displayName': displayName, 'password': password});
+
+  Future<void> setTenantAdminActive(String id, String adminId, {required bool isActive}) =>
+      _api.put('$_tenants/$id/admins/$adminId/active', <String, dynamic>{'isActive': isActive});
+
+  Future<void> resetTenantAdminPassword(String id, String adminId, String password) =>
+      _api.put('$_tenants/$id/admins/$adminId/password', <String, dynamic>{'password': password});
+
+  Future<void> deleteTenantAdmin(String id, String adminId) => _api.delete('$_tenants/$id/admins/$adminId');
 }

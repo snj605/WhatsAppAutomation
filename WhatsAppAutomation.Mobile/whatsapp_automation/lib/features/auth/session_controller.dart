@@ -69,6 +69,16 @@ class SessionController extends Notifier<SessionState> {
     }
   }
 
+  /// Changes the signed-in user's own password, then reloads what they may do (it changes after a forced change).
+  /// Throws [ApiException] with a message to show.
+  Future<void> changePassword(String currentPassword, String newPassword) async {
+    await _api.put('/api/v1/auth/password', <String, dynamic>{
+      'currentPassword': currentPassword,
+      'newPassword': newPassword,
+    });
+    state = await _loadMe();
+  }
+
   Future<void> signOut() async {
     await _auth.signOut();
     // Nothing of this user's data stays on screen for the next person.

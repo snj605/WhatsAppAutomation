@@ -3,6 +3,8 @@ import 'package:forui/forui.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../core/config.dart';
+import '../features/account/change_password_page.dart';
+import '../features/admin/tenants_page.dart';
 import '../features/auth/auth_models.dart';
 import '../features/auth/lock_page.dart';
 import '../features/auth/login_page.dart';
@@ -79,6 +81,8 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         SessionUnreachable(:final String message) => _Unreachable(message),
         SignedOut(:final String? message) => LoginPage(notice: message),
         Locked(:final String userName) => LockPage(userName: userName),
+        SignedIn(:final AppUser user) when user.mustChangePassword => const ChangePasswordPage(forced: true),
+        SignedIn(:final AppUser user) when user.kind == UserKind.platformAdmin => const PlatformHomePage(),
         SignedIn() => const HomePage(),
       },
     );

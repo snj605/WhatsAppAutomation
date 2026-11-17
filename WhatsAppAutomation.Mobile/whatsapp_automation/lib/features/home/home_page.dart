@@ -144,7 +144,8 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   List<Widget> _actions(SessionState session) {
-    final bool canSend = session is SignedIn && session.can('broadcasts.send');
+    final bool canSend = session is SignedIn && session.can('messages.send');
+    final bool canModules = session is SignedIn && session.can('modules.manage');
     final bool canManageContacts = session is SignedIn && session.can('contacts.manage');
     return switch (_tab) {
       0 when canSend => <Widget>[
@@ -158,7 +159,7 @@ class _HomePageState extends ConsumerState<HomePage> {
           if (canManageContacts)
             FHeaderAction(icon: const Icon(FLucideIcons.userPlus), onPress: () => _contacts.currentState?.add()),
         ],
-      2 when canSend => <Widget>[
+      2 when canModules => <Widget>[
           FHeaderAction(
             icon: const Icon(FLucideIcons.alarmClock),
             onPress: () => _birthdays.currentState?.openSettings(),
