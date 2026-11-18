@@ -22,7 +22,7 @@ internal sealed class ContactSpreadsheet : IContactSpreadsheet
         };
     }
 
-    public byte[] CreateTemplate(IReadOnlyList<string> categoryNames)
+    public byte[] CreateTemplate(IReadOnlyList<string> categoryNames, IReadOnlyList<(string Header, string Help)> extraColumns)
     {
         using var workbook = new XLWorkbook();
 
@@ -37,6 +37,13 @@ internal sealed class ContactSpreadsheet : IContactSpreadsheet
         help.Range(6, 1, 6, 2).Style.Font.SetBold().Fill.SetBackgroundColor(XLColor.FromHtml("#d1fae5"));
         var line = 7;
         foreach (var (_, header, text) in ImportColumns.All)
+        {
+            help.Cell(line, 1).Value = header;
+            help.Cell(line, 2).Value = text;
+            line++;
+        }
+
+        foreach (var (header, text) in extraColumns)
         {
             help.Cell(line, 1).Value = header;
             help.Cell(line, 2).Value = text;
@@ -58,6 +65,15 @@ internal sealed class ContactSpreadsheet : IContactSpreadsheet
             // Text format, so Excel keeps "+91…" and does not turn "15-08" into a date.
             sheet.Column(i + 1).Style.NumberFormat.Format = "@";
             sheet.Column(i + 1).Width = key is ImportColumns.Notes ? 40 : 20;
+        }
+
+        for (var i = 0; i < extraColumns.Count; i++)
+        {
+            var cell = sheet.Cell(1, ImportColumns.All.Count + i + 1);
+            cell.Value = extraColumns[i].Header;
+            cell.Style.Font.SetBold().Font.SetFontColor(XLColor.White).Fill.SetBackgroundColor(XLColor.FromHtml("#0F766E"));
+            sheet.Column(ImportColumns.All.Count + i + 1).Style.NumberFormat.Format = "@";
+            sheet.Column(ImportColumns.All.Count + i + 1).Width = 22;
         }
 
         string[][] samples =
@@ -275,7 +291,6 @@ internal sealed class ContactSpreadsheet : IContactSpreadsheet
 
     private static SpreadsheetReadResult Build(IReadOnlyList<string> headers, IEnumerable<(int Row, List<string> Cells)> table, int maxRows)
     {
-        var known = ImportColumns.All.Select(c => c.Key).ToHashSet();
         var keys = headers.Select(h => ImportColumns.KeyOf(h)).ToList();
         var missing = ImportColumns.All.Where(c => ImportColumns.Required.Contains(c.Key) && !keys.Contains(c.Key))
             .Select(c => c.Header.TrimEnd('*')).ToList();
@@ -300,7 +315,7 @@ internal sealed class ContactSpreadsheet : IContactSpreadsheet
             var values = new Dictionary<string, string>();
             for (var c = 0; c < keys.Count && c < cells.Count; c++)
             {
-                if (known.Contains(keys[c]) && !values.ContainsKey(keys[c]))
+                if (keys[c].Length > 0 && !values.ContainsKey(keys[c]))
                 {
                     values[keys[c]] = cells[c];
                 }

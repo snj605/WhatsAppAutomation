@@ -70,11 +70,13 @@ internal sealed class ImportContactsCommandHandler(
         var existing = await db.Contacts.Include(c => c.Groups).Where(c => c.UserId == userId)
             .ToDictionaryAsync(c => c.PhoneNumber, cancellationToken);
 
+        var moduleColumns = await Modules.ModuleColumns.ForUserAsync(db, userId, cancellationToken);
         var parsed = new List<ParsedRow>();
         var seenPhones = new Dictionary<string, int>();
         foreach (var row in read.Rows)
         {
             var p = Parse(row, defaultLanguage);
+            ParseOccasions(row, moduleColumns, p);
             if (p.Errors.Count == 0 && string.IsNullOrEmpty(p.NameFor(p.Language)) &&
                 !(existing.TryGetValue(p.Phone!, out var saved) && !string.IsNullOrEmpty(saved.NameIn(p.Language))))
             {
@@ -181,6 +183,31 @@ internal sealed class ImportContactsCommandHandler(
             }
         }
 
+        // Occasion dates: added or changed; an empty cell keeps what is saved.
+        var withDates = parsed.Where(p => p.Errors.Count == 0 && p.Occasions.Count > 0).ToList();
+        if (withDates.Count > 0)
+        {
+            var moduleIds = moduleColumns.Select(c => c.ModuleId).ToList();
+            var saved = await db.ContactOccasions.Where(o => moduleIds.Contains(o.ModuleId)).ToListAsync(cancellationToken);
+            var byKey = saved.ToDictionary(o => (o.ModuleId, o.ContactId));
+            foreach (var p in withDates)
+            {
+                var contactId = existing.TryGetValue(p.Phone!, out var c) ? c.Id
+                    : db.Contacts.Local.Single(x => x.UserId == userId && x.PhoneNumber == p.Phone).Id;
+                foreach (var o in p.Occasions)
+                {
+                    if (!byKey.TryGetValue((o.ModuleId, contactId), out var entry))
+                    {
+                        entry = new ContactOccasion(o.ModuleId, contactId);
+                        db.ContactOccasions.Add(entry);
+                        byKey[(o.ModuleId, contactId)] = entry;
+                    }
+
+                    entry.Set(o.Day, o.Month, o.Year, o.ForName ?? entry.ForName);
+                }
+            }
+        }
+
         // One save: the whole file is imported, or (on any database error) nothing is.
         await db.SaveChangesAsync(cancellationToken);
         return new ImportResultDto(true, created, updated, failed, newCategories, newGroups, rows);
@@ -253,6 +280,34 @@ internal sealed class ImportContactsCommandHandler(
         return p;
     }
 
+    /// <summary>The user's occasion columns: a date per module, and its second name.</summary>
+    private static void ParseOccasions(SpreadsheetRow row, List<Modules.ModuleColumn> columns, ParsedRow p)
+    {
+        string? Cell(string? key) => key is not null && row.Cells.TryGetValue(key, out var v) && !string.IsNullOrWhiteSpace(v) ? v.Trim() : null;
+
+        foreach (var column in columns)
+        {
+            var forName = Limit(Cell(column.ForNameKey), ContactOccasion.ForNameMaxLength, column.ForNameHeader ?? column.Name, p.Errors);
+            if (Cell(column.DateKey) is not { } text)
+            {
+                continue;
+            }
+
+            var date = ParseBirthday(text);
+            if (date is null || (column.Kind == ModuleKind.Once && date.Year is null))
+            {
+                p.Errors.Add(column.Kind == ModuleKind.Once
+                    ? $"{column.Name}: use DD-MM-YYYY with a real date."
+                    : $"{column.Name}: use DD-MM or DD-MM-YYYY with a real date.");
+                continue;
+            }
+
+            p.Occasions.Add(new ParsedOccasion(column.ModuleId, date.Day, date.Month, date.Year, forName));
+        }
+    }
+
+    private sealed record ParsedOccasion(Guid ModuleId, int Day, int Month, int? Year, string? ForName);
+
     private static string? Limit(string? value, int max, string column, List<string> errors)
     {
         if (value is not null && value.Length > max)
@@ -290,6 +345,8 @@ internal sealed class ImportContactsCommandHandler(
 
     private sealed class ParsedRow
     {
+        public List<ParsedOccasion> Occasions { get; } = [];
+
         public int RowNumber { get; init; }
 
         public string? RawPhone { get; init; }

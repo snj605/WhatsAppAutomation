@@ -11,10 +11,12 @@ public interface IContactSpreadsheet
 {
     /// <summary>
     /// Reads the first sheet (or the "Contacts" sheet) of an .xlsx file, or a UTF-8 .csv file. Headers are matched
-    /// to <see cref="Features.Contacts.Import.ImportColumns"/> ignoring case, spaces and "*".
+    /// to <see cref="Features.Contacts.Import.ImportColumns"/> ignoring case, spaces and "*". Other columns are kept
+    /// too (by the same key), for the user's occasion columns.
     /// </summary>
     SpreadsheetReadResult Read(Stream file, string fileName, int maxRows);
 
     /// <summary>An .xlsx with an Instructions sheet and a Contacts sheet with sample rows and dropdowns.</summary>
-    byte[] CreateTemplate(IReadOnlyList<string> categoryNames);
+    /// <param name="extraColumns">The user's occasion columns (header and help text), after the standard ones.</param>
+    byte[] CreateTemplate(IReadOnlyList<string> categoryNames, IReadOnlyList<(string Header, string Help)> extraColumns);
 }

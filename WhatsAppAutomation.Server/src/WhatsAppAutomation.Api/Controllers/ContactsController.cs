@@ -187,7 +187,8 @@ public sealed class ContactsController(ISender mediator, IContactSpreadsheet spr
             return this.ToProblem(error);
         }
 
-        var bytes = spreadsheet.CreateTemplate(categories.Value.Select(c => c.Name).ToList());
+        var columns = await mediator.Send(new Application.Features.Modules.GetModuleColumnsQuery(), cancellationToken);
+        var bytes = spreadsheet.CreateTemplate(categories.Value.Select(c => c.Name).ToList(), columns.IsSuccess ? columns.Value : []);
         return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "contacts-template.xlsx");
     }
 
