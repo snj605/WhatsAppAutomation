@@ -109,6 +109,15 @@ The website and the app show the same screens, in the approved look (grey page, 
 15. Attach a video over 100 MB → you are asked to send it as a file (WhatsApp plays only up to 100 MB). Up to 512 MB.
 16. **Notifications** (bell in the app header, Alerts on the website): number logged out or used by another account, sending paused, occasion wishes started. They also pop up while the app is open.
 
+**Occasions and your own details on contacts (new)**
+
+17. **Set up first**: website **Occasions → Contact fields** tab (app: Occasions → **Contact fields**) → add fields, for example *City* (Text), *Shop type* (Choice: Retail, Wholesale), *Joined* (Date), *Members* (Number). The type cannot change later; choices can.
+18. **A contact**: Edit → **Occasions** lists only the dates this contact has. **+ Asthi** adds one (day, month, optional year; the second name if the occasion has one). Only your own occasions can be added; remove one with ✕. **More details** shows your fields by type. A member without Birthday sees no birthday anywhere.
+19. **Your old birthdays**: after updating the database (step 2), every contact's birthday is a date of your Birthday occasion — nothing is lost (the old columns stay too).
+20. **Search**: Contacts → choose a field (and a value) → only those people. The same filter is in **New message → People**.
+21. **In messages**: in a template or new message, the field buttons put `{{city}}` in. Each person gets their own value; a person without it is skipped with "Needs details: no City". The Excel template has a column per field and per occasion.
+22. **WhatsApp preview**: in New message, Templates, an occasion's Settings and a sent chat, the message shows as on WhatsApp: green bubble, the real **photo**, the **video** (website: first frame, play inside; app: tap to play), a **document** card (PDF/Word/Excel, size), *bold* _italic_ ~strike~, time and ticks. **Preview for…** picks a person and shows exactly their message (their name, language, second name, fields), or why they would be skipped.
+
 ## If something goes wrong
 
 - Build errors after updating: delete the `bin` and `obj` folders of the server projects and build again.
