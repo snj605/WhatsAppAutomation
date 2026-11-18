@@ -1,0 +1,61 @@
+<div class="ap-page">
+  <header class="ap-header">
+    <div class="ap-header-row">
+      <div>
+        <h1 class="ap-title">Salutations</h1>
+        <p class="ap-sub">How you greet people, in English and Gujarati. A message's <code>{{ '{{' }}salutation{{ '}}' }}</code> uses the contact's language.</p>
+      </div>
+      <span class="spacer"></span>
+      @if (store.list().length < max) {
+        <button type="button" class="ap-btn primary" (click)="open('new')"><i class="pi pi-plus" aria-hidden="true"></i> New salutation</button>
+      }
+    </div>
+    <nav class="ap-tabs" aria-label="Set up">
+      <a class="ap-tab" routerLink="/modules">Occasions</a>
+      <a class="ap-tab" routerLink="/contact-fields">Contact fields</a>
+      <a class="ap-tab active" routerLink="/salutations" aria-current="page">Salutations</a>
+    </nav>
+  </header>
+
+  <div class="ap-body">
+    @if (editing(); as e) {
+      <section class="ap-card pad ap-form" aria-label="Salutation">
+        <h2 class="ap-section-title flush">{{ e === 'new' ? 'New salutation' : 'Change ' + e.label }}</h2>
+        <label for="s-en">English</label>
+        <input id="s-en" type="text" maxlength="30" placeholder="For example: Shri" [(ngModel)]="nameEn" />
+        <label for="s-gu">Gujarati</label>
+        <input id="s-gu" type="text" maxlength="30" placeholder="ઉદાહરણ: શ્રી" lang="gu" [(ngModel)]="nameGu" />
+        @if (nameEn.trim() && nameGu.trim()) {
+          <span class="ap-hint">In lists and Excel: <strong>{{ label() }}</strong></span>
+        }
+        <div class="ap-actions end">
+          <button type="button" class="ap-btn" (click)="editing.set(null)">Cancel</button>
+          <button type="button" class="ap-btn primary" [disabled]="saving()" (click)="save()">Save</button>
+        </div>
+      </section>
+    }
+
+    @if (store.loaded() && store.list().length === 0 && !editing()) {
+      <section class="ap-card ap-empty">
+        <i class="pi pi-user" aria-hidden="true"></i>
+        <strong>No salutations yet</strong>
+        <span>Add the ones you use, each in both languages: Shri / શ્રી, Smt. / શ્રીમતી, Pujya / પૂજ્ય, …</span>
+        <button type="button" class="ap-btn primary" (click)="open('new')"><i class="pi pi-plus" aria-hidden="true"></i> New salutation</button>
+      </section>
+    } @else if (store.list().length > 0) {
+      <section class="ap-card">
+        @for (s of store.list(); track s.id) {
+          <div class="ap-row">
+            <span class="ap-text">
+              <strong>{{ s.label }}</strong>
+              <small>{{ s.contactCount }} {{ s.contactCount === 1 ? 'contact' : 'contacts' }}</small>
+            </span>
+            <button type="button" class="ap-btn icon" (click)="open(s)" [attr.aria-label]="'Change ' + s.label"><i class="pi pi-pencil" aria-hidden="true"></i></button>
+            <button type="button" class="ap-btn icon danger" (click)="remove(s)" [attr.aria-label]="'Delete ' + s.label"><i class="pi pi-trash" aria-hidden="true"></i></button>
+          </div>
+        }
+      </section>
+      <p class="ap-note">Up to {{ max }}. Saved salutations from before were added here with the same text in both languages: change the Gujarati text where needed.</p>
+    }
+  </div>
+</div>

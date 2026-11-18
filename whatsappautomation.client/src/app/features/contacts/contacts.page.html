@@ -216,5 +216,5 @@
 </div>
 
 <app-contact-dialog [target]="editing()" [categories]="categories()" [groups]="groups()" [defaultLanguage]="defaultLanguage()"
-  [modules]="modules.modules()" [fields]="fieldsStore.fields()" [canSetUp]="canSetUp()"
+  [modules]="modules.modules()" [fields]="fieldsStore.fields()" [salutations]="salutationsStore.list()" [canSetUp]="canSetUp()"
   (closed)="editing.set(null)" (saved)="onSaved($event)" />

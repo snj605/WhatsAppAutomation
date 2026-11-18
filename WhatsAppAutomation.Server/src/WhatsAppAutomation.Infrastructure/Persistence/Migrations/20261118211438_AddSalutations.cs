@@ -62,6 +62,27 @@ namespace WhatsAppAutomation.Infrastructure.Persistence.Migrations
                 principalTable: "salutations",
                 principalColumn: "id",
                 onDelete: ReferentialAction.SetNull);
+
+            // Keep every salutation already typed on contacts: each user's distinct ones become list entries (the same
+            // text in both languages, to be corrected in the app), and their contacts point to them. Nothing is removed.
+            migrationBuilder.Sql("""
+                INSERT INTO salutations (id, user_id, name_en, name_gu, sort_order, created_at)
+                SELECT gen_random_uuid(), s.user_id, s.text, s.text,
+                       row_number() OVER (PARTITION BY s.user_id ORDER BY s.text), now()
+                FROM (
+                    SELECT c.user_id, min(left(btrim(c.salutation), 30)) AS text
+                    FROM contacts c
+                    WHERE c.salutation IS NOT NULL AND btrim(c.salutation) <> ''
+                    GROUP BY c.user_id, lower(left(btrim(c.salutation), 30))
+                ) s;
+
+                UPDATE contacts c
+                SET salutation_id = s.id
+                FROM salutations s
+                WHERE s.user_id = c.user_id
+                  AND c.salutation IS NOT NULL
+                  AND lower(left(btrim(c.salutation), 30)) = lower(s.name_en);
+                """);
         }
 
         /// <inheritdoc />

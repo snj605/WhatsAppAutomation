@@ -20,6 +20,7 @@ import { problemMessage } from '../../core/http/problem';
 import { WhatsAppLiveService } from '../../core/realtime/whatsapp-live.service';
 import { ModulesStore } from '../modules/modules.api';
 import { ContactFieldsStore, MONTHS } from './contact-fields.api';
+import { SalutationsStore } from './salutations.api';
 import { ContactDialog } from './contact-dialog';
 import { ContactsApi } from './contacts.api';
 import { Category, Contact, displayName, Group, languageLabel, LanguageCode, realName, WhatsAppCheckSummary } from './contacts.models';
@@ -67,6 +68,7 @@ export class ContactsPage implements OnInit {
   });
   protected readonly modules = inject(ModulesStore);
   protected readonly fieldsStore = inject(ContactFieldsStore);
+  protected readonly salutationsStore = inject(SalutationsStore);
   protected fieldId: string | null = null;
   protected fieldValue = '';
 
@@ -105,6 +107,7 @@ export class ContactsPage implements OnInit {
       this.loadCheck(),
       this.canSetUp() ? this.modules.reload() : Promise.resolve(),
       this.fieldsStore.reload().catch(() => undefined),
+      this.salutationsStore.reload().catch(() => undefined),
     ]);
     try {
       this.defaultLanguage.set((await this.api.preferences()).defaultLanguage);

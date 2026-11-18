@@ -102,6 +102,12 @@ export const routes: Routes = [
         loadComponent: () => import('./features/contacts/contact-fields.page').then((m) => m.ContactFieldsPage),
       },
       {
+        path: 'salutations',
+        title: 'Salutations',
+        canActivate: [permissionGuard('modules.manage')],
+        loadComponent: () => import('./features/contacts/salutations.page').then((m) => m.SalutationsPage),
+      },
+      {
         path: 'modules/:id',
         title: 'Occasion',
         canActivate: [permissionGuard('modules.manage')],

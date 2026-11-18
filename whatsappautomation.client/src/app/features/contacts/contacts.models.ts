@@ -56,7 +56,10 @@ export interface Contact {
   nameGu: string | null;
   language: LanguageCode;
   categoryId: string | null;
+  /** The salutation's English text, for lists. */
   salutation: string | null;
+  /** The salutation from the user's list (master data). */
+  salutationId: string | null;
   /** Dates of the user's occasions (only the ones this contact has). */
   occasions: ContactOccasion[];
   /** Custom field values by field id, as stored (numbers with a dot, dates as yyyy-MM-dd). */
@@ -104,7 +107,8 @@ export interface ContactInput {
   nameGu: string | null;
   language: LanguageCode;
   categoryId: string | null;
-  salutation: string | null;
+  /** One of the user's salutations, or none. */
+  salutationId: string | null;
   /** All of the contact's occasion dates; leave out to keep them as they are. */
   occasions?: ContactOccasion[];
   notes: string | null;

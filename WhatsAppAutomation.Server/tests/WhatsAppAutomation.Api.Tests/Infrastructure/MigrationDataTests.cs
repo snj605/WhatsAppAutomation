@@ -59,6 +59,12 @@ public sealed class MigrationDataTests(ApiFactory factory)
             await InsertAsync(connection, "contacts", new()
             {
                 ["id"] = contact, ["user_id"] = member, ["phone_number"] = "+919800000001", ["birth_day"] = 18, ["birth_month"] = 11,
+                ["salutation"] = "Pujya",
+            });
+            var second = Guid.NewGuid();
+            await InsertAsync(connection, "contacts", new()
+            {
+                ["id"] = second, ["user_id"] = member, ["phone_number"] = "+919800000002", ["salutation"] = " Pujya ",
             });
             await InsertAsync(connection, "broadcasts", new()
             {
@@ -81,6 +87,12 @@ public sealed class MigrationDataTests(ApiFactory factory)
             // Nothing was lost.
             Assert.Equal(3L, await ScalarAsync<long>(connection, "SELECT count(*) FROM users"));
             Assert.Equal(1L, await ScalarAsync<long>(connection, "SELECT count(*) FROM contacts WHERE birth_day = 18 AND birth_month = 11"));
+
+            // Typed salutations became one list entry per user (spaces and letter case ignored); both contacts point to it, text kept.
+            Assert.Equal(1L, await ScalarAsync<long>(connection, $"SELECT count(*) FROM salutations WHERE user_id = '{member}'"));
+            var salutationId = await ScalarAsync<Guid>(connection, $"SELECT id FROM salutations WHERE user_id = '{member}' AND name_en = 'Pujya' AND name_gu = 'Pujya'");
+            Assert.Equal(2L, await ScalarAsync<long>(connection, $"SELECT count(*) FROM contacts WHERE salutation_id = '{salutationId}'"));
+            Assert.Equal("Pujya", await ScalarAsync<string>(connection, $"SELECT salutation FROM contacts WHERE id = '{contact}'"));
             Assert.Equal(2L, await ScalarAsync<long>(connection, "SELECT count(*) FROM broadcasts"));
 
             // The member's birthday settings became their Birthday occasion; the admin got one too; the platform admin none.

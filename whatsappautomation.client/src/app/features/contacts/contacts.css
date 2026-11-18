@@ -239,3 +239,4 @@
 @media (max-width: 560px) { .occasion { grid-template-columns: 1fr auto; } .occasion .birthday, .occasion .for-name { grid-column: 1 / -1; } }
 .occasions-cell { font-size: 13px; color: var(--ui-text-2); max-width: 16rem; }
 .field-value { width: 12rem; }
+.hint { font-size: 13px; color: var(--ap-muted, #64748b); }

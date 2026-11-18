@@ -1,3 +1,4 @@
+import { Salutation } from './salutations.api';
 import { Component, computed, effect, inject, input, output, signal } from '@angular/core';
 import { FormsModule, NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
@@ -51,6 +52,8 @@ export class ContactDialog {
   readonly fields = input<ContactField[]>([]);
   /** The user may make occasions and fields (shows the "set up" links). */
   readonly canSetUp = input(false);
+  /** The user's salutations (master data), each in English and Gujarati. */
+  readonly salutations = input<Salutation[]>([]);
   readonly closed = output<void>();
   readonly saved = output<Contact>();
 
@@ -69,7 +72,7 @@ export class ContactDialog {
     nameGu: ['', Validators.maxLength(100)],
     categoryId: [null as string | null],
     groupIds: [[] as string[]],
-    salutation: ['', Validators.maxLength(50)],
+    salutationId: [null as string | null],
     notes: ['', Validators.maxLength(1000)],
   });
 
@@ -118,7 +121,7 @@ export class ContactDialog {
           nameGu: target.nameGu ?? '',
           categoryId: target.categoryId,
           groupIds: target.groups.map((g) => g.id),
-          salutation: target.salutation ?? '',
+          salutationId: target.salutationId,
           notes: target.notes ?? '',
         });
       }
@@ -195,7 +198,7 @@ export class ContactDialog {
         nameGu: v.nameGu || null,
         language: v.language,
         categoryId: v.categoryId || null,
-        salutation: v.salutation || null,
+        salutationId: v.salutationId || null,
         notes: v.notes || null,
         groupIds: v.groupIds,
         // Users who cannot see occasions (no modules) keep what is saved.

@@ -63,7 +63,11 @@
 
     <div class="field">
       <label for="c-salutation">Salutation</label>
-      <input pInputText id="c-salutation" formControlName="salutation" placeholder="Pujya, Respected, Dear…" autocomplete="off" fluid />
+      <p-select inputId="c-salutation" [options]="salutations()" formControlName="salutationId" optionLabel="label" optionValue="id"
+        placeholder="None" [showClear]="true" appendTo="body" fluid [filter]="salutations().length > 8" />
+      @if (salutations().length === 0) {
+        <span class="hint">No salutations yet.@if (canSetUp()) { <a routerLink="/salutations">Add them (Shri / શ્રી, …)</a>}</span>
+      }
     </div>
 
     <!-- Occasions: only the ones this contact has; the user's other occasions under "Add occasion". -->
