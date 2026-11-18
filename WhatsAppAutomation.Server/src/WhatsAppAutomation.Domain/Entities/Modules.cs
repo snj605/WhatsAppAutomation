@@ -79,6 +79,9 @@ public sealed class OccasionModule
     }
 
     public void MarkAutoSent(DateOnly day) => AutoSentOn = day;
+
+    /// <summary>Today counts again: the next check starts today's wishes for everyone not wished yet.</summary>
+    public void ResetAutoSent() => AutoSentOn = null;
 }
 
 /// <summary>One person's date in a Yearly or Once module (Birthday modules use the date on the contact).</summary>

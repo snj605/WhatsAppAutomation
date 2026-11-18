@@ -12,8 +12,9 @@ import {
   type AnyMediaMessageContent,
   type proto,
   type WASocket,
+  type WAVersion,
 } from 'baileys';
-import type { AuthStore } from './auth-store.ts';
+import type { AccountAuthState, AuthStore } from './auth-store.ts';
 import { typingDelayMs } from './human.ts';
 import { MEDIA_REUSE_MS, mediaKind, type MessageFile, withCaption } from './media.ts';
 import type { ConnectionStatus, EventSink, MessageStatus } from './events.ts';
@@ -54,6 +55,9 @@ export interface SessionOptions extends SessionBehaviour {
 }
 
 const LINK_TIMEOUT_MS = 3 * 60_000;
+/** How long unlinking waits to reach WhatsApp with the saved login, and then for WhatsApp to accept the logout. */
+const UNLINK_CONNECT_MS = 25_000;
+const UNLINK_LOGOUT_MS = 15_000;
 const MAX_BACKOFF_MS = 5 * 60_000;
 const SENT_CACHE_SIZE = 500;
 
@@ -136,23 +140,75 @@ export class AccountSession {
     await this.#connect();
   }
 
-  /** Logs out on WhatsApp (the device disappears from the phone's Linked devices) and deletes the saved login. */
-  async unlink(): Promise<void> {
+  /**
+   * Logs out on WhatsApp, so the device disappears from the phone's Linked devices, and deletes the saved login.
+   * When the connection is not open at that moment (reconnecting, offline, or after a gateway restart), it first
+   * connects once with the saved login just to log out. Returns false when WhatsApp could not be told: the saved
+   * login is deleted anyway and the user must remove the device on the phone (Linked devices).
+   */
+  async unlink(): Promise<boolean> {
     const socket = this.#socket;
+    const open = socket !== null && this.#status === 'connected';
     this.#stop();
-    if (socket && this.#status === 'connected') {
-      try {
-        await socket.logout();
-      } catch (error) {
-        this.#log.warn({ err: errorSummary(error) }, 'Logout call failed; deleting the saved login anyway');
-      }
+    this.#clearLinking();
+    let removed: boolean;
+    if (open) {
+      removed = await this.#logout(socket);
     } else {
       socket?.end(undefined);
+      removed = await this.#logoutWithSavedLogin();
     }
 
     await this.#store.clear(this.accountId);
     this.#phoneNumber = null;
-    this.#setStatus('not_linked', 'unlinked');
+    this.#setStatus('not_linked', removed ? 'unlinked' : 'unlinked_remove_on_phone');
+    return removed;
+  }
+
+  async #logout(socket: WASocket): Promise<boolean> {
+    try {
+      await withTimeout(socket.logout(), UNLINK_LOGOUT_MS);
+      return true;
+    } catch (error) {
+      this.#log.warn({ err: errorSummary(error) }, 'Logout on WhatsApp failed; deleting the saved login anyway');
+      socket.end(undefined);
+      return false;
+    }
+  }
+
+  /** Connects with the saved login only to log out. True also when WhatsApp no longer has this login. */
+  async #logoutWithSavedLogin(): Promise<boolean> {
+    const { state, saveCreds } = await this.#store.load(this.accountId);
+    if (!state.creds.me) {
+      return true; // never finished linking: nothing on the phone
+    }
+
+    const socket = this.#newSocket(state, saveCreds, await waVersion());
+    const outcome = await new Promise<'open' | 'gone' | 'unreachable'>((resolve) => {
+      const timer = setTimeout(() => resolve('unreachable'), UNLINK_CONNECT_MS);
+      socket.ev.on('connection.update', (update) => {
+        if (update.connection === 'open') {
+          clearTimeout(timer);
+          resolve('open');
+        } else if (update.qr) {
+          // WhatsApp asks for a new link: it no longer knows this login (removed on the phone already).
+          clearTimeout(timer);
+          resolve('gone');
+        } else if (update.connection === 'close') {
+          clearTimeout(timer);
+          const code = (update.lastDisconnect?.error as Boom | undefined)?.output?.statusCode;
+          resolve(code === DisconnectReason.loggedOut ? 'gone' : 'unreachable');
+        }
+      });
+    });
+
+    if (outcome === 'open') {
+      return this.#logout(socket);
+    }
+
+    socket.end(undefined);
+    this.#log.info({ outcome }, 'Unlinking with the saved login');
+    return outcome === 'gone';
   }
 
   /** Closes the socket without logging out (gateway shutdown). The saved login stays. */
@@ -314,11 +370,7 @@ export class AccountSession {
     }
   }
 
-  async #connect(): Promise<void> {
-    this.#stopped = false;
-    const { state, saveCreds } = await this.#store.load(this.accountId);
-    const { version } = await fetchLatestWaWebVersion().catch(() => ({ version: undefined }));
-
+  #newSocket(state: AccountAuthState['state'], saveCreds: () => Promise<void>, version: WAVersion | undefined): WASocket {
     const socket = makeWASocket({
       ...(version ? { version } : {}),
       auth: { creds: state.creds, keys: makeCacheableSignalKeyStore(state.keys, this.#baileysLog) },
@@ -331,11 +383,17 @@ export class AccountSession {
       shouldSyncHistoryMessage: () => false,
       getMessage: async (key) => (key.id ? this.#sent.get(key.id)?.message : undefined),
     });
-    this.#socket = socket;
-
     socket.ev.on('creds.update', () => {
       saveCreds().catch((error: unknown) => this.#log.error({ err: errorSummary(error) }, 'Saving the login failed'));
     });
+    return socket;
+  }
+
+  async #connect(): Promise<void> {
+    this.#stopped = false;
+    const { state, saveCreds } = await this.#store.load(this.accountId);
+    const socket = this.#newSocket(state, saveCreds, await waVersion());
+    this.#socket = socket;
 
     socket.ev.on('connection.update', (update) => {
       if (socket !== this.#socket) {
@@ -560,4 +618,27 @@ export function mapMessageStatus(status: number): MessageStatus | null {
 /** Error name and message only: Baileys errors can carry whole stanzas with phone numbers. */
 export function errorSummary(error: unknown): string {
   return error instanceof Error ? `${error.name}: ${error.message}` : 'unknown error';
+}
+
+/** The current WhatsApp Web version, or Baileys' built-in one when it cannot be fetched. */
+async function waVersion(): Promise<WAVersion | undefined> {
+  const { version } = await fetchLatestWaWebVersion().catch(() => ({ version: undefined }));
+  return version;
+}
+
+/** Rejects when the promise takes longer than the given time. */
+export function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`Timed out after ${ms} ms`)), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error: unknown) => {
+        clearTimeout(timer);
+        reject(error instanceof Error ? error : new Error(String(error)));
+      },
+    );
+  });
 }

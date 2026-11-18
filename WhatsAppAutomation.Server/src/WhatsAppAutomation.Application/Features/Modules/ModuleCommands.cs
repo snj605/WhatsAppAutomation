@@ -190,11 +190,12 @@ internal sealed class SetModuleSendingCommandHandler(IAppDbContext db, ICurrentU
         var oldTime = module.SendTime;
         module.SetSending(command.Enabled, time, command.TemplateId);
 
-        // Switching on (or moving the time) after today's time has passed starts tomorrow, not right now: nobody
-        // expects a batch of wishes to go out the moment they save. Today's can still be sent by hand.
-        if (command.Enabled && time is { } t && (!wasOn || oldTime != t) && ModuleReads.TimePassedToday(t, options.Value, now))
+        // Switching on or changing the time applies to today at once: if the new time has passed, today's people who
+        // have not been wished yet get it within a minute; otherwise at the new time today. People already in today's
+        // wishes (waiting, sent or failed) are never sent twice (see ModuleAutoSender.WishedTodayAsync).
+        if (command.Enabled && time is not null && (!wasOn || oldTime != time))
         {
-            module.MarkAutoSent(ModuleReads.Today(options.Value, now));
+            module.ResetAutoSent();
         }
 
         await db.SaveChangesAsync(cancellationToken);

@@ -490,8 +490,9 @@ class _ModuleSettingsState extends ConsumerState<_ModuleSettings> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Wishes go out one by one, a little apart, and always before other messages. If you turn this on after '
-              'today\'s time, it starts tomorrow; you can still send today\'s by hand.',
+              'Wishes go out one by one, a little apart, and always before other messages. Saving applies to today at '
+              'once: if the time has already passed, today\'s people who have not got it yet get it within a minute. '
+              'Nobody gets it twice.',
               style: theme.typography.body.xs.copyWith(color: theme.colors.mutedForeground),
             ),
           ],

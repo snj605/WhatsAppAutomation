@@ -473,22 +473,40 @@ public sealed class BroadcastsApiTests(ApiFactory factory)
         var missing = await client.PutAsJsonAsync($"/api/v1/modules/{module.Id}/sending", new ModuleSendingRequest(true, "07:15", null), Ct);
         Assert.Equal(HttpStatusCode.BadRequest, missing.StatusCode);
 
-        // 00:00 has always passed today, so switching on starts tomorrow, not right now.
+        // 00:00 has always passed today: switching on applies to today at once, for everyone not wished yet.
         var on = (await (await client.PutAsJsonAsync(
             $"/api/v1/modules/{module.Id}/sending", new ModuleSendingRequest(true, "00:00", template.Id), Ct)).Content.ReadFromJsonAsync<ModuleDto>(Ct))!;
         Assert.True(on.AutoSend);
         Assert.Equal(2, on.TodayCount);
-        await using (var scope = factory.Services.CreateAsyncScope())
-        {
-            Assert.Equal(0, await scope.ServiceProvider.GetRequiredService<ModuleAutoSender>().RunOnceAsync(Ct));
-        }
+        Assert.NotNull(on.NextRunAt);
+        Assert.True(on.NextRunAt <= DateTimeOffset.UtcNow.AddMinutes(1));
+        await RunModulesAsync();
 
-        // Sent by hand: Mohan gets the name filled in, Geeta is skipped because the second name is missing.
-        var wish = await CreateAsync(client, new BroadcastInput("Asthi", null, null, null, null, null, [mohan, noName], template.Text, ModuleId: module.Id));
+        // Mohan gets the name filled in; Geeta is skipped because the second name is missing.
+        var wishes = (await client.GetFromJsonAsync<QueueDto>("/api/v1/broadcasts/queue", Ct))!.Items;
+        var wish = Assert.Single(wishes);
         Assert.Equal((1, 1), (wish.Counts.Pending, wish.Counts.Skipped));
         var details = (await client.GetFromJsonAsync<BroadcastDetailsDto>($"/api/v1/broadcasts/{wish.Id}", Ct))!;
         Assert.Contains(details.Recipients, r => r.Text == "Mohan, remembering Shantaben");
+
+        // Once a day: running again, or saving the same time, starts nothing new.
+        await RunModulesAsync();
+        await client.PutAsJsonAsync($"/api/v1/modules/{module.Id}/sending", new ModuleSendingRequest(true, "00:00", template.Id), Ct);
+        await RunModulesAsync();
+        Assert.Single((await client.GetFromJsonAsync<QueueDto>("/api/v1/broadcasts/queue", Ct))!.Items);
+
+        // Changing the time checks today again, but Mohan (already waiting) is never wished twice.
+        await client.PutAsJsonAsync($"/api/v1/modules/{module.Id}/sending", new ModuleSendingRequest(true, "00:01", template.Id), Ct);
+        await RunModulesAsync();
+        var after = (await client.GetFromJsonAsync<QueueDto>("/api/v1/broadcasts/queue", Ct))!.Items;
+        Assert.Equal(1, after.Sum(i => i.Counts.Pending));
         await CancelAllAsync(client);
+
+        async Task RunModulesAsync()
+        {
+            await using var scope = factory.Services.CreateAsyncScope();
+            await scope.ServiceProvider.GetRequiredService<ModuleAutoSender>().RunOnceAsync(Ct);
+        }
     }
 
     [Fact]

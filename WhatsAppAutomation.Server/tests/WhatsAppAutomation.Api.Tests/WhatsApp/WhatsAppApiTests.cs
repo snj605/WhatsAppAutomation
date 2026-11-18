@@ -221,6 +221,20 @@ public sealed class WhatsAppApiTests(ApiFactory factory)
         Assert.Equal(WhatsAppConnectionStatus.NotLinked, account.Status);
         Assert.Null(account.PhoneNumber);
         Assert.Contains($"unlink {await AccountIdAsync(userId)}", factory.Gateway.Calls);
+        Assert.Equal("unlinked", account.StatusReason);
+    }
+
+    [Fact]
+    public async Task Unlinking_while_WhatsApp_cannot_be_reached_asks_to_remove_the_device_on_the_phone()
+    {
+        var (client, userId) = await ConnectedOwnerAsync();
+        factory.Gateway.UnreachableOnUnlink.Add(await AccountIdAsync(userId));
+
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsync("/api/v1/whatsapp/unlink", null, Ct)).StatusCode);
+
+        var account = await GetAccountAsync(client);
+        Assert.Equal(WhatsAppConnectionStatus.NotLinked, account.Status);
+        Assert.Equal("unlinked_remove_on_phone", account.StatusReason);
     }
 
     [Fact]

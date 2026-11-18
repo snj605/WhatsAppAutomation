@@ -95,9 +95,12 @@ public sealed class WhatsAppAccount
         return true;
     }
 
-    public void MarkUnlinked(DateTimeOffset now)
+    /// <param name="removedFromPhone">
+    /// False when WhatsApp could not be told: the reason asks the user to remove the device on the phone.
+    /// </param>
+    public void MarkUnlinked(DateTimeOffset now, bool removedFromPhone = true)
     {
-        SetStatus(WhatsAppConnectionStatus.NotLinked, "unlinked", now);
+        SetStatus(WhatsAppConnectionStatus.NotLinked, removedFromPhone ? "unlinked" : RemoveOnPhoneReason, now);
         PhoneNumber = null;
         ProfileName = null;
         LinkedAt = null;
@@ -114,6 +117,9 @@ public sealed class WhatsAppAccount
     }
 
     public const string NumberInUseReason = "number_in_use";
+
+    /// <summary>Unlinked here, but WhatsApp could not be reached to remove the device from the phone.</summary>
+    public const string RemoveOnPhoneReason = "unlinked_remove_on_phone";
 
     /// <summary>Applies a status reported by the gateway.</summary>
     public void ApplyGatewayStatus(

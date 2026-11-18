@@ -19,8 +19,25 @@ internal sealed class HttpWhatsAppGateway(HttpClient http, IOptions<GatewayOptio
             phoneNumber,
         }, cancellationToken);
 
-    public Task<Result> UnlinkAsync(Guid accountId, CancellationToken cancellationToken) =>
-        PostAsync($"accounts/{accountId}/unlink", new { }, cancellationToken);
+    public async Task<Result<bool>> UnlinkAsync(Guid accountId, CancellationToken cancellationToken)
+    {
+        var (response, error) = await SendAsync($"accounts/{accountId}/unlink", new { }, cancellationToken);
+        if (response is null)
+        {
+            return error!;
+        }
+
+        using (response)
+        {
+            if (!response.IsSuccessStatusCode)
+            {
+                return await ToErrorAsync(response, cancellationToken);
+            }
+
+            var body = await response.Content.ReadFromJsonAsync<UnlinkResponse>(cancellationToken);
+            return body?.RemovedFromPhone ?? true;
+        }
+    }
 
     public async Task<Result<string>> SendTextAsync(
         Guid accountId, string toPhoneNumber, string text, Guid reference, CancellationToken cancellationToken, GatewayFile? file = null)
@@ -170,6 +187,8 @@ internal sealed class HttpWhatsAppGateway(HttpClient http, IOptions<GatewayOptio
     }
 
     private sealed record SendResponse(string? MessageId);
+
+    private sealed record UnlinkResponse(bool? RemovedFromPhone);
 
     private sealed record CheckNumbersResponse(IReadOnlyList<CheckNumbersItem>? Results);
 

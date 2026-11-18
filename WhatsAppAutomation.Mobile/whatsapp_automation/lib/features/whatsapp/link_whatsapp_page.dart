@@ -73,6 +73,16 @@ class _LinkWhatsAppPageState extends ConsumerState<LinkWhatsAppPage> with Widget
     );
     if (yes) {
       await ref.read(whatsAppProvider.notifier).unlink();
+      if (mounted && ref.read(whatsAppProvider).account?.statusReason == 'unlinked_remove_on_phone') {
+        await showConfirmDialog(
+          context: context,
+          title: 'Remove it on the phone too',
+          body: 'The number was unlinked here, but WhatsApp could not be reached, so the device may still show on the '
+              'phone. On the phone open WhatsApp → Settings → Linked devices and remove it.',
+          confirm: 'OK',
+          cancel: 'Close',
+        );
+      }
     }
   }
 

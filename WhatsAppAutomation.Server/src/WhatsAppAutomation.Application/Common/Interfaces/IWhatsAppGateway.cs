@@ -27,8 +27,11 @@ public interface IWhatsAppGateway
     /// <summary>Starts linking. QR codes or the phone code arrive later as gateway events.</summary>
     Task<Result> LinkAsync(Guid accountId, LinkMethod method, string? phoneNumber, CancellationToken cancellationToken);
 
-    /// <summary>Logs out on WhatsApp and deletes the saved login.</summary>
-    Task<Result> UnlinkAsync(Guid accountId, CancellationToken cancellationToken);
+    /// <summary>
+    /// Logs out on WhatsApp (the device leaves the phone's Linked devices) and deletes the saved login. The value is
+    /// false when WhatsApp could not be reached: the login is deleted anyway and the device must be removed on the phone.
+    /// </summary>
+    Task<Result<bool>> UnlinkAsync(Guid accountId, CancellationToken cancellationToken);
 
     /// <summary>
     /// Sends a text and returns WhatsApp's message id. "reference" is our message id: sending the

@@ -207,8 +207,8 @@
 
             <label for="mod-time">Time · starts at {{ hhmmText(editTime) }}</label>
             <input id="mod-time" type="time" step="300" [(ngModel)]="editTime" class="time" />
-            <span class="ap-hint">Wishes go out one by one, a little apart, and always before other messages. If you turn this on after today's
-              time, it starts tomorrow; you can still send today's by hand.</span>
+            <span class="ap-hint">Wishes go out one by one, a little apart, and always before other messages. Saving applies to today at
+              once: if the time has already passed, today's people who have not got it yet get it within a minute. Nobody gets it twice.</span>
 
             <label>Template</label>
             @if (templates().length === 0) {

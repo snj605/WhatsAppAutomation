@@ -28,6 +28,7 @@ const REASONS: Record<string, string> = {
   pairing_code_failed: 'WhatsApp did not give a phone code. Check the number, or use the QR code instead.',
   session_invalid: 'The saved login stopped working. Link the number again.',
   unlinked: 'The number was unlinked.',
+  unlinked_remove_on_phone: 'The number was unlinked here. WhatsApp could not be reached, so the device may still show on the phone. On the phone open WhatsApp → Settings → Linked devices and remove it.',
 };
 
 const LINK_SECONDS = 180;
@@ -189,8 +190,13 @@ export class WhatsAppPage implements OnInit, OnDestroy {
   private async doUnlink(summary: string): Promise<void> {
     this.busy.set(true);
     try {
-      this.onAccount(await this.api.unlink());
-      this.toast.add({ severity: 'info', summary });
+      const account = await this.api.unlink();
+      this.onAccount(account);
+      if (account.statusReason === 'unlinked_remove_on_phone') {
+        this.toast.add({ severity: 'warn', summary: 'Unlinked here; remove it on the phone', detail: 'WhatsApp could not be reached, so the device may still show on the phone. On the phone open WhatsApp → Settings → Linked devices and remove it.', life: 15000 });
+      } else {
+        this.toast.add({ severity: 'info', summary });
+      }
     } catch (error) {
       this.toast.add({ severity: 'error', summary: 'Could not unlink', detail: problemMessage(error) });
     } finally {

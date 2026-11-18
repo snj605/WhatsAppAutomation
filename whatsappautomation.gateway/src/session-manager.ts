@@ -58,13 +58,17 @@ export class SessionManager {
     await this.#create(accountId).link(method, phoneNumber);
   }
 
-  async unlink(accountId: string): Promise<void> {
-    const session = this.#sessions.get(accountId);
-    if (session) {
-      await session.unlink();
+  /**
+   * Removes the number: logged out on WhatsApp (gone from the phone's Linked devices) and the saved login deleted.
+   * Also when the gateway holds no session for it (for example it could not reconnect after a restart): the saved
+   * login is used once to log out. Returns false when WhatsApp could not be told.
+   */
+  async unlink(accountId: string): Promise<boolean> {
+    const session = this.#sessions.get(accountId) ?? this.#create(accountId);
+    try {
+      return await session.unlink();
+    } finally {
       this.#sessions.delete(accountId);
-    } else {
-      await this.#store.clear(accountId);
     }
   }
 

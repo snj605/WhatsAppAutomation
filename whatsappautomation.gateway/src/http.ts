@@ -6,9 +6,10 @@ import { errorSummary, GatewayError, type LinkMethod } from './session.ts';
 
 /** What the HTTP layer needs from the session manager (an interface, so tests can pass a fake). */
 export interface Sessions {
-  status(accountId: string): unknown;
+  status(accountId: string): object;
   link(accountId: string, method: LinkMethod, phoneNumber: string | null): Promise<void>;
-  unlink(accountId: string): Promise<void>;
+  /** False when WhatsApp could not be told: the device must be removed on the phone. */
+  unlink(accountId: string): Promise<boolean>;
   sendText(accountId: string, to: string, text: string, reference: string, file?: MessageFile | null): Promise<string>;
   checkNumbers(accountId: string, numbers: string[]): Promise<NumberCheck[]>;
 }
@@ -101,8 +102,8 @@ export function createHttpServer(sessions: Sessions, secret: string, log: Logger
       }
 
       case 'unlink':
-        await sessions.unlink(accountId);
-        send(response, 200, sessions.status(accountId));
+        const removedFromPhone = await sessions.unlink(accountId);
+        send(response, 200, { ...sessions.status(accountId), removedFromPhone });
         return;
 
       case 'messages': {

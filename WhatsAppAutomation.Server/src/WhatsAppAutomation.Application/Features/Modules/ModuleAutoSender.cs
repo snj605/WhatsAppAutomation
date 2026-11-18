@@ -86,10 +86,13 @@ public sealed class ModuleAutoSender(
         return started;
     }
 
-    /// <summary>Contacts already in one of today's wishes of this module that is sending or sent.</summary>
+    /// <summary>
+    /// Contacts already in one of today's wishes of this module: waiting, sent or failed (a failed one is sent again
+    /// only by the user, from Results). Skipped people (for example a missing name) can get it once fixed.
+    /// </summary>
     internal static async Task<HashSet<Guid>> WishedTodayAsync(IAppDbContext db, OccasionModule m, DateOnly today, CancellationToken cancellationToken) =>
         (await db.BroadcastRecipients.AsNoTracking()
-            .Where(r => r.ContactId != null && (r.Status == RecipientStatus.Pending || r.Status == RecipientStatus.Sent) &&
+            .Where(r => r.ContactId != null && (r.Status == RecipientStatus.Pending || r.Status == RecipientStatus.Sent || r.Status == RecipientStatus.Failed) &&
                 db.Broadcasts.Any(b => b.Id == r.BroadcastId && b.UserId == m.UserId && b.Target == BroadcastTarget.Occasion &&
                     b.TargetId == m.Id && b.TargetDate == today && b.Status != BroadcastStatus.Cancelled))
             .Select(r => r.ContactId!.Value)

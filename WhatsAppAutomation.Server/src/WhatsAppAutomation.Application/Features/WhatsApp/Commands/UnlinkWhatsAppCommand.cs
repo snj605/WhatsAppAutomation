@@ -34,7 +34,7 @@ internal sealed class UnlinkWhatsAppCommandHandler(
             return unlinked.Error!;
         }
 
-        account.MarkUnlinked(clock.GetUtcNow());
+        account.MarkUnlinked(clock.GetUtcNow(), removedFromPhone: unlinked.Value);
         await db.SaveChangesAsync(cancellationToken);
         return WhatsAppAccountDto.From(account);
     }
