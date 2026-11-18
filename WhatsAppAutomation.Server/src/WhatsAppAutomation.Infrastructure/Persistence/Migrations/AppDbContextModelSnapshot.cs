@@ -484,6 +484,10 @@ namespace WhatsAppAutomation.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(50)")
                         .HasColumnName("salutation");
 
+                    b.Property<Guid?>("SalutationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("salutation_id");
+
                     b.Property<string>("SavedName")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
@@ -514,6 +518,9 @@ namespace WhatsAppAutomation.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("CategoryId")
                         .HasDatabaseName("ix_contacts_category_id");
+
+                    b.HasIndex("SalutationId")
+                        .HasDatabaseName("ix_contacts_salutation_id");
 
                     b.HasIndex("UserId", "PhoneNumber")
                         .IsUnique()
@@ -1072,6 +1079,49 @@ namespace WhatsAppAutomation.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_refresh_tokens_user_id_device_id");
 
                     b.ToTable("refresh_tokens", (string)null);
+                });
+
+            modelBuilder.Entity("WhatsAppAutomation.Domain.Entities.Salutation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("NameEn")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("name_en");
+
+                    b.Property<string>("NameGu")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("name_gu");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("sort_order");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_salutations");
+
+                    b.HasIndex("UserId", "NameEn")
+                        .IsUnique()
+                        .HasDatabaseName("ix_salutations_user_id_name_en");
+
+                    b.HasIndex("UserId", "SortOrder")
+                        .HasDatabaseName("ix_salutations_user_id_sort_order");
+
+                    b.ToTable("salutations", (string)null);
                 });
 
             modelBuilder.Entity("WhatsAppAutomation.Domain.Entities.SendingPace", b =>
@@ -1635,6 +1685,12 @@ namespace WhatsAppAutomation.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.NoAction)
                         .HasConstraintName("fk_contacts_categories_category_id");
 
+                    b.HasOne("WhatsAppAutomation.Domain.Entities.Salutation", null)
+                        .WithMany()
+                        .HasForeignKey("SalutationId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_contacts_salutations_salutation_id");
+
                     b.HasOne("WhatsAppAutomation.Infrastructure.Identity.AppUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
@@ -1764,6 +1820,16 @@ namespace WhatsAppAutomation.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_refresh_tokens_users_user_id");
+                });
+
+            modelBuilder.Entity("WhatsAppAutomation.Domain.Entities.Salutation", b =>
+                {
+                    b.HasOne("WhatsAppAutomation.Infrastructure.Identity.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_salutations_users_user_id");
                 });
 
             modelBuilder.Entity("WhatsAppAutomation.Domain.Entities.SendingPace", b =>
