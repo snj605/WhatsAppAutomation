@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -47,13 +49,22 @@ class WhatsAppController extends Notifier<WhatsAppState> {
   }
 
   /// Starts linking with a code. The code arrives a moment later over the live connection.
-  Future<void> linkWithCode(String phoneNumber) async {
-    state = state.copyWith(busy: true, error: null, pairingCode: null);
+  Future<void> linkWithCode(String phoneNumber) => _link('code', phoneNumber);
+
+  /// Starts linking with a QR, for when WhatsApp is on another phone or tablet: the QR shows here and the other
+  /// device scans it. New QRs arrive over the live connection about every 20 seconds.
+  Future<void> linkWithQr() => _link('qr', null);
+
+  /// Back to choosing how to link (the linking on the server simply runs out).
+  void chooseAgain() => state = state.copyWith(method: null, qrImage: null, pairingCode: null);
+
+  Future<void> _link(String method, String? phoneNumber) async {
+    state = state.copyWith(busy: true, error: null, pairingCode: null, qrImage: null, method: method);
     try {
-      // Listen first: the code is pushed only once.
+      // Listen first: the code (or the first QR) is pushed only once.
       await _listen();
       final Object? json = await _api.post('/api/v1/whatsapp/link', <String, Object?>{
-        'method': 'code',
+        'method': method,
         'phoneNumber': phoneNumber,
       });
       if (ref.mounted) {
@@ -129,6 +140,11 @@ class WhatsAppController extends Notifier<WhatsAppState> {
 
     if (message.target == 'pairingCode') {
       state = state.copyWith(pairingCode: value['code'] as String?);
+    } else if (message.target == 'qr' && state.method == 'qr') {
+      final Uint8List? png = qrPng(value['image']);
+      if (png != null) {
+        state = state.copyWith(qrImage: png);
+      }
     } else if (message.target == 'account') {
       _apply(WhatsAppAccount.fromJson(value));
     }
@@ -140,6 +156,8 @@ class WhatsAppController extends Notifier<WhatsAppState> {
       loading: false,
       error: null,
       pairingCode: account.status == 'linking' ? state.pairingCode : null,
+      qrImage: account.status == 'linking' ? state.qrImage : null,
+      method: account.status == 'linking' || account.status == 'not_linked' || account.status == 'logged_out' ? state.method : null,
     );
 
     // While the status is still changing, also ask the server now and then: a live update can be
@@ -165,5 +183,19 @@ class WhatsAppController extends Notifier<WhatsAppState> {
     _events = null;
     unawaited(_hub?.stop());
     _hub = null;
+  }
+}
+
+/// The PNG bytes of a "data:image/png;base64,…" QR picture, or null when it is not one.
+Uint8List? qrPng(Object? image) {
+  const String prefix = 'data:image/png;base64,';
+  if (image is! String || !image.startsWith(prefix) || image.length > 30000) {
+    return null;
+  }
+
+  try {
+    return base64Decode(image.substring(prefix.length));
+  } on FormatException {
+    return null;
   }
 }

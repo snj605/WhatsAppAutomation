@@ -74,7 +74,8 @@ public sealed class RecordingNotifier : IWhatsAppNotifier
 {
     public ConcurrentQueue<(Guid UserId, string Kind, object Payload)> Sent { get; } = new();
 
-    public Task QrCodeAsync(Guid userId, string qr, CancellationToken cancellationToken) => Add(userId, "qr", qr);
+    public Task QrCodeAsync(Guid userId, string qr, string? image, CancellationToken cancellationToken) =>
+        Add(userId, "qr", image is null ? qr : $"{qr} image");
 
     public Task PairingCodeAsync(Guid userId, string code, CancellationToken cancellationToken) => Add(userId, "pairingCode", code);
 

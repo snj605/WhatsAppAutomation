@@ -17,4 +17,5 @@ public sealed record GatewayEventRequest(
     string? PhoneNumber,
     string? Name,
     Guid? Reference,
-    DateTimeOffset? At);
+    DateTimeOffset? At,
+    string? Image = null);

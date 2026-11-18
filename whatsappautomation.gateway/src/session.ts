@@ -14,6 +14,7 @@ import {
   type WASocket,
   type WAVersion,
 } from 'baileys';
+import QRCode from 'qrcode';
 import type { AccountAuthState, AuthStore } from './auth-store.ts';
 import { typingDelayMs } from './human.ts';
 import { MEDIA_REUSE_MS, mediaKind, type MessageFile, withCaption } from './media.ts';
@@ -463,7 +464,7 @@ export class AccountSession {
     }
 
     if (linking.method === 'qr') {
-      this.#emit({ type: 'qr', accountId: this.accountId, qr });
+      this.#emit({ type: 'qr', accountId: this.accountId, qr, image: await qrImage(qr) });
       return;
     }
 
@@ -684,5 +685,17 @@ export function closeReason(code: number | undefined): string {
       return 'network_error';
     default:
       return `closed_${code}`;
+  }
+}
+
+/**
+ * The QR as a PNG data URL (about 3 KB), so the mobile app can show it without a QR library. Undefined if it cannot
+ * be drawn: the website draws the QR from its text anyway.
+ */
+export async function qrImage(qr: string): Promise<string | undefined> {
+  try {
+    return await QRCode.toDataURL(qr, { margin: 2, width: 320, errorCorrectionLevel: 'M' });
+  } catch {
+    return undefined;
   }
 }

@@ -26,8 +26,8 @@ internal sealed class SubClaimUserIdProvider : IUserIdProvider
 
 internal sealed class SignalRWhatsAppNotifier(IHubContext<WhatsAppHub> hub) : IWhatsAppNotifier
 {
-    public Task QrCodeAsync(Guid userId, string qr, CancellationToken cancellationToken) =>
-        User(userId).SendAsync("qr", new { qr }, cancellationToken);
+    public Task QrCodeAsync(Guid userId, string qr, string? image, CancellationToken cancellationToken) =>
+        User(userId).SendAsync("qr", new { qr, image }, cancellationToken);
 
     public Task PairingCodeAsync(Guid userId, string code, CancellationToken cancellationToken) =>
         User(userId).SendAsync("pairingCode", new { code }, cancellationToken);

@@ -84,6 +84,12 @@ public sealed class WhatsAppApiTests(ApiFactory factory)
         await PostEventAsync(new { type = "qr", accountId, qr = "2@qr-data" });
         Assert.Contains(factory.Notifier.Sent, n => n.UserId == userId && n.Kind == "qr" && (string)n.Payload == "2@qr-data");
 
+        // The gateway's ready-made picture goes to the app too; anything that is not a PNG data URL is dropped.
+        await PostEventAsync(new { type = "qr", accountId, qr = "2@qr-two", image = "data:image/png;base64,iVBORw0KGgo=" });
+        Assert.Contains(factory.Notifier.Sent, n => n.UserId == userId && n.Kind == "qr" && (string)n.Payload == "2@qr-two image");
+        await PostEventAsync(new { type = "qr", accountId, qr = "2@qr-three", image = "javascript:alert(1)" });
+        Assert.Contains(factory.Notifier.Sent, n => n.UserId == userId && n.Kind == "qr" && (string)n.Payload == "2@qr-three");
+
         await PostEventAsync(new { type = "connection", accountId, status = "connected", reason = "linked", phoneNumber = "+919876543210", name = "Dhaval" });
         var account = await GetAccountAsync(client);
         Assert.Equal(WhatsAppConnectionStatus.Connected, account.Status);

@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:whatsapp_automation/core/format.dart';
 import 'package:whatsapp_automation/features/contacts/contact_models.dart';
 import 'package:whatsapp_automation/features/preview/wa_bubble.dart';
+import 'package:whatsapp_automation/features/whatsapp/whatsapp_controller.dart';
 
 String plain(List<InlineSpan> spans) => spans.map((InlineSpan s) => (s as TextSpan).text).join();
 
@@ -54,5 +55,11 @@ void main() {
     );
     expect(unchanged.toJson().containsKey('occasions'), isFalse);
     expect(unchanged.toJson().containsKey('fields'), isFalse);
+  });
+
+  test('the QR picture from the server is read only when it is a PNG data URL', () {
+    expect(qrPng('data:image/png;base64,iVBORw0KGgo='), isNotNull);
+    expect(qrPng('javascript:alert(1)'), isNull);
+    expect(qrPng(null), isNull);
   });
 }

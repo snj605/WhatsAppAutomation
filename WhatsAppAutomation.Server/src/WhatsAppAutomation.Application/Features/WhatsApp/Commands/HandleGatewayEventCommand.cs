@@ -20,7 +20,8 @@ public sealed record HandleGatewayEventCommand(
     string? PhoneNumber = null,
     string? Name = null,
     Guid? Reference = null,
-    DateTimeOffset? At = null) : ICommand;
+    DateTimeOffset? At = null,
+    string? Image = null) : ICommand;
 
 internal sealed class HandleGatewayEventCommandHandler(
     IAppDbContext db, IWhatsAppNotifier notifier, IWhatsAppGateway gateway, Notifications.NotificationSender notifications, TimeProvider clock)
@@ -39,7 +40,9 @@ internal sealed class HandleGatewayEventCommandHandler(
         switch (e.Type)
         {
             case "qr" when !string.IsNullOrEmpty(e.Qr) && e.Qr.Length <= 1000:
-                await notifier.QrCodeAsync(account.UserId, e.Qr, cancellationToken);
+                // The same QR as a small PNG, for the mobile app (only a PNG data URL is passed on).
+                var image = e.Image is { Length: <= 30_000 } png && png.StartsWith("data:image/png;base64,", StringComparison.Ordinal) ? png : null;
+                await notifier.QrCodeAsync(account.UserId, e.Qr, image, cancellationToken);
                 return Result.Success();
 
             case "pairing_code" when !string.IsNullOrEmpty(e.Code) && e.Code.Length <= 20:

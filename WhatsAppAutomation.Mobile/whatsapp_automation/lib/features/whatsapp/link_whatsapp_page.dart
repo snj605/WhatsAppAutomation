@@ -10,8 +10,10 @@ import 'test_message_page.dart';
 import 'whatsapp_controller.dart';
 import 'whatsapp_models.dart';
 
-/// Links the user's WhatsApp with a code typed into WhatsApp itself. A QR code cannot be used here:
-/// the phone that would scan it is the phone showing it.
+/// Links the user's WhatsApp in one of two ways, the same as the website:
+/// - a QR shown here, scanned by the phone that has WhatsApp: easiest when this app runs on a second phone or a
+///   tablet;
+/// - a code typed into WhatsApp: for when WhatsApp is on this same phone (it cannot scan its own screen).
 class LinkWhatsAppPage extends ConsumerStatefulWidget {
   const LinkWhatsAppPage({super.key});
 
@@ -100,6 +102,8 @@ class _LinkWhatsAppPageState extends ConsumerState<LinkWhatsAppPage> with Widget
       ];
     } else if (account != null && account.isLinked) {
       content = _linked(theme, state, account);
+    } else if (state.method == 'qr') {
+      content = _qr(theme, state);
     } else if (state.pairingCode != null) {
       content = _code(theme, state, state.pairingCode!);
     } else {
@@ -192,14 +196,34 @@ class _LinkWhatsAppPageState extends ConsumerState<LinkWhatsAppPage> with Widget
         Text('Link your WhatsApp', style: theme.typography.display.xl.copyWith(fontWeight: FontWeight.w600)),
         const SizedBox(height: 8),
         Text(
-          'Type the number of the WhatsApp you want to send from. You will get a code to enter in WhatsApp.',
+          'Choose the way that fits: a QR code to scan, or a code to type in WhatsApp.',
           style: theme.typography.body.sm.copyWith(color: theme.colors.mutedForeground),
         ),
         if (account != null && (account.status == 'logged_out' || account.status == 'restricted')) ...<Widget>[
           const SizedBox(height: 12),
           Text(account.label, style: TextStyle(color: theme.colors.error)),
         ],
-        const SizedBox(height: 24),
+        const SizedBox(height: 20),
+        Text('1. Scan a QR code', style: theme.typography.body.md.copyWith(fontWeight: FontWeight.w600)),
+        const SizedBox(height: 4),
+        Text(
+          'Best when WhatsApp is on another phone and this app is on a second phone or a tablet.',
+          style: theme.typography.body.sm.copyWith(color: theme.colors.mutedForeground),
+        ),
+        const SizedBox(height: 12),
+        FButton(
+          onPress: state.busy ? null : () => ref.read(whatsAppProvider.notifier).linkWithQr(),
+          prefix: const Icon(FLucideIcons.qrCode),
+          child: const Text('Show QR code'),
+        ),
+        const SizedBox(height: 28),
+        Text('2. Use a code', style: theme.typography.body.md.copyWith(fontWeight: FontWeight.w600)),
+        const SizedBox(height: 4),
+        Text(
+          'When WhatsApp is on this same phone. Type its number; you get a code to enter in WhatsApp.',
+          style: theme.typography.body.sm.copyWith(color: theme.colors.mutedForeground),
+        ),
+        const SizedBox(height: 12),
         FTextField(
           control: FTextFieldControl.managed(controller: _phone),
           enabled: !state.busy,
@@ -220,10 +244,42 @@ class _LinkWhatsAppPageState extends ConsumerState<LinkWhatsAppPage> with Widget
               : null,
           child: const Text('Get the code'),
         ),
-        if (!state.busy && account?.status == 'linking') ...<Widget>[
+        if (!state.busy && account?.status == 'linking' && state.method == 'code') ...<Widget>[
           const SizedBox(height: 12),
           const Text('Waiting for the code… If nothing appears in a minute, press the button again.', textAlign: TextAlign.center),
         ],
+      ];
+
+  /// The QR from the server (it changes about every 20 seconds), with the steps for the phone that scans it.
+  List<Widget> _qr(FThemeData theme, WhatsAppState state) => <Widget>[
+        Text('Scan this QR code', style: theme.typography.display.xl.copyWith(fontWeight: FontWeight.w600)),
+        const SizedBox(height: 16),
+        Center(
+          child: Container(
+            width: 280,
+            height: 280,
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(color: const Color(0xFFFFFFFF), borderRadius: BorderRadius.circular(12)),
+            child: state.qrImage == null
+                ? const Center(child: FCircularProgress.loader(semanticsLabel: 'Waiting for the QR code'))
+                : Image.memory(state.qrImage!, gaplessPlayback: true, filterQuality: FilterQuality.none, semanticLabel: 'QR code to link WhatsApp'),
+          ),
+        ),
+        const SizedBox(height: 24),
+        const _Step(number: 1, text: 'On the phone that has WhatsApp, open WhatsApp.'),
+        const _Step(number: 2, text: 'Tap the three dots (Android) or Settings (iPhone), then Linked devices.'),
+        const _Step(number: 3, text: 'Tap Link a device and point the phone at this screen.'),
+        const SizedBox(height: 8),
+        Text(
+          'The code changes every 20 seconds; that is normal. This screen changes by itself when the link is done.',
+          style: theme.typography.body.xs.copyWith(color: theme.colors.mutedForeground),
+        ),
+        const SizedBox(height: 16),
+        FButton(
+          variant: FButtonVariant.ghost,
+          onPress: state.busy ? null : () => ref.read(whatsAppProvider.notifier).chooseAgain(),
+          child: const Text('Use a code instead'),
+        ),
       ];
 
   List<Widget> _code(FThemeData theme, WhatsAppState state, String code) => <Widget>[

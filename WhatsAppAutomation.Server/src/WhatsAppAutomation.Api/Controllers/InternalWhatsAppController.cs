@@ -23,7 +23,7 @@ public sealed class InternalWhatsAppController(ISender mediator) : ControllerBas
     public async Task<IActionResult> Event(GatewayEventRequest e, CancellationToken cancellationToken)
     {
         var result = await mediator.Send(
-            new HandleGatewayEventCommand(e.Type, e.AccountId, e.Qr, e.Code, e.Status, e.Reason, e.PhoneNumber, e.Name, e.Reference, e.At),
+            new HandleGatewayEventCommand(e.Type, e.AccountId, e.Qr, e.Code, e.Status, e.Reason, e.PhoneNumber, e.Name, e.Reference, e.At, e.Image),
             cancellationToken);
         return this.ToActionResult(result);
     }

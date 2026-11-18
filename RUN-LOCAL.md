@@ -129,6 +129,7 @@ The website and the app show the same screens, in the approved look (grey page, 
 25. **App and website together**: link WhatsApp in the app, then sign in on the website with the same user: it shows the same number as Connected and can send; the app stays signed in and connected.
 26. **Salutations**: Occasions → **Salutations** → add *Shri / શ્રી* (both texts needed). Pick it on a contact. A Gujarati contact's message with `{{salutation}}` gets શ્રી, an English one Shri. Salutations you typed before were added to this list for you (same text in both: correct the Gujarati).
 27. **Excel only takes your lists**: Download my contacts → Category, Language, Salutation and each choice field are drop-downs; each group has a **Group: …** column with Yes; the header row is locked. Type something not in a list: Excel refuses it. Paste a wrong value anyway and import: the preview shows the mistake for that row and saves nothing of it. Dates: 06-05, 06-05-02 or 06-05-2002 (02 means 2002; a 2-digit year is never in the future).
+28. **Link with QR or code (app too)**: in the app, WhatsApp → **Show QR code** when the app runs on a second phone or a tablet: scan it with the phone that has WhatsApp (Linked devices → Link a device). The QR changes every 20 seconds. **Use a code** when WhatsApp is on the same phone. The website offers the same two ways.
 
 ## If something goes wrong
 

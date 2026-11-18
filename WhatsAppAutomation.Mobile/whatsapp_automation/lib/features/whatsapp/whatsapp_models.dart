@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 /// The signed-in user's WhatsApp number, as the server reports it.
 class WhatsAppAccount {
   const WhatsAppAccount({required this.status, this.statusReason, this.phoneNumber, this.profileName});
@@ -39,12 +41,18 @@ class WhatsAppAccount {
 const Object _keep = Object();
 
 class WhatsAppState {
-  const WhatsAppState({this.account, this.pairingCode, this.loading = false, this.busy = false, this.error});
+  const WhatsAppState({this.account, this.pairingCode, this.qrImage, this.method, this.loading = false, this.busy = false, this.error});
 
   final WhatsAppAccount? account;
 
   /// The 8-character code to type into WhatsApp, while linking.
   final String? pairingCode;
+
+  /// The QR to scan (PNG bytes, drawn by the server), while linking with a QR. It changes about every 20 seconds.
+  final Uint8List? qrImage;
+
+  /// How the user chose to link: "qr" or "code"; null before choosing.
+  final String? method;
 
   /// First load of the status.
   final bool loading;
@@ -56,6 +64,8 @@ class WhatsAppState {
   WhatsAppState copyWith({
     Object? account = _keep,
     Object? pairingCode = _keep,
+    Object? qrImage = _keep,
+    Object? method = _keep,
     bool? loading,
     bool? busy,
     Object? error = _keep,
@@ -63,6 +73,8 @@ class WhatsAppState {
       WhatsAppState(
         account: identical(account, _keep) ? this.account : account as WhatsAppAccount?,
         pairingCode: identical(pairingCode, _keep) ? this.pairingCode : pairingCode as String?,
+        qrImage: identical(qrImage, _keep) ? this.qrImage : qrImage as Uint8List?,
+        method: identical(method, _keep) ? this.method : method as String?,
         loading: loading ?? this.loading,
         busy: busy ?? this.busy,
         error: identical(error, _keep) ? this.error : error as String?,

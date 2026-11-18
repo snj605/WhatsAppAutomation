@@ -6,7 +6,8 @@ namespace WhatsAppAutomation.Application.Common.Interfaces;
 /// <summary>Pushes live WhatsApp updates to the signed-in apps of one user (SignalR in the API).</summary>
 public interface IWhatsAppNotifier
 {
-    Task QrCodeAsync(Guid userId, string qr, CancellationToken cancellationToken);
+    /// <param name="image">The same QR drawn as a PNG data URL, for apps that do not draw it themselves.</param>
+    Task QrCodeAsync(Guid userId, string qr, string? image, CancellationToken cancellationToken);
 
     Task PairingCodeAsync(Guid userId, string code, CancellationToken cancellationToken);
 

@@ -2,7 +2,8 @@ import type { Logger } from 'pino';
 
 /** What the gateway tells the API. The API forwards QR codes and pairing codes live to the app. */
 export type GatewayEvent =
-  | { type: 'qr'; accountId: string; qr: string }
+  /** image: the same QR drawn as a PNG data URL, for apps that cannot draw it themselves (the mobile app). */
+  | { type: 'qr'; accountId: string; qr: string; image?: string }
   | { type: 'pairing_code'; accountId: string; code: string }
   | {
       type: 'connection';
