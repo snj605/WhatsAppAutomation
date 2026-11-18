@@ -81,6 +81,17 @@ namespace WhatsAppAutomation.Infrastructure.Persistence.Migrations
                 name: "ix_contact_fields_user_id_sort_order",
                 table: "contact_fields",
                 columns: new[] { "user_id", "sort_order" });
+
+            // Birthdays become dates of each user's Birthday occasion, like every other occasion. The birthday also
+            // stays on the contact (nothing is removed), for users without a Birthday occasion.
+            migrationBuilder.Sql("""
+                INSERT INTO contact_occasions (module_id, contact_id, day, month, year, for_name)
+                SELECT m.id, c.id, c.birth_day, c.birth_month, c.birth_year, NULL
+                FROM contacts c
+                JOIN occasion_modules m ON m.user_id = c.user_id AND m.kind = 'Birthday'
+                WHERE c.birth_day BETWEEN 1 AND 31 AND c.birth_month BETWEEN 1 AND 12
+                ON CONFLICT (module_id, contact_id) DO NOTHING;
+                """);
         }
 
         /// <inheritdoc />

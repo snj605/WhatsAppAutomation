@@ -107,6 +107,11 @@ public sealed class MigrationDataTests(ApiFactory factory)
             Assert.Equal(1, await ScalarAsync<int>(connection, $"SELECT queue_position FROM broadcasts WHERE id = '{wishes}'"));
             Assert.Equal(2, await ScalarAsync<int>(connection, $"SELECT queue_position FROM broadcasts WHERE id = '{later}'"));
 
+            // The contact's birthday is a date of that Birthday occasion now, and still kept on the contact.
+            Assert.Equal(1L, await ScalarAsync<long>(connection,
+                $"SELECT count(*) FROM contact_occasions WHERE module_id = '{moduleId}' AND contact_id = '{contact}' AND day = 18 AND month = 11"));
+            Assert.Equal(18, await ScalarAsync<int>(connection, $"SELECT birth_day FROM contacts WHERE id = '{contact}'"));
+
             // Existing users get the default sending settings: 300 a day, 50 in one go, 30-90 s, 09:00-21:00.
             await using (var prefs = new NpgsqlCommand(
                 "SELECT daily_limit, chunk_size, min_gap_seconds, max_gap_seconds, send_from, send_until FROM user_preferences WHERE user_id = @u", connection))
