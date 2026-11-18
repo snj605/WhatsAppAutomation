@@ -53,6 +53,15 @@ export class AuthStore {
     return result.rows.map((r) => r.account_id);
   }
 
+  /** Whether this account has a finished link saved (so it can reconnect without a new QR). */
+  async isLinked(accountId: string): Promise<boolean> {
+    const result = await this.#pool.query(
+      'SELECT 1 FROM whatsapp_auth_state WHERE account_id = $1 AND kind = $2 AND key_id = $3',
+      [accountId, META, LINKED],
+    );
+    return (result.rowCount ?? 0) > 0;
+  }
+
   async markLinked(accountId: string): Promise<void> {
     await this.#write(this.#pool, accountId, META, LINKED, true);
   }

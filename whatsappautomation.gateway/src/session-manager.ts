@@ -48,6 +48,24 @@ export class SessionManager {
     };
   }
 
+  /**
+   * Connects again with the saved login, without a new QR: for a number that stopped (for example "replaced")
+   * or is still trying. Does nothing when it is already connected.
+   */
+  async reconnect(accountId: string): Promise<void> {
+    const existing = this.#sessions.get(accountId);
+    if (existing?.status === 'connected' || existing?.status === 'connecting' || existing?.status === 'linking') {
+      return;
+    }
+
+    if (!(await this.#store.isLinked(accountId))) {
+      throw new GatewayError('not_linked', 409, 'This account has no saved login. Link the number again.');
+    }
+
+    existing?.shutdown();
+    await this.#create(accountId).resume();
+  }
+
   async link(accountId: string, method: LinkMethod, phoneNumber: string | null): Promise<void> {
     const existing = this.#sessions.get(accountId);
     if (existing?.status === 'connected') {

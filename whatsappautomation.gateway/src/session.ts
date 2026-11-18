@@ -59,6 +59,8 @@ const LINK_TIMEOUT_MS = 3 * 60_000;
 const UNLINK_CONNECT_MS = 25_000;
 const UNLINK_LOGOUT_MS = 15_000;
 const MAX_BACKOFF_MS = 5 * 60_000;
+/** "Replaced" closes in a row before giving up: then another copy of the gateway really holds this login. */
+const MAX_REPLACED_IN_ROW = 3;
 const SENT_CACHE_SIZE = 500;
 
 /**
@@ -66,10 +68,12 @@ const SENT_CACHE_SIZE = 500;
  *
  * Reconnecting depends on why the connection closed (Baileys' DisconnectReason):
  * - restart required (normal right after linking): reconnect at once;
- * - logged out / bad session / device mismatch: delete the saved login, ask the user to link again;
+ * - logged out (removed on the phone, or WhatsApp ended the login): delete the saved login, ask to link again;
+ *   this is the only close that needs the user;
  * - forbidden (number restricted or banned): stop, never reconnect automatically;
- * - replaced (the same login opened somewhere else): stop;
- * - anything else (network, timeout): reconnect after 2 s, 4 s, 8 s … up to 5 minutes.
+ * - replaced (the same login opened by another copy of the gateway): try again a few times, then stop;
+ * - anything else, including "bad session" and "device mismatch" (Baileys also uses those codes for passing
+ *   stream errors): keep the saved login and reconnect after 2 s, 4 s, 8 s … up to 5 minutes, for ever.
  */
 export class AccountSession {
   readonly accountId: string;
@@ -91,6 +95,7 @@ export class AccountSession {
   #linkTimer: NodeJS.Timeout | null = null;
   #reconnectTimer: NodeJS.Timeout | null = null;
   #reconnectAttempts = 0;
+  #replacedInRow = 0;
   #stopped = false;
   #sendQueue: Promise<unknown> = Promise.resolve();
   /** Recently sent messages: WhatsApp may ask for one again ("retry"), and statuses map back to the API's id. */
@@ -120,10 +125,18 @@ export class AccountSession {
     return !this.#stopped;
   }
 
-  /** Reconnects with the saved login (gateway start-up). */
+  /**
+   * Reconnects with the saved login (gateway start-up). If that fails (no internet or database yet, for example
+   * right after the computer starts), it keeps trying with the usual backoff instead of giving up.
+   */
   async resume(): Promise<void> {
     this.#setStatus('connecting');
-    await this.#connect();
+    try {
+      await this.#connect();
+    } catch (error) {
+      this.#log.warn({ err: errorSummary(error) }, 'Could not reconnect yet; trying again');
+      this.#scheduleReconnect();
+    }
   }
 
   /** Starts linking from scratch: any saved login of this account is deleted first. */
@@ -470,6 +483,7 @@ export class AccountSession {
     const wasLinking = this.#linking !== null;
     this.#clearLinking();
     this.#reconnectAttempts = 0;
+    this.#replacedInRow = 0;
     this.#phoneNumber = phoneFromJid(socket.user?.id);
     if (wasLinking) {
       await this.#store.markLinked(this.accountId);
@@ -493,8 +507,6 @@ export class AccountSession {
         return;
 
       case DisconnectReason.loggedOut:
-      case DisconnectReason.badSession:
-      case DisconnectReason.multideviceMismatch:
         this.#stop();
         await this.#store.clear(this.accountId);
         this.#phoneNumber = null;
@@ -513,6 +525,13 @@ export class AccountSession {
         return;
 
       case DisconnectReason.connectionReplaced:
+        // Often a passing clash while WhatsApp moves the connection; a few in a row mean another copy of the
+        // gateway runs with this login, and two copies would keep pushing each other off.
+        if (++this.#replacedInRow <= MAX_REPLACED_IN_ROW) {
+          this.#scheduleReconnect('replaced_retrying');
+          return;
+        }
+
         this.#stop();
         this.#setStatus('disconnected', 'replaced');
         return;
@@ -525,14 +544,19 @@ export class AccountSession {
           return;
         }
 
-        this.#scheduleReconnect();
+        if (this.#linking === null && (code === DisconnectReason.badSession || code === DisconnectReason.multideviceMismatch)) {
+          this.#log.warn({ code }, 'WhatsApp reported a session problem; keeping the login and reconnecting');
+        }
+
+        this.#scheduleReconnect(closeReason(code));
     }
   }
 
-  #scheduleReconnect(): void {
+  /** Reconnects after a growing pause; the reason (why it closed) is shown in the apps. */
+  #scheduleReconnect(reason?: string): void {
     const delay = Math.min(2_000 * 2 ** this.#reconnectAttempts, MAX_BACKOFF_MS);
     this.#reconnectAttempts++;
-    this.#setStatus('reconnecting');
+    this.#setStatus('reconnecting', reason);
     this.#log.info({ delayMs: delay }, 'Connection lost; reconnecting');
     this.#reconnectTimer = setTimeout(() => {
       this.#reconnectTimer = null;
@@ -641,4 +665,24 @@ export function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
       },
     );
   });
+}
+
+/** Why WhatsApp closed the connection, as a short reason the apps can show. */
+export function closeReason(code: number | undefined): string {
+  switch (code) {
+    case DisconnectReason.connectionLost:
+      return 'connection_lost'; // 408: no answer (internet down, computer asleep)
+    case DisconnectReason.connectionClosed:
+      return 'connection_closed'; // 428
+    case DisconnectReason.badSession:
+      return 'session_problem'; // 500
+    case DisconnectReason.multideviceMismatch:
+      return 'device_mismatch'; // 411
+    case DisconnectReason.unavailableService:
+      return 'whatsapp_unavailable'; // 503
+    case undefined:
+      return 'network_error';
+    default:
+      return `closed_${code}`;
+  }
 }

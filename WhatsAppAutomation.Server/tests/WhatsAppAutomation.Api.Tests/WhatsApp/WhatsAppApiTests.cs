@@ -253,6 +253,23 @@ public sealed class WhatsAppApiTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task A_stopped_number_reconnects_with_its_saved_login_without_a_new_qr()
+    {
+        var (client, userId) = await ConnectedOwnerAsync();
+        var accountId = await AccountIdAsync(userId);
+        await PostEventAsync(new { type = "connection", accountId, status = "disconnected", reason = "replaced" });
+
+        var response = await client.PostAsync("/api/v1/whatsapp/reconnect", null, Ct);
+        Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
+        Assert.Contains($"reconnect {accountId}", factory.Gateway.Calls);
+
+        // Without a saved login there is nothing to reconnect with.
+        var (fresh, _) = await OwnerAsync();
+        var none = await fresh.PostAsync("/api/v1/whatsapp/reconnect", null, Ct);
+        Assert.Equal(HttpStatusCode.Conflict, none.StatusCode);
+    }
+
+    [Fact]
     public async Task A_number_linked_in_the_app_works_on_the_website_for_the_same_sign_in()
     {
         var userName = await factory.CreateUserAsync(UserKind.TenantAdmin);

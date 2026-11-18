@@ -100,7 +100,7 @@ internal sealed class HandleGatewayEventCommandHandler(
         { Status: WhatsAppConnectionStatus.Restricted } => notifications.SendAsync(account.UserId, "whatsapp",
             "WhatsApp restricted your number", "Nothing is sent from it. Check WhatsApp on the phone.", cancellationToken),
         { Status: WhatsAppConnectionStatus.Disconnected } => notifications.SendAsync(account.UserId, "whatsapp",
-            "WhatsApp stopped here", "This login was opened somewhere else. Link again to continue.", cancellationToken),
+            "WhatsApp stopped here", "Another copy of the WhatsApp service kept taking this login. Make sure only one runs, then press Reconnect (no new QR).", cancellationToken),
         _ => Task.CompletedTask,
     };
 

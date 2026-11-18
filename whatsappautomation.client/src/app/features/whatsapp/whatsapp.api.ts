@@ -11,6 +11,8 @@ export class WhatsAppApi {
   account = () => firstValueFrom(this.http.get<WhatsAppAccount>('/api/v1/whatsapp'));
   link = (method: LinkMethod, phoneNumber: string | null) =>
     firstValueFrom(this.http.post<WhatsAppAccount>('/api/v1/whatsapp/link', { method, phoneNumber }));
+  /** Connects again with the saved login (no new QR). */
+  reconnect = () => firstValueFrom(this.http.post<WhatsAppAccount>('/api/v1/whatsapp/reconnect', null));
   unlink = () => firstValueFrom(this.http.post<WhatsAppAccount>('/api/v1/whatsapp/unlink', null));
   messages = () => firstValueFrom(this.http.get<OutgoingMessage[]>('/api/v1/whatsapp/messages'));
   send = (to: string, text: string) =>

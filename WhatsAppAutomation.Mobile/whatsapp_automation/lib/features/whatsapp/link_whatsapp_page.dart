@@ -164,6 +164,14 @@ class _LinkWhatsAppPageState extends ConsumerState<LinkWhatsAppPage> with Widget
           ),
         ),
         const SizedBox(height: 16),
+        if (account.status == 'disconnected' || account.status == 'reconnecting') ...<Widget>[
+          FButton(
+            onPress: state.busy ? null : () => ref.read(whatsAppProvider.notifier).reconnect(),
+            prefix: const Icon(FLucideIcons.refreshCw),
+            child: const Text('Reconnect (no new QR)'),
+          ),
+          const SizedBox(height: 10),
+        ],
         FButton(
           variant: FButtonVariant.outline,
           onPress: state.busy ? null : _unlink,

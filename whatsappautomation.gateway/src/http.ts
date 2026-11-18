@@ -8,6 +8,8 @@ import { errorSummary, GatewayError, type LinkMethod } from './session.ts';
 export interface Sessions {
   status(accountId: string): object;
   link(accountId: string, method: LinkMethod, phoneNumber: string | null): Promise<void>;
+  /** Connects again with the saved login (no new QR). */
+  reconnect(accountId: string): Promise<void>;
   /** False when WhatsApp could not be told: the device must be removed on the phone. */
   unlink(accountId: string): Promise<boolean>;
   sendText(accountId: string, to: string, text: string, reference: string, file?: MessageFile | null): Promise<string>;
@@ -26,7 +28,7 @@ export const MAX_NUMBERS_PER_CHECK = 50;
 const MAX_BODY_BYTES = 64 * 1024;
 const MAX_TEXT_LENGTH = 4096;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-const ROUTE = /^\/accounts\/([^/]+)\/(status|link|unlink|messages|check-numbers)$/;
+const ROUTE = /^\/accounts\/([^/]+)\/(status|link|reconnect|unlink|messages|check-numbers)$/;
 
 /**
  * The gateway's small HTTP API. Only the WhatsApp Automation API calls it, with the shared secret
@@ -35,6 +37,7 @@ const ROUTE = /^\/accounts\/([^/]+)\/(status|link|unlink|messages|check-numbers)
  *   GET  /health
  *   GET  /accounts/{id}/status
  *   POST /accounts/{id}/link       { method: "qr" | "code", phoneNumber?: "+91…" }
+ *   POST /accounts/{id}/reconnect  (connect again with the saved login, no QR)
  *   POST /accounts/{id}/unlink
  *   POST /accounts/{id}/messages   { to: "+91…", text, reference, file?: { id, name, mimeType } }  →  { messageId }
  *   POST /accounts/{id}/check-numbers { numbers: ["+91…", …] (1–50) }  →  { results: [{ number, onWhatsApp }] }
@@ -100,6 +103,11 @@ export function createHttpServer(sessions: Sessions, secret: string, log: Logger
         send(response, 202, sessions.status(accountId));
         return;
       }
+
+      case 'reconnect':
+        await sessions.reconnect(accountId);
+        send(response, 202, sessions.status(accountId));
+        return;
 
       case 'unlink':
         const removedFromPhone = await sessions.unlink(accountId);

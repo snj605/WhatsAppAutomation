@@ -26,6 +26,12 @@ public sealed class FakeWhatsAppGateway : IWhatsAppGateway
         return Task.FromResult(phoneNumber == GatewayDownNumber ? WhatsAppErrors.GatewayUnavailable : Result.Success());
     }
 
+    public Task<Result> ReconnectAsync(Guid accountId, CancellationToken cancellationToken)
+    {
+        Calls.Enqueue($"reconnect {accountId}");
+        return Task.FromResult(Result.Success());
+    }
+
     /// <summary>Accounts whose unlinking reports that WhatsApp could not be reached.</summary>
     public ConcurrentBag<Guid> UnreachableOnUnlink { get; } = new();
 

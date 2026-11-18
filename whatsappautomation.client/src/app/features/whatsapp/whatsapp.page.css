@@ -424,3 +424,5 @@
     font-size: 1.25rem;
   }
 }
+
+.head-actions { display: inline-flex; gap: 8px; flex-wrap: wrap; }

@@ -29,6 +29,9 @@ public static class WhatsAppErrors
     public static readonly Error NotSignedIn =
         new("whatsapp.not_signed_in", "Sign in first.", ErrorKind.Unauthorized);
 
+    public static readonly Error NoSavedLogin =
+        new("whatsapp.no_saved_login", "There is no saved login to reconnect with. Link the number again.", ErrorKind.Conflict);
+
     public static readonly Error UnknownAccount =
         new("whatsapp.unknown_account", "Unknown WhatsApp account.", ErrorKind.NotFound);
 }

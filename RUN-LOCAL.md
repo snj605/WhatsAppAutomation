@@ -54,6 +54,13 @@ Check: http://localhost:5163/health shows "Healthy" (or "Degraded" while the gat
 
 Files you send (photos, videos, documents up to 512 MB) are kept on disk in `WhatsAppAutomation.Server\src\WhatsAppAutomation.Api\App_Data\files` (setting `Files:Path`). The folder is made by itself and is not in git. Files are removed after sending, except files that belong to a template.
 
+### Keeping WhatsApp connected
+
+- The link survives restarts: when the gateway starts, it reconnects every linked number with its saved login (no QR). A passing drop (internet, computer asleep, WhatsApp hiccup) shows **Reconnecting** with the reason and fixes itself; you never need to link again unless the device is removed on the phone (**Logged out**).
+- With F5, the gateway runs **only while the API runs in Visual Studio**. Stopping debugging stops WhatsApp too; nothing is sent until you press F5 again (it then reconnects by itself). For sending that goes on unattended, run it on the server (`deploy/`, which restarts by itself), or keep the API running.
+- Run **one** gateway only. Two copies (for example F5 plus a separate `npm start`, or the server and your PC with the same database) keep pushing each other off: the page then says **Stopped**. Close the extra copy and press **Reconnect** (no new QR).
+- WhatsApp itself logs out linked devices when the phone is offline for about 14 days: keep the phone online now and then.
+
 ## 5. Website
 
 Open https://localhost:49679 (Visual Studio opens it for you).

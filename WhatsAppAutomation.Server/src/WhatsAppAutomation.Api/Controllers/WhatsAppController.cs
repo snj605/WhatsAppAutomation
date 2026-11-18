@@ -50,6 +50,15 @@ public sealed class WhatsAppController(ISender mediator) : ControllerBase
         return this.ToActionResult(result, account => Accepted(account));
     }
 
+    /// <summary>Connects the linked number again with its saved login (no new QR), for example after "Stopped".</summary>
+    [HttpPost("reconnect")]
+    [HasPermission(Permissions.WhatsApp.Link)]
+    [ProducesResponseType<WhatsAppAccountDto>(StatusCodes.Status202Accepted)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status503ServiceUnavailable)]
+    public async Task<IActionResult> Reconnect(CancellationToken cancellationToken) =>
+        this.ToActionResult(await mediator.Send(new ReconnectWhatsAppCommand(), cancellationToken), account => Accepted(account));
+
     [HttpPost("unlink")]
     [HasPermission(Permissions.WhatsApp.Link)]
     [ProducesResponseType<WhatsAppAccountDto>(StatusCodes.Status200OK)]

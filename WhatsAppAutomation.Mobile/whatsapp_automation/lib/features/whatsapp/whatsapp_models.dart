@@ -29,7 +29,7 @@ class WhatsAppAccount {
         'linking' => 'Waiting for you to enter the code in WhatsApp',
         'connecting' => 'Connecting…',
         'reconnecting' => 'Reconnecting…',
-        'disconnected' => 'Disconnected',
+        'disconnected' => 'Stopped: another copy took this login. Tap Reconnect.',
         'logged_out' => 'Signed out from WhatsApp. Link again.',
         'restricted' => 'WhatsApp restricted this number',
         _ => 'Not linked',

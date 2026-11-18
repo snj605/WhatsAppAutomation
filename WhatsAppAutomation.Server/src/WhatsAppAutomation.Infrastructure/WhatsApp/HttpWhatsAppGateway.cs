@@ -19,6 +19,9 @@ internal sealed class HttpWhatsAppGateway(HttpClient http, IOptions<GatewayOptio
             phoneNumber,
         }, cancellationToken);
 
+    public Task<Result> ReconnectAsync(Guid accountId, CancellationToken cancellationToken) =>
+        PostAsync($"accounts/{accountId}/reconnect", new { }, cancellationToken);
+
     public async Task<Result<bool>> UnlinkAsync(Guid accountId, CancellationToken cancellationToken)
     {
         var (response, error) = await SendAsync($"accounts/{accountId}/unlink", new { }, cancellationToken);
@@ -173,6 +176,7 @@ internal sealed class HttpWhatsAppGateway(HttpClient http, IOptions<GatewayOptio
         return body?.Code switch
         {
             "already_linked" => WhatsAppErrors.AlreadyLinked,
+            "not_linked" => WhatsAppErrors.NoSavedLogin,
             "not_connected" => WhatsAppErrors.NotConnected,
             "not_on_whatsapp" => WhatsAppErrors.NotOnWhatsApp,
             "invalid_phone" => WhatsAppErrors.InvalidPhoneNumber,

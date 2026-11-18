@@ -14,6 +14,7 @@ const calls: string[] = [];
 const fake: Sessions = {
   status: (id) => ({ accountId: id, status: 'connected', phoneNumber: '+911234567890' }),
   link: async (id, method, phone) => void calls.push(`link ${id} ${method} ${phone}`),
+  reconnect: async (id) => void calls.push(`reconnect ${id}`),
   unlink: async (id) => {
     calls.push(`unlink ${id}`);
     return true;
@@ -59,10 +60,11 @@ test('status, link and unlink', async () => {
 
   const link = await call(`/accounts/${accountId}/link`, { method: 'POST', body: JSON.stringify({ method: 'code', phoneNumber: '+911234567890' }) });
   assert.equal(link.status, 202);
+  assert.equal((await call(`/accounts/${accountId}/reconnect`, { method: 'POST' })).status, 202);
   const unlinked = await call(`/accounts/${accountId}/unlink`, { method: 'POST' });
   assert.equal(unlinked.status, 200);
   assert.equal(((await unlinked.json()) as { removedFromPhone: boolean }).removedFromPhone, true);
-  assert.deepEqual(calls, [`link ${accountId} code +911234567890`, `unlink ${accountId}`]);
+  assert.deepEqual(calls, [`link ${accountId} code +911234567890`, `reconnect ${accountId}`, `unlink ${accountId}`]);
 });
 
 test('bad input is rejected with a code', async () => {

@@ -28,7 +28,12 @@
         }
       </div>
       @if (canLink() && hasNumber() && !isLinking()) {
-        <p-button label="Unlink" icon="pi pi-link" severity="danger" [outlined]="true" [loading]="busy()" (onClick)="unlink()" />
+        <span class="head-actions">
+          @if (account()?.status === 'disconnected' || account()?.status === 'reconnecting') {
+            <p-button label="Reconnect" icon="pi pi-refresh" [loading]="busy()" (onClick)="reconnect()" />
+          }
+          <p-button label="Unlink" icon="pi pi-link" severity="danger" [outlined]="true" [loading]="busy()" (onClick)="unlink()" />
+        </span>
       }
     </div>
 

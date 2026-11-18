@@ -24,7 +24,7 @@ const STATUS: Record<ConnectionStatus, StatusInfo> = {
   disconnected: {
     label: 'Stopped',
     severity: 'warn',
-    text: 'This login was opened somewhere else, so it stopped here. Link again to use it here.',
+    text: 'Another copy of the WhatsApp service took this login, so it stopped here. Press Reconnect (no new QR needed), and make sure only one copy runs.',
   },
 };
 

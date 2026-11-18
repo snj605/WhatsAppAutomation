@@ -70,6 +70,23 @@ class WhatsAppController extends Notifier<WhatsAppState> {
     }
   }
 
+  /// Connects again with the saved login, without a new QR.
+  Future<void> reconnect() async {
+    state = state.copyWith(busy: true, error: null);
+    try {
+      final Object? json = await _api.post('/api/v1/whatsapp/reconnect');
+      if (ref.mounted && json is Map<String, dynamic>) {
+        _apply(WhatsAppAccount.fromJson(json));
+      }
+    } on ApiException catch (error) {
+      _fail(error.message);
+    } finally {
+      if (ref.mounted) {
+        state = state.copyWith(busy: false);
+      }
+    }
+  }
+
   Future<void> unlink() async {
     state = state.copyWith(busy: true, error: null);
     try {

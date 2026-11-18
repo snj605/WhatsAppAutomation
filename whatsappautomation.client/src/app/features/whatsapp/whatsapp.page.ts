@@ -28,6 +28,14 @@ const REASONS: Record<string, string> = {
   pairing_code_failed: 'WhatsApp did not give a phone code. Check the number, or use the QR code instead.',
   session_invalid: 'The saved login stopped working. Link the number again.',
   unlinked: 'The number was unlinked.',
+  connection_lost: 'WhatsApp stopped answering (internet down or the computer asleep). It reconnects by itself, keeping the login.',
+  connection_closed: 'WhatsApp closed the connection. It reconnects by itself, keeping the login.',
+  network_error: 'The network dropped. It reconnects by itself, keeping the login.',
+  session_problem: 'WhatsApp reported a passing session problem. It reconnects by itself, keeping the login (no new QR).',
+  device_mismatch: 'WhatsApp reported a device problem. It reconnects by itself, keeping the login.',
+  whatsapp_unavailable: 'WhatsApp is not available right now. It reconnects by itself.',
+  replaced_retrying: 'Another connection with this login took over for a moment. It reconnects by itself.',
+  replaced: 'Another copy of the WhatsApp service keeps taking this login. Make sure only one copy runs, then press Reconnect.',
   unlinked_remove_on_phone: 'The number was unlinked here. WhatsApp could not be reached, so the device may still show on the phone. On the phone open WhatsApp → Settings → Linked devices and remove it.',
 };
 
@@ -186,6 +194,19 @@ export class WhatsAppPage implements OnInit, OnDestroy {
 
   /** Share of the 3-minute linking window that is left, for the countdown ring. */
   readonly timeLeftPercent = computed(() => Math.round((this.secondsLeft() / LINK_SECONDS) * 100));
+
+  /** Connects again with the saved login, without scanning a new QR. */
+  async reconnect(): Promise<void> {
+    this.busy.set(true);
+    try {
+      this.onAccount(await this.api.reconnect());
+      this.toast.add({ severity: 'info', summary: 'Reconnecting', detail: 'Using the saved login; no new QR is needed.' });
+    } catch (error) {
+      this.toast.add({ severity: 'error', summary: 'Could not reconnect', detail: problemMessage(error) });
+    } finally {
+      this.busy.set(false);
+    }
+  }
 
   private async doUnlink(summary: string): Promise<void> {
     this.busy.set(true);
