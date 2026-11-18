@@ -5,6 +5,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../core/format.dart';
 import '../../core/ui.dart';
 import '../contacts/contact_fields_page.dart';
+import '../contacts/salutations_page.dart';
 import 'module_page.dart';
 import 'modules_api.dart';
 
@@ -62,6 +63,13 @@ class ModulesTab extends ConsumerWidget {
                       subtitle: 'Your own details on each contact, like City',
                       trailing: Icon(FLucideIcons.chevronRight, size: 18, color: theme.colors.mutedForeground),
                       onTap: () => pushPage<void>(context, const ContactFieldsPage()),
+                    ),
+                    ListRow(
+                      leading: const IconBadge(FLucideIcons.user),
+                      title: 'Salutations',
+                      subtitle: 'Shri / શ્રી, Smt. / શ્રીમતી, …',
+                      trailing: Icon(FLucideIcons.chevronRight, size: 18, color: theme.colors.mutedForeground),
+                      onTap: () => pushPage<void>(context, const SalutationsPage()),
                     ),
                   ],
                 ),

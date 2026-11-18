@@ -26,8 +26,10 @@
         <ul class="columns">
           <li><b>Phone*</b> with country code, e.g. +919876543210: how rows are matched</li>
           <li><b>Name (English / Hindi / Gujarati)</b>: the one in the contact's language is required</li>
-          <li><b>Language</b> en, hi or gu; <b>Category</b> one name; <b>Groups</b> comma-separated (added)</li>
-          <li>Each <b>occasion</b>: DD-MM or DD-MM-YYYY; each <b>field</b> in its own column</li>
+          <li><b>Category, Language, Salutation</b>: pick from the list in Excel (your own lists only)</li>
+          <li><b>Group: …</b> one column per group: <b>Yes</b> adds the person; leaving a group is done in the app</li>
+          <li>Each <b>occasion</b>: type DD-MM, DD-MM-YY or DD-MM-YYYY (06-05-2002); each <b>field</b> in its own column, choices from the list</li>
+          <li>Names not in your lists are shown as mistakes and not saved: add them in the app first</li>
           <li>An <b>empty cell keeps</b> what is saved; removing a row does not delete the contact</li>
         </ul>
         <p-button label="Download my contacts (.xlsx)" icon="pi pi-download" severity="secondary" (onClick)="downloadTemplate()" />

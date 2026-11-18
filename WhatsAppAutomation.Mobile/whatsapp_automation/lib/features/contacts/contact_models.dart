@@ -143,6 +143,7 @@ class Contact {
     required this.categoryId,
     required this.salutation,
     required this.occasions,
+    this.salutationId,
     required this.fields,
     required this.notes,
     required this.groups,
@@ -161,6 +162,7 @@ class Contact {
         language: json['language'] as String? ?? 'en',
         categoryId: json['categoryId'] as String?,
         salutation: json['salutation'] as String?,
+        salutationId: json['salutationId'] as String?,
         occasions: asList(json['occasions']).map(ContactOccasion.fromJson).toList(),
         fields: <String, String>{
           for (final MapEntry<String, dynamic> e in (json['fields'] as Map<String, dynamic>? ?? const <String, dynamic>{}).entries)
@@ -181,7 +183,12 @@ class Contact {
   final String? nameGu;
   final String language;
   final String? categoryId;
+
+  /// The salutation's English text, for lists.
   final String? salutation;
+
+  /// The salutation from the user's list (master data).
+  final String? salutationId;
 
   /// Dates for the user's own occasions only; occasions without a date are not here.
   final List<ContactOccasion> occasions;
@@ -228,7 +235,7 @@ class ContactInput {
     required this.nameGu,
     required this.language,
     required this.categoryId,
-    required this.salutation,
+    required this.salutationId,
     required this.notes,
     required this.groupIds,
     this.occasions,
@@ -242,7 +249,9 @@ class ContactInput {
   final String? nameGu;
   final String language;
   final String? categoryId;
-  final String? salutation;
+
+  /// One of the user's salutations, or none.
+  final String? salutationId;
   final String? notes;
   final List<String> groupIds;
 
@@ -260,7 +269,7 @@ class ContactInput {
         'nameGu': nameGu,
         'language': language,
         'categoryId': categoryId,
-        'salutation': salutation,
+        'salutationId': salutationId,
         if (occasions != null) 'occasions': occasions!.map((ContactOccasion o) => o.toJson()).toList(),
         if (fields != null) 'fields': fields,
         'notes': notes,
@@ -309,4 +318,25 @@ class WhatsAppCheckSummary {
 
   /// The user's WhatsApp is connected, so waiting numbers are being checked.
   final bool connected;
+}
+
+/// One of the user's salutations (GET /api/v1/salutations), in English and Gujarati.
+class Salutation {
+  const Salutation({required this.id, required this.nameEn, required this.nameGu, required this.label, required this.contactCount});
+
+  factory Salutation.fromJson(Json json) => Salutation(
+        id: json['id'] as String,
+        nameEn: json['nameEn'] as String? ?? '',
+        nameGu: json['nameGu'] as String? ?? '',
+        label: json['label'] as String? ?? '',
+        contactCount: asInt(json['contactCount']),
+      );
+
+  final String id;
+  final String nameEn;
+  final String nameGu;
+
+  /// "Shri / શ્રી", as lists and Excel show it.
+  final String label;
+  final int contactCount;
 }

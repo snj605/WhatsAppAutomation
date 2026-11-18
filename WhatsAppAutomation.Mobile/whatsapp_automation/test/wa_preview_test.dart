@@ -48,7 +48,7 @@ void main() {
       nameGu: null,
       language: 'en',
       categoryId: null,
-      salutation: null,
+      salutationId: null,
       notes: null,
       groupIds: <String>[],
     );

@@ -223,3 +223,42 @@ class ContactFieldsController extends AsyncNotifier<List<ContactField>> {
     }
   }
 }
+
+/// The user's salutations (/api/v1/salutations), each in English and Gujarati.
+class SalutationsApi {
+  SalutationsApi(this._api);
+
+  final ApiClient _api;
+
+  Future<List<Salutation>> list() async => asList(await _api.get('/api/v1/salutations')).map(Salutation.fromJson).toList();
+
+  Future<Salutation> save(String? id, String nameEn, String nameGu) async {
+    final Json body = <String, dynamic>{'nameEn': nameEn, 'nameGu': nameGu};
+    return Salutation.fromJson(
+      (id == null ? await _api.post('/api/v1/salutations', body) : await _api.put('/api/v1/salutations/$id', body))! as Json,
+    );
+  }
+
+  Future<void> remove(String id) => _api.delete('/api/v1/salutations/$id');
+}
+
+final Provider<SalutationsApi> salutationsApiProvider = Provider<SalutationsApi>((Ref ref) => SalutationsApi(ref.watch(apiClientProvider)));
+
+/// The signed-in user's salutations, reloaded after each change.
+final AsyncNotifierProvider<SalutationsController, List<Salutation>> salutationsProvider =
+    AsyncNotifierProvider<SalutationsController, List<Salutation>>(SalutationsController.new);
+
+class SalutationsController extends AsyncNotifier<List<Salutation>> {
+  @override
+  Future<List<Salutation>> build() {
+    ref.watch(sessionProvider);
+    return ref.read(salutationsApiProvider).list();
+  }
+
+  Future<void> reload() async {
+    final AsyncValue<List<Salutation>> next = await AsyncValue.guard(() => ref.read(salutationsApiProvider).list());
+    if (ref.mounted) {
+      state = next;
+    }
+  }
+}

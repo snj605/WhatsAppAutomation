@@ -7,6 +7,7 @@ import '../../core/ui.dart';
 import '../modules/modules_api.dart';
 import '../modules/modules_page.dart';
 import 'contact_fields_page.dart';
+import 'salutations_page.dart';
 import 'contact_models.dart';
 import 'contacts_api.dart';
 
@@ -82,7 +83,6 @@ class _ContactFormPageState extends ConsumerState<ContactFormPage> {
   late final TextEditingController _nameEn = TextEditingController(text: _c?.nameEn ?? '');
   late final TextEditingController _nameHi = TextEditingController(text: _c?.nameHi ?? '');
   late final TextEditingController _nameGu = TextEditingController(text: _c?.nameGu ?? '');
-  late final TextEditingController _salutation = TextEditingController(text: _c?.salutation ?? '');
   late final List<_OccasionRow> _occasions = <_OccasionRow>[
     for (final ContactOccasion o in _c?.occasions ?? const <ContactOccasion>[])
       _OccasionRow(o.moduleId, day: o.day, month: o.month, year: o.year, forName: o.forName),
@@ -94,6 +94,7 @@ class _ContactFormPageState extends ConsumerState<ContactFormPage> {
   late final TextEditingController _notes = TextEditingController(text: _c?.notes ?? '');
   late String _language = _c?.language ?? widget.defaultLanguage;
   late String? _categoryId = _c?.categoryId;
+  late String? _salutationId = _c?.salutationId;
   late Set<String> _groupIds = _c?.groups.map((({String id, String name}) g) => g.id).toSet() ?? <String>{};
   bool _saving = false;
   String? _error;
@@ -106,7 +107,6 @@ class _ContactFormPageState extends ConsumerState<ContactFormPage> {
       _nameEn,
       _nameHi,
       _nameGu,
-      _salutation,
       _notes,
       ..._fieldText.values,
     ]) {
@@ -213,7 +213,7 @@ class _ContactFormPageState extends ConsumerState<ContactFormPage> {
               nameGu: _orNull(_nameGu),
               language: _language,
               categoryId: _categoryId,
-              salutation: _orNull(_salutation),
+              salutationId: _salutationId,
               notes: _orNull(_notes),
               groupIds: _groupIds.toList(),
               // Only sent once the occasions are known, so a failed load never clears the contact's dates.
@@ -333,6 +333,34 @@ class _ContactFormPageState extends ConsumerState<ContactFormPage> {
     ];
   }
 
+  /// Picked from the user's own list (Shri / શ્રી, …); none is fine.
+  List<Widget> _salutationSection(FThemeData theme) {
+    final List<Salutation> list = ref.watch(salutationsProvider).value ?? const <Salutation>[];
+    return <Widget>[
+      const SectionLabel('Salutation'),
+      if (list.isEmpty)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: GestureDetector(
+            onTap: () => pushPage<void>(context, const SalutationsPage()),
+            child: Text(
+              'No salutations yet. Add them (Shri / શ્રી, …) in Salutations.',
+              style: theme.typography.body.sm.copyWith(color: theme.colors.mutedForeground),
+            ),
+          ),
+        )
+      else
+        Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: ChoiceChips<String?>(
+            options: <(String?, String)>[(null, 'None'), for (final Salutation s in list) (s.id, s.label)],
+            selected: _salutationId,
+            onChange: _saving ? null : (String? id) => setState(() => _salutationId = id),
+          ),
+        ),
+    ];
+  }
+
   /// The user's own fields, by type. Empty fields are left empty (nothing is stored for them).
   List<Widget> _fieldSection(FThemeData theme) {
     final List<ContactField> fields = ref.watch(contactFieldsProvider).value ?? const <ContactField>[];
@@ -435,7 +463,7 @@ class _ContactFormPageState extends ConsumerState<ContactFormPage> {
           _field(_nameEn, _language == 'en' ? 'Name in English (needed)' : 'Name in English'),
           _field(_nameHi, _language == 'hi' ? 'Name in Hindi (needed)' : 'Name in Hindi'),
           _field(_nameGu, _language == 'gu' ? 'Name in Gujarati (needed)' : 'Name in Gujarati'),
-          _field(_salutation, 'Salutation (optional)', hint: 'Pujya, Dear…'),
+          ..._salutationSection(theme),
           const SectionLabel('Category'),
           if (widget.categories.isEmpty)
             Text('No categories yet.', style: theme.typography.body.sm.copyWith(color: theme.colors.mutedForeground))

@@ -210,13 +210,13 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
                       for (final (String name, String rule) in const <(String, String)>[
-                        ('Phone *', 'with country code, e.g. +919876543210'),
-                        ('Category', 'optional; a new name creates the category'),
+                        ('Phone *', 'with country code, e.g. +919876543210; how rows are matched'),
                         ('Name (English / Hindi / Gujarati)', 'the one in the contact’s language is required'),
-                        ('Language', 'en, hi or gu; empty uses your default'),
-                        ('Groups', 'comma-separated'),
-                        ('Each of your occasions (Birthday, Asthi, …)', 'DD-MM or DD-MM-YYYY; the file has a column for each'),
-                        ('Each of your contact fields (City, …)', 'a column with the field’s name'),
+                        ('Category, Language, Salutation', 'pick from the list in Excel (your own lists)'),
+                        ('Group: …', 'one column per group; Yes adds the person (leaving a group is done in the app)'),
+                        ('Each of your occasions (Birthday, Asthi, …)', 'type DD-MM, DD-MM-YY or DD-MM-YYYY, e.g. 06-05-2002'),
+                        ('Each of your contact fields (City, …)', 'its own column; choices from the list'),
+                        ('Only what exists', 'names not in your lists are shown as mistakes and not saved; add them in the app first'),
                       ])
                         Padding(
                           padding: const EdgeInsets.only(bottom: 8),
