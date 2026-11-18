@@ -72,9 +72,9 @@
       }
 
       @if (example(); as e) {
-        <div class="bubble example">
-          <span class="bubble-label">{{ e.name }} got:</span>
-          <span class="bubble-text">{{ e.text }}</span>
+        <div class="example-wa">
+          <span class="bubble-label">{{ e.name }} got this on WhatsApp:</span>
+          <app-wa-bubble [text]="e.text" [file]="details()?.attachment ?? null" [time]="e.processedAt" [status]="e.status === 'skipped' ? null : e.status" />
         </div>
       }
 

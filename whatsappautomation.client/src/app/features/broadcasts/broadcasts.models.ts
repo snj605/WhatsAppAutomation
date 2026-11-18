@@ -40,6 +40,10 @@ export interface BroadcastPreview {
   samples: { language: 'en' | 'hi' | 'gu' | 'all'; contactName: string; text: string }[];
   dailyLimit: number;
   estimatedDays: number;
+  /** The first 100 people, for the "Preview for" picker. */
+  people: { contactId: string; name: string }[];
+  /** Exactly what the person asked for gets (text, or why they are left out). */
+  person: { contactId: string; name: string; phoneNumber: string; text: string | null; skipReason: string | null } | null;
 }
 
 export interface BroadcastCounts {

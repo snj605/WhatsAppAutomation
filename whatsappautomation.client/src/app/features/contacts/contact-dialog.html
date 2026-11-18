@@ -61,20 +61,81 @@
       </div>
     </div>
 
-    <div class="grid-2">
-      <div class="field">
-        <label for="c-salutation">Salutation</label>
-        <input pInputText id="c-salutation" formControlName="salutation" placeholder="Pujya, Respected, Dear…" autocomplete="off" fluid />
-      </div>
-      <div class="field">
-        <label for="c-day">Birthday (year optional)</label>
-        <div class="birthday">
-          <p-select inputId="c-day" [options]="days" formControlName="birthDay" placeholder="Day" [showClear]="true" appendTo="body" />
-          <p-select [options]="months" formControlName="birthMonth" placeholder="Month" [showClear]="true" appendTo="body" ariaLabel="Month" />
-          <input pInputText type="number" formControlName="birthYear" placeholder="Year" min="1900" max="2100" aria-label="Year" />
-        </div>
-      </div>
+    <div class="field">
+      <label for="c-salutation">Salutation</label>
+      <input pInputText id="c-salutation" formControlName="salutation" placeholder="Pujya, Respected, Dear…" autocomplete="off" fluid />
     </div>
+
+    <!-- Occasions: only the ones this contact has; the user's other occasions under "Add occasion". -->
+    <section class="extra" aria-label="Occasions">
+      <div class="extra-head">
+        <strong>Occasions</strong>
+        @if (modules().length === 0 && canSetUp()) {
+          <a routerLink="/modules" class="setup-link" (click)="closed.emit()">Set up occasions first</a>
+        }
+      </div>
+      @if (modules().length === 0) {
+        <p class="muted small">No occasions yet. {{ canSetUp() ? 'Make them (Birthday, Anniversary, Asthi, …) under Occasions, then add their dates here.' : '' }}</p>
+      }
+      @for (r of occasionRows(); track r.module.id; let i = $index) {
+        <div class="occasion">
+          <span class="occasion-name"><i [class]="moduleIcon(r.module)" aria-hidden="true"></i> {{ r.module.name }}</span>
+          <div class="birthday">
+            <p-select [options]="days" [ngModel]="r.day" [ngModelOptions]="{ standalone: true }" (ngModelChange)="patchOccasion(i, { day: $event })"
+              placeholder="Day" appendTo="body" [ariaLabel]="r.module.name + ' day'" />
+            <p-select [options]="months" [ngModel]="r.month" [ngModelOptions]="{ standalone: true }" (ngModelChange)="patchOccasion(i, { month: $event })"
+              placeholder="Month" appendTo="body" [ariaLabel]="r.module.name + ' month'" />
+            <input pInputText type="number" [value]="r.year ?? ''" (input)="patchOccasion(i, { year: +$any($event.target).value || null })"
+              [placeholder]="r.module.kind === 'once' ? 'Year*' : 'Year'" min="1900" max="2200" [attr.aria-label]="r.module.name + ' year'" />
+          </div>
+          @if (r.module.forNameLabel) {
+            <input pInputText class="for-name" [value]="r.forName" (input)="patchOccasion(i, { forName: $any($event.target).value })"
+              [placeholder]="r.module.forNameLabel" maxlength="100" [attr.aria-label]="r.module.forNameLabel" />
+          }
+          <p-button icon="pi pi-times" [text]="true" severity="secondary" (onClick)="removeOccasion(i)" [ariaLabel]="'Remove ' + r.module.name" />
+        </div>
+      }
+      @if (addable().length > 0) {
+        <p-select [options]="addable()" [ngModel]="null" [ngModelOptions]="{ standalone: true }" (ngModelChange)="addOccasion($event)"
+          placeholder="+ Add occasion" appendTo="body" ariaLabel="Add occasion" styleClass="add-occasion" />
+      }
+    </section>
+
+    <!-- The user's own fields. -->
+    @if (fields().length > 0 || canSetUp()) {
+      <section class="extra" aria-label="More details">
+        <div class="extra-head">
+          <strong>More details</strong>
+          @if (canSetUp()) {
+            <a routerLink="/contact-fields" class="setup-link" (click)="closed.emit()">{{ fields().length ? 'Change fields' : 'Add your own fields' }}</a>
+          }
+        </div>
+        <div class="grid-2">
+          @for (f of fields(); track f.id) {
+            <div class="field">
+              <label [for]="'f-' + f.id">{{ f.name }} <small class="muted">{{ token(f) }}</small></label>
+              @switch (f.type) {
+                @case ('choice') {
+                  <p-select [inputId]="'f-' + f.id" [options]="choiceOptions(f)" [ngModel]="fieldValues()[f.id] || null" [ngModelOptions]="{ standalone: true }"
+                    (ngModelChange)="setField(f.id, $event)" [showClear]="true" placeholder="Choose" appendTo="body" fluid />
+                }
+                @case ('date') {
+                  <input pInputText type="date" [id]="'f-' + f.id" [value]="fieldValues()[f.id] ?? ''" (input)="setField(f.id, $any($event.target).value)" fluid />
+                }
+                @case ('number') {
+                  <input pInputText type="text" inputmode="decimal" [id]="'f-' + f.id" [value]="fieldValues()[f.id] ?? ''"
+                    (input)="setField(f.id, $any($event.target).value)" fluid />
+                }
+                @default {
+                  <input pInputText type="text" [id]="'f-' + f.id" [value]="fieldValues()[f.id] ?? ''" maxlength="500"
+                    (input)="setField(f.id, $any($event.target).value)" fluid />
+                }
+              }
+            </div>
+          }
+        </div>
+      </section>
+    }
 
     <div class="field">
       <label for="c-notes">Notes</label>

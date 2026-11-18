@@ -18,6 +18,8 @@ import { MenuItem } from 'primeng/api';
 import { AuthService } from '../../core/auth/auth.service';
 import { problemMessage } from '../../core/http/problem';
 import { WhatsAppLiveService } from '../../core/realtime/whatsapp-live.service';
+import { ModulesStore } from '../modules/modules.api';
+import { ContactFieldsStore, MONTHS } from './contact-fields.api';
 import { ContactDialog } from './contact-dialog';
 import { ContactsApi } from './contacts.api';
 import { Category, Contact, displayName, Group, languageLabel, LanguageCode, realName, WhatsAppCheckSummary } from './contacts.models';
@@ -58,6 +60,15 @@ export class ContactsPage implements OnInit {
     this.auth.user();
     return this.auth.can('contacts.manage');
   });
+  /** Occasions and custom fields are made by users who may make their own modules. */
+  protected readonly canSetUp = computed(() => {
+    this.auth.user();
+    return this.auth.can('modules.manage');
+  });
+  protected readonly modules = inject(ModulesStore);
+  protected readonly fieldsStore = inject(ContactFieldsStore);
+  protected fieldId: string | null = null;
+  protected fieldValue = '';
 
   // Filters
   protected search = '';
@@ -88,7 +99,13 @@ export class ContactsPage implements OnInit {
     });
     void this.live.start();
     this.destroyRef.onDestroy(() => void this.live.stop());
-    await Promise.all([this.loadLists(), this.load(), this.loadCheck()]);
+    await Promise.all([
+      this.loadLists(),
+      this.load(),
+      this.loadCheck(),
+      this.canSetUp() ? this.modules.reload() : Promise.resolve(),
+      this.fieldsStore.reload().catch(() => undefined),
+    ]);
     try {
       this.defaultLanguage.set((await this.api.preferences()).defaultLanguage);
     } catch {
@@ -106,10 +123,22 @@ export class ContactsPage implements OnInit {
     return [...(parts[0] ?? '?')][0].toUpperCase() + (parts.length > 1 ? [...parts[parts.length - 1]][0].toUpperCase() : '');
   }
 
-  protected birthday(c: Contact): string | null {
-    if (!c.birthday) return null;
-    const month = new Date(2024, c.birthday.month - 1, 1).toLocaleString('en', { month: 'short' });
-    return `${c.birthday.day} ${month}${c.birthday.year ? ' ' + c.birthday.year : ''}`;
+  /** "Birthday 15 Aug · Asthi 5 Mar": the contact's dates of the user's occasions. */
+  protected occasionsText(c: Contact): string {
+    const modules = this.modules.modules();
+    return c.occasions
+      .map((o) => {
+        const m = modules.find((x) => x.id === o.moduleId);
+        return m ? `${m.name} ${o.day} ${MONTHS[o.month - 1]}` : null;
+      })
+      .filter(Boolean)
+      .join(' · ');
+  }
+
+  protected fieldHint(): string {
+    const f = this.fieldsStore.fields().find((x) => x.id === this.fieldId);
+    if (!f) return 'Value';
+    return f.type === 'date' ? 'DD-MM-YYYY (empty: anyone with a date)' : f.type === 'choice' ? f.options.join(' / ') : 'Contains… (empty: any value)';
   }
 
   protected onSearch(): void {
@@ -286,6 +315,8 @@ export class ContactsPage implements OnInit {
         groupId: this.groupId,
         needsDetails: this.needsDetails,
         whatsApp: this.notOnWhatsApp() ? 'not_on_whatsapp' : null,
+        fieldId: this.fieldId,
+        fieldValue: this.fieldValue,
         page: this.page(),
         pageSize: this.pageSize(),
       });

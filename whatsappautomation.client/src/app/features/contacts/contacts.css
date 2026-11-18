@@ -228,3 +228,14 @@
   margin-left: 0.5rem;
   font-size: 0.8125rem;
 }
+
+.extra { border: 1px solid var(--ui-border); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+.extra-head { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
+.setup-link { font-size: 13px; font-weight: 600; color: var(--ui-accent); text-decoration: none; }
+.small { font-size: 13px; margin: 0; }
+.occasion { display: grid; grid-template-columns: 9rem 1fr auto; gap: 8px; align-items: center; }
+.occasion .for-name { grid-column: 2 / 3; }
+.occasion-name { font-weight: 600; display: inline-flex; gap: 6px; align-items: center; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 560px) { .occasion { grid-template-columns: 1fr auto; } .occasion .birthday, .occasion .for-name { grid-column: 1 / -1; } }
+.occasions-cell { font-size: 13px; color: var(--ui-text-2); max-width: 16rem; }
+.field-value { width: 12rem; }

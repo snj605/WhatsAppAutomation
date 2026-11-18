@@ -198,3 +198,24 @@ internal static class FileCleanup
                 cancellationToken);
     }
 }
+
+/// <summary>
+/// Whether the signed-in user may look at a file (their own, or a file of a template they can use), for the
+/// WhatsApp-style preview. Returns the file's details; the API then gives a short-lived link to its content.
+/// </summary>
+public sealed record GetFileViewQuery(Guid Id) : IQuery<FileDto>;
+
+internal sealed class GetFileViewQueryHandler(IAppDbContext db, ICurrentUser currentUser) : IQueryHandler<GetFileViewQuery, FileDto>
+{
+    public async Task<Result<FileDto>> Handle(GetFileViewQuery query, CancellationToken cancellationToken)
+    {
+        if (currentUser.UserId is not { } userId)
+        {
+            return FileErrors.NotSignedIn;
+        }
+
+        var tenantId = await db.UserTenantAsync(userId, cancellationToken);
+        var file = await FileRules.UsableAsync(db, userId, tenantId, query.Id, cancellationToken);
+        return file is null ? FileErrors.NotFound : FileDto.From(file);
+    }
+}

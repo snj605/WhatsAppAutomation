@@ -1,0 +1,78 @@
+<div class="ap-page">
+  <header class="ap-header">
+    <div class="ap-header-row">
+      <div>
+        <h1 class="ap-title">Contact fields</h1>
+        <p class="ap-sub">Your own details for contacts, like City, Village or Relation. Use them in messages.</p>
+      </div>
+      <span class="spacer"></span>
+      @if (store.fields().length < max) {
+        <button type="button" class="ap-btn primary" (click)="open('new')"><i class="pi pi-plus" aria-hidden="true"></i> New field</button>
+      }
+    </div>
+    <nav class="ap-tabs" aria-label="Set up">
+      <a class="ap-tab" routerLink="/modules">Occasions</a>
+      <a class="ap-tab active" routerLink="/contact-fields" aria-current="page">Contact fields</a>
+    </nav>
+  </header>
+
+  <div class="ap-body">
+    @if (editing(); as e) {
+      <section class="ap-card pad ap-form" aria-label="Field">
+        <h2 class="ap-section-title flush">{{ e === 'new' ? 'New field' : 'Change ' + e.name }}</h2>
+        <label for="cf-name">Name</label>
+        <input id="cf-name" type="text" maxlength="40" placeholder="For example: City" [(ngModel)]="name" />
+        @if (keyOf(name); as k) {
+          <span class="ap-hint">In messages: <code>{{ token(k) }}</code> · In Excel: a column "{{ name.trim() }}"</span>
+        }
+
+        <label>Type</label>
+        @if (e === 'new') {
+          <div class="kinds">
+            @for (t of types; track t.value) {
+              <label class="ap-row kind" [class.selected]="type === t.value">
+                <input type="radio" class="ap-check" name="cf-type" [checked]="type === t.value" (change)="type = t.value" />
+                <span class="ap-text"><strong>{{ t.label }}</strong><small>{{ t.hint }}</small></span>
+              </label>
+            }
+          </div>
+        } @else {
+          <p class="ap-note">{{ typeLabel(type) }} (the type stays, so values already typed keep their meaning)</p>
+        }
+
+        @if (type === 'choice') {
+          <label for="cf-options">Choices, one per line</label>
+          <textarea id="cf-options" rows="5" class="options" [(ngModel)]="options" placeholder="Uncle&#10;Aunt&#10;Friend"></textarea>
+        }
+
+        <div class="ap-actions end">
+          <button type="button" class="ap-btn" (click)="editing.set(null)">Cancel</button>
+          <button type="button" class="ap-btn primary" [disabled]="saving()" (click)="save()">Save</button>
+        </div>
+      </section>
+    }
+
+    @if (store.loaded() && store.fields().length === 0 && !editing()) {
+      <section class="ap-card ap-empty">
+        <i class="pi pi-list" aria-hidden="true"></i>
+        <strong>No fields yet</strong>
+        <span>Add the details you keep about people: City, Village, Relation, Family members, …</span>
+        <button type="button" class="ap-btn primary" (click)="open('new')"><i class="pi pi-plus" aria-hidden="true"></i> New field</button>
+      </section>
+    } @else if (store.fields().length > 0) {
+      <section class="ap-card">
+        @for (f of store.fields(); track f.id) {
+          <div class="ap-row">
+            <span class="ap-text">
+              <strong>{{ f.name }} <code>{{ token(f.key) }}</code></strong>
+              <small>{{ typeLabel(f.type) }}@if (f.type === 'choice') { · {{ f.options.join(', ') }}} · {{ f.contactCount }} {{ f.contactCount === 1 ? 'contact' : 'contacts' }}</small>
+            </span>
+            <button type="button" class="ap-btn icon" (click)="open(f)" [attr.aria-label]="'Change ' + f.name"><i class="pi pi-pencil" aria-hidden="true"></i></button>
+            <button type="button" class="ap-btn icon danger" (click)="remove(f)" [attr.aria-label]="'Delete ' + f.name"><i class="pi pi-trash" aria-hidden="true"></i></button>
+          </div>
+        }
+      </section>
+      <p class="ap-note">Up to {{ max }} fields. People without a value in a field used by a message are left out of it, with the reason shown.</p>
+    }
+  </div>
+</div>

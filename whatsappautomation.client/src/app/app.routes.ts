@@ -96,6 +96,12 @@ export const routes: Routes = [
         loadComponent: () => import('./features/modules/modules.page').then((m) => m.ModulesPage),
       },
       {
+        path: 'contact-fields',
+        title: 'Contact fields',
+        canActivate: [permissionGuard('modules.manage')],
+        loadComponent: () => import('./features/contacts/contact-fields.page').then((m) => m.ContactFieldsPage),
+      },
+      {
         path: 'modules/:id',
         title: 'Occasion',
         canActivate: [permissionGuard('modules.manage')],

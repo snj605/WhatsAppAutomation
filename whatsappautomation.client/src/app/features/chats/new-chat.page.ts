@@ -1,3 +1,4 @@
+import { ContactFieldsStore } from '../contacts/contact-fields.api';
 import { Component, computed, effect, ElementRef, inject, OnInit, signal, viewChild } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { MessageService } from 'primeng/api';
@@ -9,6 +10,9 @@ import { Category, Contact, displayName, Group } from '../contacts/contacts.mode
 import { initialsOf } from './chat-format';
 import { BigVideoConsent } from '../files/big-video';
 import { fileIcon, fileProblem, FilesApi, fileSize, UploadedFile } from '../files/files.api';
+import { FormsModule } from '@angular/forms';
+import { SelectModule } from 'primeng/select';
+import { WaBubble } from '../../shared/wa-preview/wa-bubble';
 import { ComposerPreset } from '../modules/composer-preset';
 import { MessageTemplate, TemplatesApi } from '../templates/templates.api';
 import { MORE_INSERTS, NAME_PLACEHOLDER, SEND_TEMPLATES } from './send-templates';
@@ -33,7 +37,7 @@ const PAGE = 200;
  */
 @Component({
   selector: 'app-new-chat-page',
-  imports: [RouterLink],
+  imports: [FormsModule, RouterLink, SelectModule, WaBubble],
   templateUrl: './new-chat.page.html',
   styleUrl: './new-chat.page.css',
 })
@@ -75,6 +79,12 @@ export class NewChatPage implements OnInit {
   protected readonly groupIds = signal<ReadonlySet<string>>(new Set());
   protected readonly picked = signal<ReadonlyMap<string, Picked>>(new Map());
   protected readonly query = signal('');
+  private readonly fieldsStore = inject(ContactFieldsStore);
+  /** The user's own contact fields: a filter for picking people, and {{key}} to put in the message. */
+  protected readonly fields = this.fieldsStore.fields;
+  protected readonly fieldId = signal<string | null>(null);
+  protected readonly fieldValue = signal('');
+  protected readonly field = computed(() => this.fields().find((f) => f.id === this.fieldId()) ?? null);
   protected readonly contacts = signal<Contact[]>([]);
   protected readonly contactsTotal = signal(0);
   protected readonly loadingContacts = signal(false);
@@ -138,6 +148,16 @@ export class NewChatPage implements OnInit {
     return samples.length === 0 ? null : samples[this.sampleIndex() % samples.length];
   });
   protected readonly sampleCount = computed(() => this.preview()?.samples.length ?? 0);
+  /** The person chosen in "Preview for" (null: the first example). */
+  protected readonly forId = signal<string | null>(null);
+  /** What the preview shows: the chosen person's own message, or an example. */
+  protected readonly shown = computed<{ name: string; text: string | null; skipReason: string | null } | null>(() => {
+    const p = this.preview();
+    if (p?.person && p.person.contactId === this.forId()) return p.person;
+    const s = this.sample();
+    return s ? { name: s.contactName, text: s.text, skipReason: null } : null;
+  });
+  protected readonly peopleOptions = computed(() => (this.preview()?.people ?? []).map((x) => ({ label: x.name, value: x.contactId })));
 
   /** What the phone preview says when there is no example to show. */
   protected readonly previewNote = computed(() => {
@@ -164,13 +184,14 @@ export class NewChatPage implements OnInit {
     effect(() => {
       const input = this.input();
       const step = this.step();
+      const forId = this.forId();
       clearTimeout(this.previewTimer);
       if (step === 1 || !input.text?.trim()) {
         this.preview.set(null);
         return;
       }
 
-      this.previewTimer = setTimeout(() => void this.loadPreview(input), step === 3 ? 0 : 600);
+      this.previewTimer = setTimeout(() => void this.loadPreview(input, forId), step === 3 ? 0 : 600);
     });
   }
 
@@ -191,6 +212,8 @@ export class NewChatPage implements OnInit {
       .list()
       .then((list) => this.myTemplates.set(list))
       .catch(() => undefined); // the built-in suggestions still work
+
+    void this.fieldsStore.reload().catch(() => undefined); // only the field filter and inserts need them
 
     try {
       const [categories, groups, all] = await Promise.all([
@@ -221,6 +244,22 @@ export class NewChatPage implements OnInit {
     this.groupIds.set(toggled(this.groupIds(), id));
   }
 
+  protected onField(id: string): void {
+    this.fieldId.set(id || null);
+    this.fieldValue.set('');
+    void this.loadContacts();
+  }
+
+  protected onFieldValue(value: string): void {
+    this.fieldValue.set(value);
+    clearTimeout(this.searchTimer);
+    this.searchTimer = setTimeout(() => void this.loadContacts(), 300);
+  }
+
+  private peopleFilter(): { search: string; fieldId: string | null; fieldValue: string | null } {
+    return { search: this.query().trim(), fieldId: this.fieldId(), fieldValue: this.fieldId() ? this.fieldValue().trim() || null : null };
+  }
+
   protected onSearch(value: string): void {
     this.query.set(value);
     clearTimeout(this.searchTimer);
@@ -243,7 +282,7 @@ export class NewChatPage implements OnInit {
     try {
       const all = [...this.contacts()];
       for (let page = 2; all.length < this.contactsTotal(); page++) {
-        const more = await this.contactsApi.contacts({ search: this.query().trim(), page, pageSize: PAGE });
+        const more = await this.contactsApi.contacts({ ...this.peopleFilter(), page, pageSize: PAGE });
         if (more.items.length === 0) break;
         all.push(...more.items);
       }
@@ -436,7 +475,7 @@ export class NewChatPage implements OnInit {
     const seq = ++this.loadSeq;
     this.loadingContacts.set(true);
     try {
-      const page = await this.contactsApi.contacts({ search: this.query().trim(), page: 1, pageSize: PAGE });
+      const page = await this.contactsApi.contacts({ ...this.peopleFilter(), page: 1, pageSize: PAGE });
       if (seq !== this.loadSeq) return;
       this.contacts.set(page.items);
       this.contactsTotal.set(page.total);
@@ -447,11 +486,11 @@ export class NewChatPage implements OnInit {
     }
   }
 
-  private async loadPreview(input: BroadcastInput): Promise<void> {
+  private async loadPreview(input: BroadcastInput, forId: string | null): Promise<void> {
     const seq = ++this.previewSeq;
     this.previewing.set(true);
     try {
-      const preview = await this.api.preview(input);
+      const preview = await this.api.preview(input, forId);
       if (seq === this.previewSeq) this.preview.set(preview);
     } catch {
       if (seq === this.previewSeq) this.preview.set(null);

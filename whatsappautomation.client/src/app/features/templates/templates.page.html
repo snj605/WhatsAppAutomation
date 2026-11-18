@@ -20,6 +20,9 @@
           @for (m of moreInserts; track m.value) {
             <button type="button" class="tool" (click)="insert(m.value)">{{ m.hint }}</button>
           }
+          @for (f of fields(); track f.id) {
+            <button type="button" class="tool" (click)="insert('{{' + f.key + '}}')" [title]="'Each person\'s own ' + f.name">{{ f.name }}</button>
+          }
         </div>
         <div class="tools">
           <button type="button" class="tool" (click)="picker.click()" [disabled]="uploading()"><i [class]="uploading() ? 'pi pi-spin pi-spinner' : 'pi pi-paperclip'" aria-hidden="true"></i> Attach file</button>
@@ -40,6 +43,10 @@
             <small>{{ fileSize(f.sizeBytes) }}@if (f.isBigVideo) { · goes as a file }</small>
             <button type="button" class="icon-btn small" (click)="attachment.set(null)" aria-label="Remove file"><i class="pi pi-times" aria-hidden="true"></i></button>
           </div>
+        }
+        @if (text().trim()) {
+          <span class="label">How it looks on WhatsApp</span>
+          <app-wa-person-preview [text]="text()" [file]="attachment()" />
         }
         @if (auth.isTenantAdmin()) {
           <label class="share-line">
@@ -66,10 +73,7 @@
             }
           </span>
         </div>
-        <p>{{ friendly(t.text) }}</p>
-        @if (t.attachment; as f) {
-          <small class="file-line"><i [class]="fileIcon(f.contentType)" aria-hidden="true"></i> {{ f.fileName }} · {{ fileSize(f.sizeBytes) }}</small>
-        }
+        <app-wa-bubble [text]="sample(t.text)" [file]="t.attachment" />
       </article>
     } @empty {
       @if (!loading() && editing() === null) {

@@ -1,0 +1,6 @@
+.flush { padding: 0; }
+.kinds { border: 1px solid var(--ap-border); border-radius: 10px; overflow: hidden; }
+.kind { cursor: pointer; }
+.options { border: 1px solid var(--ap-border); border-radius: 10px; padding: 10px 12px; font: inherit; background: var(--ap-card); color: var(--ap-text); resize: vertical; }
+.end { justify-content: flex-end; margin-top: 8px; }
+code { font-size: 12px; background: var(--ap-line); border-radius: 6px; padding: 1px 6px; font-weight: 500; }

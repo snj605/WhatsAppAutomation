@@ -382,6 +382,41 @@ public sealed class BroadcastsApiTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task A_view_link_shows_the_users_own_photo_without_sign_in_and_nothing_else()
+    {
+        var (client, _) = await ConnectedOwnerAsync();
+        var bytes = new byte[] { 0xFF, 0xD8, 0xFF, 0xE0, 1, 2, 3, 4 };
+        using var form = new MultipartFormDataContent();
+        var part = new ByteArrayContent(bytes);
+        part.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("image/jpeg");
+        form.Add(part, "file", "photo.jpg");
+        var file = (await (await client.PostAsync("/api/v1/files", form, Ct)).Content.ReadFromJsonAsync<FileDto>(Ct))!;
+
+        var link = (await client.GetFromJsonAsync<FileViewLink>($"/api/v1/files/{file.Id}/view-link", Ct))!;
+        Assert.StartsWith($"/api/v1/files/{file.Id}/view?t=", link.Url);
+        Assert.True(link.ExpiresAt > DateTimeOffset.UtcNow.AddMinutes(10));
+
+        // The link works without the sign-in token (an <img> cannot send it), shown inline with a sandbox.
+        var anonymous = factory.CreateClient();
+        var shown = await anonymous.GetAsync(link.Url, Ct);
+        Assert.Equal(HttpStatusCode.OK, shown.StatusCode);
+        Assert.Equal(bytes, await shown.Content.ReadAsByteArrayAsync(Ct));
+        Assert.Equal("image/jpeg", shown.Content.Headers.ContentType?.MediaType);
+        Assert.Null(shown.Content.Headers.ContentDisposition);
+        Assert.Contains("sandbox", shown.Headers.GetValues("Content-Security-Policy").Single());
+
+        // A changed token, no token, or the token on another file shows nothing.
+        Assert.Equal(HttpStatusCode.NotFound, (await anonymous.GetAsync(link.Url + "x", Ct)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await anonymous.GetAsync($"/api/v1/files/{file.Id}/view", Ct)).StatusCode);
+        var token = link.Url[(link.Url.IndexOf("?t=", StringComparison.Ordinal) + 3)..];
+        Assert.Equal(HttpStatusCode.NotFound, (await anonymous.GetAsync($"/api/v1/files/{Guid.NewGuid()}/view?t={token}", Ct)).StatusCode);
+
+        // Another user cannot get a link to it.
+        var (other, _) = await ConnectedOwnerAsync();
+        Assert.Equal(HttpStatusCode.NotFound, (await other.GetAsync($"/api/v1/files/{file.Id}/view-link", Ct)).StatusCode);
+    }
+
+    [Fact]
     public async Task A_birthday_module_lists_todays_people_with_their_status_and_sends_wishes_before_broadcasts()
     {
         var (client, _) = await ConnectedOwnerAsync();

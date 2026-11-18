@@ -23,10 +23,28 @@ export interface Group {
   contactCount: number;
 }
 
-export interface Birthday {
+/** One of the contact's occasion dates (Birthday, Anniversary, Asthi, …) for one of the user's own occasions. */
+export interface ContactOccasion {
+  moduleId: string;
   day: number;
   month: number;
+  /** Needed for one-time occasions; optional otherwise. */
   year: number | null;
+  /** The second name, for occasions that have one ({{for_name}}). */
+  forName: string | null;
+}
+
+/** One of the user's own contact fields (GET /api/v1/contact-fields). */
+export type ContactFieldType = 'text' | 'number' | 'date' | 'choice';
+
+export interface ContactField {
+  id: string;
+  name: string;
+  /** Used in messages as {{key}}. */
+  key: string;
+  type: ContactFieldType;
+  options: string[];
+  contactCount: number;
 }
 
 export interface Contact {
@@ -39,7 +57,10 @@ export interface Contact {
   language: LanguageCode;
   categoryId: string | null;
   salutation: string | null;
-  birthday: Birthday | null;
+  /** Dates of the user's occasions (only the ones this contact has). */
+  occasions: ContactOccasion[];
+  /** Custom field values by field id, as stored (numbers with a dot, dates as yyyy-MM-dd). */
+  fields: Record<string, string>;
   notes: string | null;
   groups: { id: string; name: string }[];
   needsDetails: boolean;
@@ -84,9 +105,12 @@ export interface ContactInput {
   language: LanguageCode;
   categoryId: string | null;
   salutation: string | null;
-  birthday: Birthday | null;
+  /** All of the contact's occasion dates; leave out to keep them as they are. */
+  occasions?: ContactOccasion[];
   notes: string | null;
   groupIds: string[];
+  /** Field values by field id; an empty value removes it; leave out to keep them. */
+  fields?: Record<string, string | null>;
 }
 
 export interface ContactFilter {
@@ -96,6 +120,9 @@ export interface ContactFilter {
   needsDetails?: boolean;
   /** Leave out for the normal list (without numbers not on WhatsApp); 'not_on_whatsapp' lists only those. */
   whatsApp?: 'not_on_whatsapp' | 'all' | null;
+  /** Only contacts with a value in this custom field (text: containing fieldValue; others: equal to it). */
+  fieldId?: string | null;
+  fieldValue?: string | null;
   page: number;
   pageSize: number;
 }

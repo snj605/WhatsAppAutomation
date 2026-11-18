@@ -228,8 +228,8 @@
             }
 
             @if (chosenTemplate(); as t) {
-              <label>What people get (example)</label>
-              <p class="ap-pre">{{ sample(t.text) }}</p>
+              <label>How it looks on WhatsApp</label>
+              <app-wa-person-preview [text]="t.text" [file]="t.attachment" [moduleId]="m.id" />
             }
 
             <div class="ap-actions end">

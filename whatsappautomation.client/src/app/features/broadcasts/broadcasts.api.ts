@@ -10,7 +10,11 @@ export class BroadcastsApi {
 
   list = () => firstValueFrom(this.http.get<BroadcastSummary[]>('/api/v1/broadcasts'));
   get = (id: string) => firstValueFrom(this.http.get<BroadcastDetails>(`/api/v1/broadcasts/${id}`));
-  preview = (input: BroadcastInput) => firstValueFrom(this.http.post<BroadcastPreview>('/api/v1/broadcasts/preview', input));
+  /** With forContactId: also exactly what that person gets. */
+  preview = (input: BroadcastInput, forContactId: string | null = null) =>
+    firstValueFrom(
+      this.http.post<BroadcastPreview>('/api/v1/broadcasts/preview', input, forContactId ? { params: { for: forContactId } } : {}),
+    );
   create = (input: BroadcastInput) => firstValueFrom(this.http.post<BroadcastSummary>('/api/v1/broadcasts', input));
   change = (id: string, action: 'pause' | 'resume' | 'cancel') =>
     firstValueFrom(this.http.post<BroadcastSummary>(`/api/v1/broadcasts/${id}/${action}`, null));

@@ -86,6 +86,25 @@
               <i class="pi pi-search" aria-hidden="true"></i>
               <input type="search" placeholder="Search name or number" [value]="query()" (input)="onSearch($any($event.target).value)" aria-label="Search contacts" />
             </div>
+            @if (fields().length > 0) {
+              <div class="field-filter">
+                <select [value]="fieldId() ?? ''" (change)="onField($any($event.target).value)" aria-label="Only people with a detail">
+                  <option value="">Any details</option>
+                  @for (f of fields(); track f.id) {<option [value]="f.id">{{ f.name }}</option>}
+                </select>
+                @if (field(); as f) {
+                  @if (f.type === 'choice') {
+                    <select [value]="fieldValue()" (change)="onFieldValue($any($event.target).value)" aria-label="Value">
+                      <option value="">Any {{ f.name }}</option>
+                      @for (o of f.options; track o) {<option [value]="o">{{ o }}</option>}
+                    </select>
+                  } @else {
+                    <input [type]="f.type === 'date' ? 'date' : f.type === 'number' ? 'number' : 'text'" [value]="fieldValue()"
+                      (input)="onFieldValue($any($event.target).value)" [placeholder]="'Any ' + f.name" [attr.aria-label]="f.name" />
+                  }
+                }
+              </div>
+            }
             <div class="panel-head">
               <span>{{ picked().size }} selected</span>
               <span class="panel-actions">
@@ -173,6 +192,9 @@
                 @for (m of moreInserts; track m.value) {
                   <button type="button" class="more-item" (click)="insert(m.value)"><strong>{{ m.label }}</strong><small>{{ m.hint }}</small></button>
                 }
+                @for (f of fields(); track f.id) {
+                  <button type="button" class="more-item" (click)="insert('{{' + f.key + '}}')"><strong>{{ f.name }}</strong><small>Their own {{ f.name }}</small></button>
+                }
               </div>
             }
             <p class="hint"><i class="pi pi-info-circle" aria-hidden="true"></i> "Add name" puts each person's own name in their message.</p>
@@ -180,23 +202,28 @@
 
           <section class="phone" aria-live="polite">
             <div class="phone-top">
-              <span class="avatar small" aria-hidden="true">{{ initials(sample()?.contactName ?? '?') }}</span>
-              <strong>{{ sample()?.contactName ?? 'Preview' }}</strong>
+              <span class="avatar small" aria-hidden="true">{{ initials(shown()?.name ?? '?') }}</span>
+              @if (peopleOptions().length > 1) {
+                <p-select [options]="peopleOptions()" [ngModel]="forId() ?? peopleOptions()[0].value" (ngModelChange)="forId.set($event)"
+                  [filter]="peopleOptions().length > 8" appendTo="body" ariaLabel="Preview for" styleClass="preview-for" />
+              } @else {
+                <strong>{{ shown()?.name ?? 'Preview' }}</strong>
+              }
               @if (previewing()) {<i class="pi pi-spin pi-spinner muted" aria-label="Updating"></i>}
             </div>
             <div class="phone-body">
-              @if (sample(); as s) {
-                <div class="bubble">
-                  @if (attachment(); as f) {<span class="bubble-file"><i [class]="fileIcon(f.contentType)" aria-hidden="true"></i> {{ f.fileName }}</span>}
-                  {{ s.text }}<span class="bubble-time">now ✓</span>
-                </div>
+              @if (shown(); as s) {
+                @if (s.text !== null) {
+                  <app-wa-bubble [text]="s.text" [file]="attachment()" status="read" chip="Preview" />
+                } @else {
+                  <p class="warn center"><i class="pi pi-exclamation-triangle" aria-hidden="true"></i> {{ s.name }} is left out: {{ s.skipReason }}</p>
+                }
+              } @else if (attachment() && text().trim()) {
+                <app-wa-bubble [text]="friendly(text())" [file]="attachment()" chip="Preview" />
               } @else {
                 <p class="muted center">{{ previewNote() }}</p>
               }
             </div>
-            @if (sampleCount() > 1) {
-              <button type="button" class="link-btn" (click)="nextSample()">Show another person</button>
-            }
             @if (skippedCount() > 0) {
               <p class="warn"><i class="pi pi-exclamation-triangle" aria-hidden="true"></i> {{ skippedCount() }} will be skipped: {{ skipReasons()[0]?.reason }}</p>
             }
@@ -231,10 +258,14 @@
           @if (attachment(); as f) {
             <div class="sum-row"><span>File</span><strong><i [class]="fileIcon(f.contentType)" aria-hidden="true"></i> {{ f.fileName }} · {{ fileSize(f.sizeBytes) }}</strong></div>
           }
-          @if (sample(); as s) {
+          @if (shown(); as s) {
             <div class="sum-example">
-              <span>{{ s.contactName }} will get:</span>
-              <div class="bubble">{{ s.text }}</div>
+              <span>{{ s.name }} will get:</span>
+              @if (s.text !== null) {
+                <app-wa-bubble [text]="s.text" [file]="attachment()" status="read" />
+              } @else {
+                <p class="warn">Left out: {{ s.skipReason }}</p>
+              }
             </div>
           }
         </section>

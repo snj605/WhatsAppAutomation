@@ -1,3 +1,4 @@
+import { WaBubble } from '../../shared/wa-preview/wa-bubble';
 import { DatePipe } from '@angular/common';
 import { Component, computed, DestroyRef, effect, inject, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
@@ -17,7 +18,7 @@ type Filter = 'all' | 'waiting' | 'sent' | 'problems';
  */
 @Component({
   selector: 'app-chat-page',
-  imports: [DatePipe, RouterLink],
+  imports: [DatePipe, RouterLink, WaBubble],
   templateUrl: './chat.page.html',
   styleUrl: './chat.page.css',
 })

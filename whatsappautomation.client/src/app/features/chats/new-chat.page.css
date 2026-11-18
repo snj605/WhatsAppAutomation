@@ -158,3 +158,8 @@ h3 { margin: 0 0 8px; font-size: 0.95rem; color: var(--ui-text-2); font-weight: 
 :host { display: block; min-width: 0; }
 .send { min-width: 0; }
 .actions .btn { min-width: 0; }
+
+:host ::ng-deep .preview-for { min-width: 0; max-width: 14rem; }
+.phone-body app-wa-bubble { width: 100%; }
+.field-filter { display: flex; gap: 8px; margin-top: 8px; }
+.field-filter select, .field-filter input { flex: 1; min-width: 0; padding: 8px 10px; border: 1px solid var(--ui-border); border-radius: 10px; background: var(--ui-surface); color: var(--ui-text); font: inherit; }

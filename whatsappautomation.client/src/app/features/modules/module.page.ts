@@ -1,3 +1,4 @@
+import { sample, WaPersonPreview } from '../../shared/wa-preview/wa-person-preview';
 import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -29,7 +30,7 @@ interface Day {
  */
 @Component({
   selector: 'app-module-page',
-  imports: [FormsModule, RouterLink, SkeletonModule],
+  imports: [FormsModule, RouterLink, SkeletonModule, WaPersonPreview],
   templateUrl: './module.page.html',
   styleUrls: ['../../shared/approved.css', './module.page.css'],
 })
@@ -248,12 +249,7 @@ export class ModulePage {
 
   /** The example with a sample name, so the user sees spacing, new lines and links as people get them. */
   protected sample(text: string): string {
-    return text
-      .replace(/\{([^{}|]*)\|[^{}]*\}/g, '$1')
-      .replace(/\{\{\s*(name|name_en|name_hi|name_gu)\s*\}\}/g, 'Ramesh Patel')
-      .replace(/\{\{\s*for_name\s*\}\}/g, 'Late Shri Mohanbhai')
-      .replace(/\{\{\s*salutation\s*\}\}/g, '')
-      .replace(/ {2,}/g, ' ');
+    return sample(text);
   }
 
   protected async saveSending(): Promise<void> {

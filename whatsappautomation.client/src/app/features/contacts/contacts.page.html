@@ -12,7 +12,7 @@
     }
   </header>
 
-  @if (!loading() && total() === 0 && !search && !categoryId() && !groupId && !needsDetails) {
+  @if (!loading() && total() === 0 && !search && !categoryId() && !groupId && !needsDetails && !fieldId) {
     <section class="card start">
       <span class="card-icon"><i class="pi pi-users" aria-hidden="true"></i></span>
       <div>
@@ -79,6 +79,13 @@
       </p-iconfield>
       <p-select [options]="groups()" [(ngModel)]="groupId" (ngModelChange)="reload()" optionLabel="name" optionValue="id" placeholder="All groups"
         [showClear]="true" appendTo="body" ariaLabel="Filter by group" styleClass="group-filter" />
+      @if (fieldsStore.fields().length > 0) {
+        <p-select [options]="fieldsStore.fields()" [(ngModel)]="fieldId" (ngModelChange)="fieldValue = ''; reload()" optionLabel="name" optionValue="id"
+          placeholder="Any field" [showClear]="true" appendTo="body" ariaLabel="Filter by field" styleClass="group-filter" />
+        @if (fieldId) {
+          <input pInputText class="field-value" [(ngModel)]="fieldValue" (ngModelChange)="onSearch()" [placeholder]="fieldHint()" aria-label="Field value" />
+        }
+      }
       <label class="toggle">
         <p-toggleswitch [(ngModel)]="needsDetails" (ngModelChange)="reload()" inputId="needs-details" />
         <span>Needs details</span>
@@ -117,7 +124,7 @@
           <th>Category</th>
           <th>Language</th>
           <th>Groups</th>
-          <th>Birthday</th>
+          <th>Occasions</th>
           @if (canManage()) {
             <th style="width: 6rem"></th>
           }
@@ -166,7 +173,7 @@
               }
             </div>
           </td>
-          <td class="nowrap">{{ birthday(c) ?? '—' }}</td>
+          <td class="occasions-cell">{{ occasionsText(c) || '—' }}</td>
           @if (canManage()) {
             <td>
               <div class="row-actions">
@@ -188,7 +195,7 @@
           <td colspan="8">
             <div class="empty">
               <i class="pi pi-address-book" aria-hidden="true"></i>
-              @if (search || categoryId() || groupId || needsDetails) {
+              @if (search || categoryId() || groupId || needsDetails || fieldId) {
                 <strong>No contacts match</strong>
                 <span>Try another search or clear the filters.</span>
               } @else {
@@ -209,4 +216,5 @@
 </div>
 
 <app-contact-dialog [target]="editing()" [categories]="categories()" [groups]="groups()" [defaultLanguage]="defaultLanguage()"
+  [modules]="modules.modules()" [fields]="fieldsStore.fields()" [canSetUp]="canSetUp()"
   (closed)="editing.set(null)" (saved)="onSaved($event)" />

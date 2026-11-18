@@ -35,6 +35,10 @@ export class ContactsApi {
     if (filter.groupId) params = params.set('groupId', filter.groupId);
     if (filter.needsDetails) params = params.set('needsDetails', true);
     if (filter.whatsApp) params = params.set('whatsApp', filter.whatsApp);
+    if (filter.fieldId) {
+      params = params.set('fieldId', filter.fieldId);
+      if (filter.fieldValue?.trim()) params = params.set('fieldValue', filter.fieldValue.trim());
+    }
     return firstValueFrom(this.http.get<ContactPage>('/api/v1/contacts', { params }));
   }
 

@@ -32,6 +32,9 @@ namespace WhatsAppAutomation.Api
             builder.Services.AddProblemDetails();
             builder.Services.AddPermissionAuthorization();
 
+            // Signs the short-lived links used to show photos and videos in the WhatsApp-style preview.
+            builder.Services.AddDataProtection();
+
             // Enums travel as text such as "not_linked", the same names the WhatsApp gateway uses.
             var enumsAsText = new JsonStringEnumConverter(JsonNamingPolicy.SnakeCaseLower);
             builder.Services.AddControllers()

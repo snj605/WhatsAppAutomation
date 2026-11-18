@@ -1,3 +1,6 @@
+import { ContactFieldsStore } from '../contacts/contact-fields.api';
+import { WaBubble } from '../../shared/wa-preview/wa-bubble';
+import { sample, WaPersonPreview } from '../../shared/wa-preview/wa-person-preview';
 import { Component, ElementRef, inject, OnInit, signal, viewChild } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ConfirmationService, MessageService } from 'primeng/api';
@@ -11,7 +14,7 @@ import { MessageTemplate, TemplatesApi } from './templates.api';
 /** Templates: the user's own saved messages, ready to pick when sending. Add, edit and delete them here. */
 @Component({
   selector: 'app-templates-page',
-  imports: [RouterLink],
+  imports: [RouterLink, WaBubble, WaPersonPreview],
   templateUrl: './templates.page.html',
   styleUrl: './templates.page.css',
 })
@@ -34,6 +37,9 @@ export class TemplatesPage implements OnInit {
   protected readonly editing = signal<MessageTemplate | 'new' | null>(null);
   protected readonly name = signal('');
   protected readonly text = signal('');
+  protected readonly sample = sample;
+  private readonly fieldsStore = inject(ContactFieldsStore);
+  protected readonly fields = this.fieldsStore.fields;
   protected readonly saving = signal(false);
   protected readonly shared = signal(false);
   protected readonly attachment = signal<UploadedFile | null>(null);
@@ -42,6 +48,7 @@ export class TemplatesPage implements OnInit {
   protected readonly linkUrl = signal('');
 
   async ngOnInit(): Promise<void> {
+    void this.fieldsStore.reload().catch(() => undefined);
     await this.load();
   }
 

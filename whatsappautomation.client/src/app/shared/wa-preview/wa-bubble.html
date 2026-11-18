@@ -1,0 +1,67 @@
+<div class="wa-chat">
+  @if (chip()) {
+    <span class="wa-chip">{{ chip() }}</span>
+  }
+  <div class="wa-bubble" [class.media]="kind() === 'image' || kind() === 'video'">
+    @if (file(); as f) {
+      @switch (kind()) {
+        @case ('image') {
+          <div class="wa-media">
+            @if (url() && !broken()) {
+              <img [src]="url()" [alt]="f.fileName" (error)="broken.set(true)" />
+            } @else {
+              <div class="wa-placeholder"><i class="pi pi-image" aria-hidden="true"></i><span>{{ f.kept === false ? 'Photo (no longer kept)' : f.fileName }}</span></div>
+            }
+          </div>
+        }
+        @case ('video') {
+          <div class="wa-media">
+            @if (url() && !broken()) {
+              <video #v [src]="url() + '#t=0.1'" preload="metadata" playsinline (loadedmetadata)="onMeta(v)" (error)="broken.set(true)"></video>
+              @if (!playing()) {
+                <button type="button" class="wa-play" (click)="play(v)" aria-label="Play video"><i class="pi pi-play" aria-hidden="true"></i></button>
+                <span class="wa-duration"><i class="pi pi-video" aria-hidden="true"></i> {{ duration() ?? '' }}</span>
+              }
+            } @else {
+              <div class="wa-placeholder"><i class="pi pi-video" aria-hidden="true"></i><span>{{ f.kept === false ? 'Video (no longer kept)' : f.fileName }}</span></div>
+            }
+          </div>
+        }
+        @case ('audio') {
+          <div class="wa-audio">
+            <i class="pi pi-microphone" aria-hidden="true"></i>
+            @if (url()) {
+              <audio #a [src]="url()" preload="metadata" controls (loadedmetadata)="onMeta(a)"></audio>
+            } @else {
+              <span>{{ f.fileName }}</span>
+            }
+          </div>
+        }
+        @default {
+          <div class="wa-doc">
+            <span class="wa-doc-icon" [style.background]="docColor(f.fileName)">{{ docType(f.fileName) }}</span>
+            <span class="wa-doc-text">
+              <strong>{{ f.fileName }}</strong>
+              <small>{{ docType(f.fileName) }} · {{ fileSize(f.sizeBytes) }}@if (f.isBigVideo) { · video sent as a file }</small>
+            </span>
+            <i class="pi pi-download wa-doc-dl" aria-hidden="true"></i>
+          </div>
+        }
+      }
+    }
+    @if (text()) {
+      <div class="wa-text" [innerHTML]="html()"></div>
+    }
+    <span class="wa-meta">
+      {{ clock() }}
+      @switch (status()) {
+        @case ('pending') {<i class="pi pi-clock" aria-label="Waiting"></i>}
+        @case ('sent') {<span class="tick" aria-label="Sent">✓</span>}
+        @case ('delivered') {<span class="tick" aria-label="Delivered">✓✓</span>}
+        @case ('read') {<span class="tick read" aria-label="Read">✓✓</span>}
+        @case ('failed') {<i class="pi pi-exclamation-circle failed" aria-label="Failed"></i>}
+        @default {<span class="tick read" aria-hidden="true">✓✓</span>}
+      }
+    </span>
+  </div>
+</div>

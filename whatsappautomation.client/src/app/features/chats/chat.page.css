@@ -77,3 +77,5 @@
 .bubble-file .pi { color: var(--ui-accent); font-size: 1.1rem; }
 .bubble-file span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
 .bubble-file small { color: var(--ui-muted); }
+
+.example-wa { align-self: stretch; display: flex; flex-direction: column; gap: 6px; }
