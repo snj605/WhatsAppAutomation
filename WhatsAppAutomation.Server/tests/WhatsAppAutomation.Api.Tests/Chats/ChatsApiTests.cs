@@ -88,8 +88,8 @@ public sealed class ChatsApiTests(ApiFactory factory)
         return (await response.Content.ReadFromJsonAsync<T>(Ct))!;
     }
 
-    private static async Task<Guid> ContactAsync(HttpClient client, string phone, string name, BirthdayDto? birthday = null) =>
-        (await PostAsync<ContactDto>(client, "/api/v1/contacts", new ContactInput(phone, name, name, null, null, "en", null, null, birthday, null, null))).Id;
+    private static async Task<Guid> ContactAsync(HttpClient client, string phone, string name) =>
+        (await PostAsync<ContactDto>(client, "/api/v1/contacts", new ContactInput(phone, name, name, null, null, "en", null, null, null, null, null))).Id;
 
     private async Task<(HttpClient Client, Guid UserId)> ConnectedOwnerAsync()
     {

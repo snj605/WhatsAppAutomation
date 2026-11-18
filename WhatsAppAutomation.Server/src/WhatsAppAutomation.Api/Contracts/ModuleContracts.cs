@@ -11,3 +11,9 @@ public sealed record ModuleSendingRequest(bool Enabled, string? Time, Guid? Temp
 
 /// <param name="Year">Required for "once" modules.</param>
 public sealed record ModuleEntryRequest(int Day, int Month, int? Year, string? ForName);
+
+/// <param name="Type">"text", "number", "date" or "choice".</param>
+/// <param name="Options">The choices of a choice field (at least two).</param>
+public sealed record CreateContactFieldRequest(string Name, string Type, IReadOnlyList<string>? Options);
+
+public sealed record UpdateContactFieldRequest(string Name, IReadOnlyList<string>? Options);

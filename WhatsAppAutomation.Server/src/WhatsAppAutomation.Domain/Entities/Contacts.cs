@@ -138,7 +138,11 @@ public sealed class Contact
 
     public string? Salutation { get; private set; }
 
-    /// <summary>Birthday: day and month, with the year optional (many people know only the date).</summary>
+    /// <summary>
+    /// The birthday kept on the contact: day and month, the year optional. The Birthday occasion's dates are the ones
+    /// used and shown; this copy keeps a birthday when the user has no Birthday occasion (or deleted it), so a new
+    /// Birthday occasion starts with it.
+    /// </summary>
     public int? BirthDay { get; private set; }
 
     public int? BirthMonth { get; private set; }
@@ -233,11 +237,26 @@ public sealed class Contact
         Language = details.Language;
         CategoryId = details.CategoryId;
         Salutation = Clean(details.Salutation);
-        BirthDay = details.Birthday?.Day;
-        BirthMonth = details.Birthday?.Month;
-        BirthYear = details.Birthday?.Year;
+        if (details.Birthday is { } birthday)
+        {
+            // Only an import row with a birthday sets it here; the contact form sets dates through occasions.
+            SetBirthday(birthday, now);
+        }
+
         Notes = Clean(details.Notes);
         UpdatedAt = now;
+    }
+
+    /// <summary>Keeps the birthday on the contact (written with the Birthday occasion's date).</summary>
+    public void SetBirthday(Birthday? birthday, DateTimeOffset now)
+    {
+        if (BirthDay != birthday?.Day || BirthMonth != birthday?.Month || BirthYear != birthday?.Year)
+        {
+            BirthDay = birthday?.Day;
+            BirthMonth = birthday?.Month;
+            BirthYear = birthday?.Year;
+            UpdatedAt = now;
+        }
     }
 
     /// <summary>The real name in a language, or null when it is missing.</summary>

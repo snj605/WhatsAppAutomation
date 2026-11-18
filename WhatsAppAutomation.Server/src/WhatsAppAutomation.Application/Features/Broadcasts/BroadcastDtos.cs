@@ -39,6 +39,14 @@ public sealed record SkippedRecipientDto(Guid? ContactId, string Name, string Ph
 /// <param name="Language">"en", "hi" or "gu" for per-language texts; "all" for a single message.</param>
 public sealed record SampleMessageDto(string Language, string ContactName, string Text);
 
+/// <summary>One person the message goes to, for the "Preview for" picker.</summary>
+public sealed record PreviewPersonDto(Guid ContactId, string Name);
+
+/// <summary>Exactly what one person gets: their text, or why they are left out.</summary>
+public sealed record PersonMessageDto(Guid ContactId, string Name, string PhoneNumber, string? Text, string? SkipReason);
+
+/// <param name="People">The first 100 people it goes to (or is checked for), for the "Preview for" picker.</param>
+/// <param name="Person">The text of the person asked for with ?for=, when they are among the people.</param>
 public sealed record BroadcastPreviewDto(
     int Total,
     int WillSend,
@@ -46,7 +54,9 @@ public sealed record BroadcastPreviewDto(
     IReadOnlyList<SkippedRecipientDto> Skipped,
     IReadOnlyList<SampleMessageDto> Samples,
     int DailyLimit,
-    int EstimatedDays);
+    int EstimatedDays,
+    IReadOnlyList<PreviewPersonDto> People,
+    PersonMessageDto? Person);
 
 public sealed record BroadcastCountsDto(int Total, int Pending, int Sent, int Delivered, int Read, int Failed, int Skipped);
 

@@ -28,6 +28,10 @@ internal sealed class SaveContactCommandValidator : AbstractValidator<SaveContac
         RuleFor(c => c.Input.CategoryId).Must(id => id != Guid.Empty).When(c => c.Input.CategoryId is not null)
             .WithMessage("The category id is not valid.");
         RuleFor(c => c.Input.GroupIds).Must(g => g is null || g.Count <= 100).WithMessage("A contact can be in at most 100 groups.");
+        RuleFor(c => c.Input.Occasions).Must(o => o is null || o.Count <= Modules.ModuleDates.MaxModules)
+            .WithMessage($"A contact can have at most {Modules.ModuleDates.MaxModules} occasion dates.");
+        RuleFor(c => c.Input.Fields).Must(f => f is null || f.Count <= ContactField.MaxFields)
+            .WithMessage($"At most {ContactField.MaxFields} fields.");
     }
 }
 
@@ -88,6 +92,17 @@ internal sealed class SaveContactCommandHandler(IAppDbContext db, ICurrentUser c
         }
 
         contact.Update(d, now);
+        if (input.Occasions is { } occasions &&
+            await ContactOccasionWrites.ReplaceAsync(db, userId, contact, occasions, now, cancellationToken) is { } badDate)
+        {
+            return badDate;
+        }
+
+        if (input.Fields is { } fields && await ContactFieldWrites.ApplyAsync(db, userId, contact.Id, fields, cancellationToken) is { } badField)
+        {
+            return badField;
+        }
+
         contact.Groups.RemoveAll(g => !groupIds.Contains(g.Id));
         contact.Groups.AddRange(groups.Where(g => contact.Groups.All(existing => existing.Id != g.Id)));
         if (contact.IsNotOnWhatsApp)
@@ -106,7 +121,7 @@ internal sealed class SaveContactCommandHandler(IAppDbContext db, ICurrentUser c
             return ContactErrors.DuplicatePhone;
         }
 
-        return ContactDto.From(contact);
+        return await ContactReads.ToDtoAsync(db, contact, cancellationToken);
     }
 }
 
@@ -167,7 +182,7 @@ internal sealed class SetContactOptOutCommandHandler(IAppDbContext db, ICurrentU
         }
 
         await db.SaveChangesAsync(cancellationToken);
-        return ContactDto.From(contact);
+        return await ContactReads.ToDtoAsync(db, contact, cancellationToken);
     }
 }
 
@@ -186,18 +201,9 @@ internal static class ContactRules
             return Error.Validation("Language must be en, hi or gu.");
         }
 
-        Birthday? birthday = null;
-        if (input.Birthday is { } b)
-        {
-            birthday = Birthday.Create(b.Day, b.Month, b.Year);
-            if (birthday is null)
-            {
-                return ContactErrors.InvalidBirthday;
-            }
-        }
-
+        // Dates (Birthday included) come with the occasions, not here.
         var details = new ContactDetails(
-            phone, input.SavedName, input.NameEn, input.NameHi, input.NameGu, language, input.CategoryId, input.Salutation, birthday, input.Notes);
+            phone, input.SavedName, input.NameEn, input.NameHi, input.NameGu, language, input.CategoryId, input.Salutation, null, input.Notes);
         var name = language switch
         {
             ContactLanguage.Hi => input.NameHi,

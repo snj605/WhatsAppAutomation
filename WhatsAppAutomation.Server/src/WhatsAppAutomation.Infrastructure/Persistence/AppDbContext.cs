@@ -45,6 +45,10 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
 
     public DbSet<ContactOccasion> ContactOccasions => Set<ContactOccasion>();
 
+    public DbSet<ContactField> ContactFields => Set<ContactField>();
+
+    public DbSet<ContactFieldValue> ContactFieldValues => Set<ContactFieldValue>();
+
     public DbSet<AuditEntry> AuditEntries => Set<AuditEntry>();
 
     public DbSet<Notification> Notifications => Set<Notification>();

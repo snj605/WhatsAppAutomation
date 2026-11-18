@@ -12,7 +12,8 @@ using WhatsAppAutomation.Domain.Entities;
 namespace WhatsAppAutomation.Application.Features.Broadcasts.Queries;
 
 /// <summary>What a broadcast would do, without saving anything: who gets which language, and who is skipped and why.</summary>
-public sealed record PreviewBroadcastQuery(BroadcastInput Input) : IQuery<BroadcastPreviewDto>;
+/// <param name="ForContactId">Also return exactly what this person gets (the "Preview for" picker).</param>
+public sealed record PreviewBroadcastQuery(BroadcastInput Input, Guid? ForContactId = null) : IQuery<BroadcastPreviewDto>;
 
 internal sealed class PreviewBroadcastQueryHandler(
     IAppDbContext db, ICurrentUser currentUser, IPermissionService permissions, IOptions<BroadcastOptions> options, TimeProvider clock)
@@ -32,7 +33,22 @@ internal sealed class PreviewBroadcastQueryHandler(
 
         var now = clock.GetUtcNow();
         var defaultLanguage = await Preferences.DefaultLanguageAsync(db, userId, cancellationToken);
-        var plan = await BroadcastPlanner.PlanAsync(db, userId, query.Input, defaultLanguage, options.Value.ContactGapDays, now, cancellationToken);
+        // Occasion wishes: each person's second name ({{for_name}}), the same as when they are sent.
+        IReadOnlyDictionary<Guid, string>? forNames = null;
+        if (query.Input.ModuleId is { } moduleId)
+        {
+            if (!await db.OccasionModules.AnyAsync(m => m.Id == moduleId && m.UserId == userId, cancellationToken))
+            {
+                return BroadcastErrors.ModuleNotFound;
+            }
+
+            forNames = await db.ContactOccasions.AsNoTracking()
+                .Where(o => o.ModuleId == moduleId && o.ForName != null)
+                .ToDictionaryAsync(o => o.ContactId, o => o.ForName!, cancellationToken);
+        }
+
+        var plan = await BroadcastPlanner.PlanAsync(
+            db, userId, query.Input, defaultLanguage, options.Value.ContactGapDays, now, cancellationToken, forNames);
         var sending = plan.Where(p => p.SkipReason is null).ToList();
         var byLanguage = Enum.GetValues<ContactLanguage>().ToDictionary(
             l => ContactLanguages.ToCode(l), l => sending.Count(p => p.Language == l));
@@ -47,7 +63,11 @@ internal sealed class PreviewBroadcastQueryHandler(
         var perDay = Math.Max(1, settings.FitsPerDay);
         var days = sending.Count == 0 ? 0 : (int)Math.Ceiling(sending.Count / (double)perDay);
         var cap = settings.DailyLimit;
-        return new BroadcastPreviewDto(plan.Count, sending.Count, byLanguage, skipped, samples, cap, days);
+        var people = plan.Take(100).Select(p => new PreviewPersonDto(p.Contact.Id, p.Name)).ToList();
+        var person = query.ForContactId is { } forId && plan.FirstOrDefault(p => p.Contact.Id == forId) is { } one
+            ? new PersonMessageDto(one.Contact.Id, one.Name, one.Contact.PhoneNumber, one.Text, one.SkipReason)
+            : null;
+        return new BroadcastPreviewDto(plan.Count, sending.Count, byLanguage, skipped, samples, cap, days, people, person);
     }
 }
 

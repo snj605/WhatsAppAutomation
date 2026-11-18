@@ -5,6 +5,7 @@ using System.Text;
 using WhatsAppAutomation.Api.Contracts;
 using WhatsAppAutomation.Api.Tests.Infrastructure;
 using WhatsAppAutomation.Application.Features.Contacts;
+using WhatsAppAutomation.Application.Features.Modules;
 using WhatsAppAutomation.Application.Features.Contacts.Import;
 using WhatsAppAutomation.Application.Features.Contacts.Queries;
 using WhatsAppAutomation.Domain.Authorization;
@@ -21,15 +22,19 @@ public sealed class ContactsApiTests(ApiFactory factory)
         var client = await OwnerAsync();
         var elders = await CreateCategoryAsync(client, "Elders", "#10B981");
         var family = await CreateGroupAsync(client, "Family – Surat");
+        var birthday = await BirthdayModuleAsync(client);
 
-        var response = await client.PostAsJsonAsync("/api/v1/contacts", Input("+91 98765-43210", elders.Id, "gu", nameGu: "રમેશભાઈ", groups: [family.Id]), Ct);
+        var response = await client.PostAsJsonAsync("/api/v1/contacts", Input("+91 98765-43210", elders.Id, "gu", nameGu: "રમેશભાઈ", groups: [family.Id]) with
+        {
+            Occasions = [new ContactOccasionDto(birthday, 15, 8, null, null)],
+        }, Ct);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var contact = (await response.Content.ReadFromJsonAsync<ContactDto>(Ct))!;
         Assert.Equal("+919876543210", contact.PhoneNumber);
         Assert.Equal("gu", contact.Language);
         Assert.Equal("રમેશભાઈ", contact.NameGu);
-        Assert.Equal(new BirthdayDto(15, 8, null), contact.Birthday);
+        Assert.Equal(new ContactOccasionDto(birthday, 15, 8, null, null), Assert.Single(contact.Occasions));
         Assert.Equal("Family – Surat", Assert.Single(contact.Groups).Name);
         Assert.False(contact.NeedsDetails);
 
@@ -52,8 +57,9 @@ public sealed class ContactsApiTests(ApiFactory factory)
         var noCountryCode = await client.PostAsJsonAsync("/api/v1/contacts", Input("98765 43210", category.Id, "en", nameEn: "Ramesh"), Ct);
         await AssertProblemAsync(noCountryCode, HttpStatusCode.BadRequest, "contacts.invalid_phone");
 
-        var badBirthday = Input("+919876543210", category.Id, "en", nameEn: "Ramesh") with { Birthday = new BirthdayDto(31, 2, null) };
-        await AssertProblemAsync(await client.PostAsJsonAsync("/api/v1/contacts", badBirthday, Ct), HttpStatusCode.BadRequest, "contacts.invalid_birthday");
+        var birthday = await BirthdayModuleAsync(client);
+        var badBirthday = Input("+919876543210", category.Id, "en", nameEn: "Ramesh") with { Occasions = [new ContactOccasionDto(birthday, 31, 2, null, null)] };
+        await AssertProblemAsync(await client.PostAsJsonAsync("/api/v1/contacts", badBirthday, Ct), HttpStatusCode.BadRequest, "validation_failed");
 
         Assert.Equal(HttpStatusCode.OK, (await client.PostAsJsonAsync("/api/v1/contacts", Input("+919876543210", category.Id, "en", nameEn: "Ramesh"), Ct)).StatusCode);
         var duplicate = await client.PostAsJsonAsync("/api/v1/contacts", Input("+91 98765 43210", category.Id, "en", nameEn: "Other"), Ct);
@@ -110,6 +116,7 @@ public sealed class ContactsApiTests(ApiFactory factory)
     public async Task A_CSV_import_previews_without_saving_then_creates_and_updates_by_phone()
     {
         var client = await OwnerAsync();
+        var birthday = await BirthdayModuleAsync(client);
         var elders = await CreateCategoryAsync(client, "Elders", "#10b981");
         await client.PostAsJsonAsync("/api/v1/contacts", Input("+919876543210", elders.Id, "en", nameEn: "Ramesh", savedName: "Daddy"), Ct);
 
@@ -143,10 +150,10 @@ public sealed class ContactsApiTests(ApiFactory factory)
         Assert.Equal("Ramesh", daddy.NameEn);
         Assert.Equal("રમેશભાઈ", daddy.NameGu);
         Assert.Equal("gu", daddy.Language);
-        Assert.Equal(new BirthdayDto(15, 8, 1960), daddy.Birthday);
+        Assert.Equal(new ContactOccasionDto(birthday, 15, 8, 1960, null), Assert.Single(daddy.Occasions));
         Assert.Equal(["Family", "Surat"], daddy.Groups.Select(g => g.Name));
         var rahul = contacts.Single(c => c.PhoneNumber == "+919812345678");
-        Assert.Equal(new BirthdayDto(2, 10, null), rahul.Birthday);
+        Assert.Equal(new ContactOccasionDto(birthday, 2, 10, null, null), Assert.Single(rahul.Occasions));
         Assert.Equal("राहुल", rahul.NameHi);
     }
 
@@ -201,7 +208,14 @@ public sealed class ContactsApiTests(ApiFactory factory)
     private static ContactInput Input(
         string phone, Guid categoryId, string language, string? nameEn = null, string? nameGu = null, string? savedName = null,
         IReadOnlyList<Guid>? groups = null) =>
-        new(phone, savedName, nameEn, null, nameGu, language, categoryId, null, new BirthdayDto(15, 8, null), null, groups);
+        new(phone, savedName, nameEn, null, nameGu, language, categoryId, null, null, null, groups);
+
+    private static async Task<Guid> BirthdayModuleAsync(HttpClient client)
+    {
+        var response = await client.PostAsJsonAsync("/api/v1/modules", new CreateModuleRequest("Birthday", "birthday", null), Ct);
+        Assert.True(response.IsSuccessStatusCode, await response.Content.ReadAsStringAsync(Ct));
+        return (await response.Content.ReadFromJsonAsync<ModuleDto>(Ct))!.Id;
+    }
 
     private async Task<HttpClient> OwnerAsync() => await factory.CreateClientForAsync(await factory.CreateUserAsync(UserKind.TenantAdmin));
 

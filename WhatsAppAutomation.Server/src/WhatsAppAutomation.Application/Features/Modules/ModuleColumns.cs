@@ -39,16 +39,3 @@ internal static class ModuleColumns
         ? $"Your occasion \"{c.Name}\": the date as DD-MM-YYYY."
         : $"Your occasion \"{c.Name}\" (every year): DD-MM or DD-MM-YYYY.";
 }
-
-/// <summary>The occasion columns for the user's Excel template.</summary>
-public sealed record GetModuleColumnsQuery : Common.Messaging.IQuery<IReadOnlyList<(string Header, string Help)>>;
-
-internal sealed class GetModuleColumnsQueryHandler(IAppDbContext db, ICurrentUser currentUser)
-    : Common.Messaging.IQueryHandler<GetModuleColumnsQuery, IReadOnlyList<(string Header, string Help)>>
-{
-    public async Task<Common.Models.Result<IReadOnlyList<(string Header, string Help)>>> Handle(GetModuleColumnsQuery query, CancellationToken cancellationToken) =>
-        currentUser.UserId is { } userId
-            ? Common.Models.Result<IReadOnlyList<(string Header, string Help)>>.Success(
-                ModuleColumns.Headers(await ModuleColumns.ForUserAsync(db, userId, cancellationToken)))
-            : ModuleErrors.NotSignedIn;
-}

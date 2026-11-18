@@ -71,12 +71,21 @@ internal sealed class ImportContactsCommandHandler(
             .ToDictionaryAsync(c => c.PhoneNumber, cancellationToken);
 
         var moduleColumns = await Modules.ModuleColumns.ForUserAsync(db, userId, cancellationToken);
+        var fieldColumns = await FieldColumns.ForUserAsync(db, userId, moduleColumns, cancellationToken);
+        // With a Birthday occasion, the Birthday column fills it; without one, the birthday is only kept on the contact.
+        var birthdayModuleId = await db.OccasionModules.Where(m => m.UserId == userId && m.Kind == ModuleKind.Birthday)
+            .Select(m => (Guid?)m.Id).FirstOrDefaultAsync(cancellationToken);
         var parsed = new List<ParsedRow>();
         var seenPhones = new Dictionary<string, int>();
         foreach (var row in read.Rows)
         {
             var p = Parse(row, defaultLanguage);
             ParseOccasions(row, moduleColumns, p);
+            ParseFields(row, fieldColumns, p);
+            if (birthdayModuleId is { } birthdayModule && p.Birthday is { } birthday)
+            {
+                p.Occasions.Add(new ParsedOccasion(birthdayModule, birthday.Day, birthday.Month, birthday.Year, null));
+            }
             if (p.Errors.Count == 0 && string.IsNullOrEmpty(p.NameFor(p.Language)) &&
                 !(existing.TryGetValue(p.Phone!, out var saved) && !string.IsNullOrEmpty(saved.NameIn(p.Language))))
             {
@@ -187,7 +196,7 @@ internal sealed class ImportContactsCommandHandler(
         var withDates = parsed.Where(p => p.Errors.Count == 0 && p.Occasions.Count > 0).ToList();
         if (withDates.Count > 0)
         {
-            var moduleIds = moduleColumns.Select(c => c.ModuleId).ToList();
+            var moduleIds = moduleColumns.Select(c => c.ModuleId).Concat(birthdayModuleId is { } b ? [b] : []).ToList();
             var saved = await db.ContactOccasions.Where(o => moduleIds.Contains(o.ModuleId)).ToListAsync(cancellationToken);
             var byKey = saved.ToDictionary(o => (o.ModuleId, o.ContactId));
             foreach (var p in withDates)
@@ -204,6 +213,33 @@ internal sealed class ImportContactsCommandHandler(
                     }
 
                     entry.Set(o.Day, o.Month, o.Year, o.ForName ?? entry.ForName);
+                }
+            }
+        }
+
+        // Custom field values: added or changed; an empty cell keeps what is saved.
+        var withValues = parsed.Where(p => p.Errors.Count == 0 && p.FieldValues.Count > 0).ToList();
+        if (withValues.Count > 0)
+        {
+            var fieldIds = fieldColumns.Select(f => f.Field.Id).ToList();
+            var savedValues = (await db.ContactFieldValues.Where(v => fieldIds.Contains(v.FieldId)).ToListAsync(cancellationToken))
+                .ToDictionary(v => (v.FieldId, v.ContactId));
+            foreach (var p in withValues)
+            {
+                var contactId = existing.TryGetValue(p.Phone!, out var c) ? c.Id
+                    : db.Contacts.Local.Single(x => x.UserId == userId && x.PhoneNumber == p.Phone).Id;
+                foreach (var (fieldId, value) in p.FieldValues)
+                {
+                    if (savedValues.TryGetValue((fieldId, contactId), out var saved))
+                    {
+                        saved.Set(value);
+                    }
+                    else
+                    {
+                        var added = new ContactFieldValue(fieldId, contactId, value);
+                        db.ContactFieldValues.Add(added);
+                        savedValues[(fieldId, contactId)] = added;
+                    }
                 }
             }
         }
@@ -306,6 +342,26 @@ internal sealed class ImportContactsCommandHandler(
         }
     }
 
+    private static void ParseFields(SpreadsheetRow row, List<FieldColumn> columns, ParsedRow p)
+    {
+        foreach (var column in columns)
+        {
+            if (!row.Cells.TryGetValue(column.Key, out var text) || string.IsNullOrWhiteSpace(text))
+            {
+                continue;
+            }
+
+            if (column.Field.Normalize(text) is { } stored)
+            {
+                p.FieldValues.Add((column.Field.Id, stored));
+            }
+            else
+            {
+                p.Errors.Add(ContactFieldRules.ProblemText(column.Field));
+            }
+        }
+    }
+
     private sealed record ParsedOccasion(Guid ModuleId, int Day, int Month, int? Year, string? ForName);
 
     private static string? Limit(string? value, int max, string column, List<string> errors)
@@ -346,6 +402,8 @@ internal sealed class ImportContactsCommandHandler(
     private sealed class ParsedRow
     {
         public List<ParsedOccasion> Occasions { get; } = [];
+
+        public List<(Guid FieldId, string Value)> FieldValues { get; } = [];
 
         public int RowNumber { get; init; }
 

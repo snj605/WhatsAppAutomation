@@ -54,11 +54,13 @@ internal static partial class BroadcastPlanner
                 .Select(r => r.PhoneNumber).Distinct().ToListAsync(cancellationToken)).ToHashSet();
         }
 
+        var fields = await FieldValues.LoadAsync(
+            db, userId, [.. contacts.Select(c => c.Id)], [input.Text, input.TextEn, input.TextHi, input.TextGu], cancellationToken);
         if (IsSingleText(input))
         {
             var single = input.Text!.Trim();
             return contacts.Select(c => PlanSingle(
-                c, single, recentlySent.Contains(c.PhoneNumber) ? contactGapDays : 0, forNames?.GetValueOrDefault(c.Id))).ToList();
+                c, single, recentlySent.Contains(c.PhoneNumber) ? contactGapDays : 0, forNames?.GetValueOrDefault(c.Id), fields)).ToList();
         }
 
         var texts = new Dictionary<ContactLanguage, string?>
@@ -68,7 +70,7 @@ internal static partial class BroadcastPlanner
             [ContactLanguage.Gu] = Clean(input.TextGu),
         };
 
-        return contacts.Select(c => Plan(c, texts, defaultLanguage, recentlySent.Contains(c.PhoneNumber) ? contactGapDays : 0)).ToList();
+        return contacts.Select(c => Plan(c, texts, defaultLanguage, recentlySent.Contains(c.PhoneNumber) ? contactGapDays : 0, fields)).ToList();
     }
 
     /// <summary>
@@ -99,7 +101,8 @@ internal static partial class BroadcastPlanner
     /// name in the person's entry of an occasion module (for example who is remembered). Returns the text, or
     /// what is missing ("Hindi name") when the message needs a detail this person does not have.
     /// </summary>
-    internal static (string? Text, string? Missing) RenderFor(string text, Contact c, Random random, string? forName = null)
+    internal static (string? Text, string? Missing) RenderFor(
+        string text, Contact c, Random random, string? forName = null, FieldValues? fields = null)
     {
         string? missing = null;
         var chosen = Choices().Replace(text, m =>
@@ -139,6 +142,7 @@ internal static partial class BroadcastPlanner
 
             return forName ?? string.Empty;
         });
+        rendered = (fields ?? FieldValues.None).Fill(rendered, c.Id, ref missing);
         if (missing is not null)
         {
             return (null, missing);
@@ -148,7 +152,7 @@ internal static partial class BroadcastPlanner
         return (string.Join('\n', lines).Trim(), null);
     }
 
-    private static PlannedRecipient PlanSingle(Contact c, string text, int recentGapDays, string? forName)
+    private static PlannedRecipient PlanSingle(Contact c, string text, int recentGapDays, string? forName, FieldValues fields)
     {
         var display = DisplayName(c);
         if (c.IsNotOnWhatsApp)
@@ -166,7 +170,7 @@ internal static partial class BroadcastPlanner
             return new PlannedRecipient(c, display, null, null, $"Already got a broadcast in the last {recentGapDays} days.");
         }
 
-        var (rendered, missing) = RenderFor(text, c, Random.Shared, forName);
+        var (rendered, missing) = RenderFor(text, c, Random.Shared, forName, fields);
         if (missing is not null)
         {
             return new PlannedRecipient(c, display, null, null, $"Needs details: no {missing}.");
@@ -179,7 +183,8 @@ internal static partial class BroadcastPlanner
 
     public static string DisplayName(Contact c) => c.SavedName ?? c.NameIn(c.Language) ?? c.NameEn ?? c.NameGu ?? c.NameHi ?? c.PhoneNumber;
 
-    private static PlannedRecipient Plan(Contact c, Dictionary<ContactLanguage, string?> texts, ContactLanguage defaultLanguage, int recentGapDays)
+    private static PlannedRecipient Plan(
+        Contact c, Dictionary<ContactLanguage, string?> texts, ContactLanguage defaultLanguage, int recentGapDays, FieldValues fields)
     {
         var display = DisplayName(c);
         if (c.IsNotOnWhatsApp)
@@ -215,6 +220,13 @@ internal static partial class BroadcastPlanner
         }
 
         var rendered = ForNameToken().Replace(Render(text, name, c.Salutation), string.Empty);
+        string? missingField = null;
+        rendered = fields.Fill(rendered, c.Id, ref missingField);
+        if (missingField is not null)
+        {
+            return new PlannedRecipient(c, display, lang, null, $"Needs details: no {missingField}.");
+        }
+
         return rendered.Length > Broadcast.TextMaxLength
             ? new PlannedRecipient(c, display, lang, null, "The message is too long with this contact's details.")
             : new PlannedRecipient(c, display, lang, rendered, null);

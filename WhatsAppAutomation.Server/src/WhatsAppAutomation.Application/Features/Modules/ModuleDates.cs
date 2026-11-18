@@ -30,15 +30,7 @@ internal static class ModuleDates
     /// <summary>Everyone with a date in this module (people not on WhatsApp are left out: they cannot get it).</summary>
     public static async Task<List<PersonDate>> AllAsync(IAppDbContext db, OccasionModule module, CancellationToken cancellationToken)
     {
-        if (module.Kind == ModuleKind.Birthday)
-        {
-            var contacts = await db.Contacts.AsNoTracking()
-                .Where(c => c.UserId == module.UserId && c.BirthDay != null && c.BirthMonth != null &&
-                    c.WhatsAppCheck != WhatsAppCheck.NotOnWhatsApp)
-                .ToListAsync(cancellationToken);
-            return [.. contacts.Select(c => new PersonDate(c, c.BirthDay!.Value, c.BirthMonth!.Value, c.BirthYear, null))];
-        }
-
+        // Every occasion, Birthday included, keeps one date per contact in contact_occasions.
         var rows = await (
             from o in db.ContactOccasions.AsNoTracking()
             where o.ModuleId == module.Id

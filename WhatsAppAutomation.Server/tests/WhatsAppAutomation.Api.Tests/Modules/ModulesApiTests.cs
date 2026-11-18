@@ -55,7 +55,7 @@ public sealed class ModulesApiTests(ApiFactory factory)
     }
 
     [Fact]
-    public async Task Dates_are_added_searched_changed_and_removed_only_for_own_contacts_and_not_on_birthdays()
+    public async Task Dates_are_added_searched_changed_and_removed_only_for_own_contacts()
     {
         var client = await factory.CreateClientForAsync(await factory.CreateUserAsync(UserKind.TenantAdmin));
         var asthi = await CreateAsync(client, "Asthi", "yearly", "In memory of");
@@ -68,7 +68,8 @@ public sealed class ModulesApiTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.NoContent, (await PutEntryAsync(client, asthi.Id, sita, new(29, 2, null, null))).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await PutEntryAsync(client, asthi.Id, sita, new(30, 2, null, null))).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await PutEntryAsync(client, once.Id, sita, new(1, 1, null, null))).StatusCode);
-        Assert.Equal(HttpStatusCode.BadRequest, (await PutEntryAsync(client, birthday.Id, sita, new(1, 1, null, null))).StatusCode);
+        // Birthday dates are set the same way.
+        Assert.Equal(HttpStatusCode.NoContent, (await PutEntryAsync(client, birthday.Id, sita, new(1, 1, null, null))).StatusCode);
 
         var all = (await client.GetFromJsonAsync<ModuleEntriesPage>($"/api/v1/modules/{asthi.Id}/entries", Ct))!;
         Assert.Equal(2, all.Total);

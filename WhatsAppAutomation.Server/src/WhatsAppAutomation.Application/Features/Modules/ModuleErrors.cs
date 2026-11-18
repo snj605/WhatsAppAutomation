@@ -14,8 +14,6 @@ public static class ModuleErrors
     public static readonly Error OneBirthday =
         new("modules.one_birthday", "You already have a Birthday occasion.", ErrorKind.Conflict);
 
-    public static readonly Error BirthdayHasNoEntries = new(
-        "modules.birthday_entries", "Birthdays come from each contact's birthday. Change it on the contact.", ErrorKind.Validation);
 
     public static readonly Error ContactNotFound =
         new("modules.contact_not_found", "This contact does not exist.", ErrorKind.NotFound);

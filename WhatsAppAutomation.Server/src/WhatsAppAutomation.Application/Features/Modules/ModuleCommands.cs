@@ -57,6 +57,11 @@ internal sealed class CreateModuleCommandHandler(
             userId, command.Name, kind, kind == ModuleKind.Birthday ? null : command.ForNameLabel,
             existing.Count == 0 ? 1 : existing.Max(m => m.SortOrder) + 1, now);
         db.OccasionModules.Add(module);
+        if (kind == ModuleKind.Birthday)
+        {
+            await Contacts.ContactOccasionWrites.SeedBirthdaysAsync(db, module, cancellationToken);
+        }
+
         await db.SaveChangesAsync(cancellationToken);
         await audit.WriteAsync("module.created", $"Occasion \"{module.Name}\" created", null, cancellationToken);
         return (await ModuleReads.ListAsync(db, userId, options.Value, now, cancellationToken, module.Id)).Single();
@@ -197,7 +202,7 @@ internal sealed class SetModuleSendingCommandHandler(IAppDbContext db, ICurrentU
     }
 }
 
-/// <summary>Sets one person's date (and second name) in a Yearly or Once module, adding them if needed.</summary>
+/// <summary>Sets one person's date (and second name) in an occasion, adding them if needed.</summary>
 public sealed record SetModuleEntryCommand(Guid ModuleId, Guid ContactId, int Day, int Month, int? Year, string? ForName) : ICommand;
 
 internal sealed class SetModuleEntryCommandValidator : AbstractValidator<SetModuleEntryCommand>
@@ -209,7 +214,8 @@ internal sealed class SetModuleEntryCommandValidator : AbstractValidator<SetModu
     }
 }
 
-internal sealed class SetModuleEntryCommandHandler(IAppDbContext db, ICurrentUser currentUser) : ICommandHandler<SetModuleEntryCommand>
+internal sealed class SetModuleEntryCommandHandler(IAppDbContext db, ICurrentUser currentUser, TimeProvider clock)
+    : ICommandHandler<SetModuleEntryCommand>
 {
     public async Task<Result> Handle(SetModuleEntryCommand command, CancellationToken cancellationToken)
     {
@@ -225,30 +231,19 @@ internal sealed class SetModuleEntryCommandHandler(IAppDbContext db, ICurrentUse
             return ModuleErrors.NotFound;
         }
 
-        if (module.Kind == ModuleKind.Birthday)
-        {
-            return ModuleErrors.BirthdayHasNoEntries;
-        }
-
         if (module.Kind == ModuleKind.Once && command.Year is null)
         {
             return Error.Validation("This occasion happens once: enter the full date with the year.");
         }
 
-        if (!await db.Contacts.AnyAsync(c => c.Id == command.ContactId && c.UserId == userId, cancellationToken))
+        var contact = await db.Contacts.SingleOrDefaultAsync(c => c.Id == command.ContactId && c.UserId == userId, cancellationToken);
+        if (contact is null)
         {
             return ModuleErrors.ContactNotFound;
         }
 
-        var entry = await db.ContactOccasions.SingleOrDefaultAsync(
-            o => o.ModuleId == module.Id && o.ContactId == command.ContactId, cancellationToken);
-        if (entry is null)
-        {
-            entry = new ContactOccasion(module.Id, command.ContactId);
-            db.ContactOccasions.Add(entry);
-        }
-
-        entry.Set(command.Day, command.Month, command.Year, module.ForNameLabel is null ? null : command.ForName);
+        await Contacts.ContactOccasionWrites.SetAsync(
+            db, module, contact, command.Day, command.Month, command.Year, command.ForName, clock.GetUtcNow(), cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
         return Result.Success();
     }
@@ -256,7 +251,8 @@ internal sealed class SetModuleEntryCommandHandler(IAppDbContext db, ICurrentUse
 
 public sealed record RemoveModuleEntryCommand(Guid ModuleId, Guid ContactId) : ICommand;
 
-internal sealed class RemoveModuleEntryCommandHandler(IAppDbContext db, ICurrentUser currentUser) : ICommandHandler<RemoveModuleEntryCommand>
+internal sealed class RemoveModuleEntryCommandHandler(IAppDbContext db, ICurrentUser currentUser, TimeProvider clock)
+    : ICommandHandler<RemoveModuleEntryCommand>
 {
     public async Task<Result> Handle(RemoveModuleEntryCommand command, CancellationToken cancellationToken)
     {
@@ -265,13 +261,20 @@ internal sealed class RemoveModuleEntryCommandHandler(IAppDbContext db, ICurrent
             return ModuleErrors.NotSignedIn;
         }
 
-        if (!await db.OccasionModules.AnyAsync(m => m.Id == command.ModuleId && m.UserId == userId, cancellationToken))
+        var module = await db.OccasionModules.AsNoTracking()
+            .SingleOrDefaultAsync(m => m.Id == command.ModuleId && m.UserId == userId, cancellationToken);
+        if (module is null)
         {
             return ModuleErrors.NotFound;
         }
 
-        await db.ContactOccasions.Where(o => o.ModuleId == command.ModuleId && o.ContactId == command.ContactId)
-            .ExecuteDeleteAsync(cancellationToken);
+        var contact = await db.Contacts.SingleOrDefaultAsync(c => c.Id == command.ContactId && c.UserId == userId, cancellationToken);
+        if (contact is not null)
+        {
+            await Contacts.ContactOccasionWrites.RemoveAsync(db, module, contact, clock.GetUtcNow(), cancellationToken);
+            await db.SaveChangesAsync(cancellationToken);
+        }
+
         return Result.Success();
     }
 }
@@ -283,7 +286,9 @@ internal static class DefaultModules
     {
         if (!await db.OccasionModules.AnyAsync(m => m.UserId == userId && m.Kind == ModuleKind.Birthday, cancellationToken))
         {
-            db.OccasionModules.Add(new OccasionModule(userId, "Birthday", ModuleKind.Birthday, null, 1, now));
+            var module = new OccasionModule(userId, "Birthday", ModuleKind.Birthday, null, 1, now);
+            db.OccasionModules.Add(module);
+            await Contacts.ContactOccasionWrites.SeedBirthdaysAsync(db, module, cancellationToken);
             await db.SaveChangesAsync(cancellationToken);
         }
     }

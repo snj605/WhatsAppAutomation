@@ -22,9 +22,10 @@ internal sealed class ContactSpreadsheet : IContactSpreadsheet
         };
     }
 
-    public byte[] CreateTemplate(IReadOnlyList<string> categoryNames, IReadOnlyList<(string Header, string Help)> extraColumns)
+    public byte[] CreateTemplate(IReadOnlyList<string> categoryNames, IReadOnlyList<(string Header, string Help)> extraColumns, bool withBirthday)
     {
         using var workbook = new XLWorkbook();
+        var columns = ImportColumns.All.Where(c => withBirthday || c.Key != ImportColumns.Birthday).ToList();
 
         var help = workbook.AddWorksheet("Instructions");
         help.Cell(1, 1).Value = "How to fill in the Contacts sheet";
@@ -36,7 +37,7 @@ internal sealed class ContactSpreadsheet : IContactSpreadsheet
         help.Cell(6, 2).Value = "What to enter";
         help.Range(6, 1, 6, 2).Style.Font.SetBold().Fill.SetBackgroundColor(XLColor.FromHtml("#d1fae5"));
         var line = 7;
-        foreach (var (_, header, text) in ImportColumns.All)
+        foreach (var (_, header, text) in columns)
         {
             help.Cell(line, 1).Value = header;
             help.Cell(line, 2).Value = text;
@@ -54,9 +55,9 @@ internal sealed class ContactSpreadsheet : IContactSpreadsheet
         help.Column(2).Width = 100;
 
         var sheet = workbook.AddWorksheet(ContactsSheet);
-        for (var i = 0; i < ImportColumns.All.Count; i++)
+        for (var i = 0; i < columns.Count; i++)
         {
-            var (key, header, _) = ImportColumns.All[i];
+            var (key, header, _) = columns[i];
             var cell = sheet.Cell(1, i + 1);
             cell.Value = header;
             cell.Style.Font.SetBold().Font.SetFontColor(XLColor.White)
@@ -69,13 +70,15 @@ internal sealed class ContactSpreadsheet : IContactSpreadsheet
 
         for (var i = 0; i < extraColumns.Count; i++)
         {
-            var cell = sheet.Cell(1, ImportColumns.All.Count + i + 1);
+            var cell = sheet.Cell(1, columns.Count + i + 1);
             cell.Value = extraColumns[i].Header;
             cell.Style.Font.SetBold().Font.SetFontColor(XLColor.White).Fill.SetBackgroundColor(XLColor.FromHtml("#0F766E"));
-            sheet.Column(ImportColumns.All.Count + i + 1).Style.NumberFormat.Format = "@";
-            sheet.Column(ImportColumns.All.Count + i + 1).Width = 22;
+            sheet.Column(columns.Count + i + 1).Style.NumberFormat.Format = "@";
+            sheet.Column(columns.Count + i + 1).Width = 22;
         }
 
+        string[] keys = [ImportColumns.Phone, ImportColumns.SavedName, ImportColumns.NameEn, ImportColumns.NameHi, ImportColumns.NameGu,
+            ImportColumns.Category, ImportColumns.Language, ImportColumns.Salutation, ImportColumns.Birthday, ImportColumns.Groups, ImportColumns.Notes];
         string[][] samples =
         [
             ["+919876543210", "Daddy", "Rameshbhai", "रमेशभाई", "રમેશભાઈ", "Elders", "gu", "Pujya", "15-08-1960", "Family, Surat", ""],
@@ -84,9 +87,13 @@ internal sealed class ContactSpreadsheet : IContactSpreadsheet
         ];
         for (var r = 0; r < samples.Length; r++)
         {
-            for (var c = 0; c < samples[r].Length; c++)
+            for (var k = 0; k < keys.Length; k++)
             {
-                sheet.Cell(r + 2, c + 1).SetValue(samples[r][c]);
+                var c = columns.FindIndex(col => col.Key == keys[k]);
+                if (c >= 0)
+                {
+                    sheet.Cell(r + 2, c + 1).SetValue(samples[r][k]);
+                }
             }
 
             sheet.Row(r + 2).Style.Font.SetItalic().Font.SetFontColor(XLColor.FromHtml("#64748b"));
@@ -106,13 +113,13 @@ internal sealed class ContactSpreadsheet : IContactSpreadsheet
 
         lists.Hide();
 
-        var languageColumn = IndexOf(ImportColumns.Language);
+        var languageColumn = columns.FindIndex(c => c.Key == ImportColumns.Language) + 1;
         var languageRule = sheet.Range(2, languageColumn, 2000, languageColumn).CreateDataValidation();
         languageRule.List(lists.Range(2, 1, 4, 1));
         languageRule.IgnoreBlanks = true;
 
         // Not strict: a new category name is allowed and creates that category.
-        var categoryColumn = IndexOf(ImportColumns.Category);
+        var categoryColumn = columns.FindIndex(c => c.Key == ImportColumns.Category) + 1;
         var categoryRule = sheet.Range(2, categoryColumn, 2000, categoryColumn).CreateDataValidation();
         categoryRule.List(lists.Range(2, 2, categories.Count + 1, 2));
         categoryRule.ShowErrorMessage = false;
@@ -123,19 +130,6 @@ internal sealed class ContactSpreadsheet : IContactSpreadsheet
         using var output = new MemoryStream();
         workbook.SaveAs(output);
         return output.ToArray();
-    }
-
-    private static int IndexOf(string key)
-    {
-        for (var i = 0; i < ImportColumns.All.Count; i++)
-        {
-            if (ImportColumns.All[i].Key == key)
-            {
-                return i + 1;
-            }
-        }
-
-        throw new ArgumentOutOfRangeException(nameof(key));
     }
 
     private static SpreadsheetReadResult ReadXlsx(Stream file, int maxRows)

@@ -112,9 +112,13 @@ public sealed class ContactsController(ISender mediator, IContactSpreadsheet spr
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 25,
         [FromQuery] string? whatsApp = null,
+        [FromQuery] Guid? fieldId = null,
+        [FromQuery] string? fieldValue = null,
         CancellationToken cancellationToken = default) =>
         this.ToActionResult(
-            await mediator.Send(new GetContactsQuery(search, categoryId, groupId, needsDetails, page, pageSize, whatsApp), cancellationToken), Ok);
+            await mediator.Send(
+                new GetContactsQuery(search, categoryId, groupId, needsDetails, page, pageSize, whatsApp, fieldId, fieldValue), cancellationToken),
+            Ok);
 
     /// <summary>How many contacts are on WhatsApp, not on WhatsApp, waiting for the check, or never checked.</summary>
     [HttpGet("contacts/whatsapp-check")]
@@ -187,8 +191,13 @@ public sealed class ContactsController(ISender mediator, IContactSpreadsheet spr
             return this.ToProblem(error);
         }
 
-        var columns = await mediator.Send(new Application.Features.Modules.GetModuleColumnsQuery(), cancellationToken);
-        var bytes = spreadsheet.CreateTemplate(categories.Value.Select(c => c.Name).ToList(), columns.IsSuccess ? columns.Value : []);
+        var columns = await mediator.Send(new Application.Features.Contacts.Import.GetImportTemplateColumnsQuery(), cancellationToken);
+        if (columns.Error is { } columnsError)
+        {
+            return this.ToProblem(columnsError);
+        }
+
+        var bytes = spreadsheet.CreateTemplate(categories.Value.Select(c => c.Name).ToList(), columns.Value.Extra, columns.Value.WithBirthday);
         return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "contacts-template.xlsx");
     }
 

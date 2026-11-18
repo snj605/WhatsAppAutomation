@@ -3,7 +3,7 @@ namespace WhatsAppAutomation.Domain.Entities;
 /// <summary>What kind of date an occasion module keeps for each person.</summary>
 public enum ModuleKind
 {
-    /// <summary>The contact's own birthday (the date on the contact). Every year.</summary>
+    /// <summary>Each contact's birthday, every year. Stored like the other occasions (one date per contact).</summary>
     Birthday = 0,
 
     /// <summary>A day and month per person, every year (for example Asthi visarjan, an anniversary).</summary>

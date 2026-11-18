@@ -387,7 +387,7 @@ public sealed class BroadcastsApiTests(ApiFactory factory)
         var (client, _) = await ConnectedOwnerAsync();
         var today = TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, TimeZoneInfo.FindSystemTimeZoneById("Asia/Kolkata"));
         var birthday = await ModuleAsync(client, "Birthday", "birthday");
-        var kiran = await ContactWithBirthdayAsync(client, "+919825088888", "Kiran", new BirthdayDto(today.Day, today.Month, 1990));
+        var kiran = await ContactWithBirthdayAsync(client, "+919825088888", "Kiran", new ContactOccasionDto(birthday.Id, today.Day, today.Month, 1990, null));
         var list = await CategoryAsync(client, "Friends");
         await ContactAsync(client, "+919825088889", list, "en", nameEn: "Ravi");
 
@@ -572,10 +572,10 @@ public sealed class BroadcastsApiTests(ApiFactory factory)
         return (await response.Content.ReadFromJsonAsync<ModuleDto>(Ct))!;
     }
 
-    private static async Task<Guid> ContactWithBirthdayAsync(HttpClient client, string phone, string name, BirthdayDto? birthday)
+    private static async Task<Guid> ContactWithBirthdayAsync(HttpClient client, string phone, string name, ContactOccasionDto? occasion)
     {
         var response = await client.PostAsJsonAsync(
-            "/api/v1/contacts", new ContactInput(phone, name, name, null, null, "en", null, null, birthday, null, null), Ct);
+            "/api/v1/contacts", new ContactInput(phone, name, name, null, null, "en", null, null, occasion is null ? null : [occasion], null, null), Ct);
         Assert.True(response.IsSuccessStatusCode, await response.Content.ReadAsStringAsync(Ct));
         return (await response.Content.ReadFromJsonAsync<ContactDto>(Ct))!.Id;
     }

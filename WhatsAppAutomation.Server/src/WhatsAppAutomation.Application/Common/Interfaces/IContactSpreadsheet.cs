@@ -17,6 +17,7 @@ public interface IContactSpreadsheet
     SpreadsheetReadResult Read(Stream file, string fileName, int maxRows);
 
     /// <summary>An .xlsx with an Instructions sheet and a Contacts sheet with sample rows and dropdowns.</summary>
-    /// <param name="extraColumns">The user's occasion columns (header and help text), after the standard ones.</param>
-    byte[] CreateTemplate(IReadOnlyList<string> categoryNames, IReadOnlyList<(string Header, string Help)> extraColumns);
+    /// <param name="extraColumns">The user's occasion and custom field columns (header and help text), after the standard ones.</param>
+    /// <param name="withBirthday">Whether the Birthday column is included: only for users with a Birthday occasion.</param>
+    byte[] CreateTemplate(IReadOnlyList<string> categoryNames, IReadOnlyList<(string Header, string Help)> extraColumns, bool withBirthday);
 }

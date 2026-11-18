@@ -37,6 +37,10 @@ public interface IAppDbContext
 
     DbSet<ContactOccasion> ContactOccasions { get; }
 
+    DbSet<ContactField> ContactFields { get; }
+
+    DbSet<ContactFieldValue> ContactFieldValues { get; }
+
     DbSet<AuditEntry> AuditEntries { get; }
 
     DbSet<Notification> Notifications { get; }

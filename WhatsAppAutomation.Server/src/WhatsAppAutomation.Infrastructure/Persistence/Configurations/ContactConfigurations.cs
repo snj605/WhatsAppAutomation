@@ -134,6 +134,37 @@ internal sealed class ContactOccasionConfiguration : IEntityTypeConfiguration<Co
     }
 }
 
+internal sealed class ContactFieldConfiguration : IEntityTypeConfiguration<ContactField>
+{
+    public void Configure(EntityTypeBuilder<ContactField> builder)
+    {
+        builder.ToTable("contact_fields");
+        builder.HasKey(f => f.Id);
+        builder.Property(f => f.Id).ValueGeneratedNever();
+        builder.Property(f => f.Name).HasMaxLength(ContactField.NameMaxLength).IsRequired();
+        builder.Property(f => f.Key).HasMaxLength(ContactField.KeyMaxLength).IsRequired();
+        builder.Property(f => f.Type).HasConversion<string>().HasMaxLength(20);
+        builder.Property(f => f.Options).HasColumnType("text[]");
+        builder.HasIndex(f => new { f.UserId, f.Key }).IsUnique();
+        builder.HasIndex(f => new { f.UserId, f.SortOrder });
+        builder.HasOne<AppUser>().WithMany().HasForeignKey(f => f.UserId).OnDelete(DeleteBehavior.Cascade);
+    }
+}
+
+internal sealed class ContactFieldValueConfiguration : IEntityTypeConfiguration<ContactFieldValue>
+{
+    public void Configure(EntityTypeBuilder<ContactFieldValue> builder)
+    {
+        builder.ToTable("contact_field_values");
+        builder.HasKey(v => new { v.FieldId, v.ContactId });
+        builder.Property(v => v.Value).HasMaxLength(ContactField.ValueMaxLength).IsRequired();
+        builder.HasIndex(v => v.ContactId);
+        builder.HasIndex(v => new { v.FieldId, v.Value });
+        builder.HasOne<ContactField>().WithMany().HasForeignKey(v => v.FieldId).OnDelete(DeleteBehavior.Cascade);
+        builder.HasOne<Contact>().WithMany().HasForeignKey(v => v.ContactId).OnDelete(DeleteBehavior.Cascade);
+    }
+}
+
 internal sealed class AuditEntryConfiguration : IEntityTypeConfiguration<AuditEntry>
 {
     public void Configure(EntityTypeBuilder<AuditEntry> builder)

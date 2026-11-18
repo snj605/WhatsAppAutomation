@@ -28,12 +28,15 @@ public sealed class BroadcastsController(ISender mediator) : ControllerBase
     public async Task<IActionResult> Get(Guid id, CancellationToken cancellationToken) =>
         this.ToActionResult(await mediator.Send(new GetBroadcastQuery(id), cancellationToken), Ok);
 
-    /// <summary>Who would get which text, and who would be skipped and why. Saves nothing.</summary>
+    /// <summary>
+    /// Who would get which text, and who would be skipped and why. Saves nothing. With ?for=&lt;contact id&gt; it also
+    /// gives exactly what that person gets.
+    /// </summary>
     [HttpPost("preview")]
     [HasPermission(Permissions.Messages.Send)]
     [ProducesResponseType<BroadcastPreviewDto>(StatusCodes.Status200OK)]
-    public async Task<IActionResult> Preview(BroadcastInput request, CancellationToken cancellationToken) =>
-        this.ToActionResult(await mediator.Send(new PreviewBroadcastQuery(request), cancellationToken), Ok);
+    public async Task<IActionResult> Preview(BroadcastInput request, [FromQuery(Name = "for")] Guid? forContactId, CancellationToken cancellationToken) =>
+        this.ToActionResult(await mediator.Send(new PreviewBroadcastQuery(request, forContactId), cancellationToken), Ok);
 
     /// <summary>Creates the broadcast and starts it. Messages then go out one at a time, at the paced rate.</summary>
     [HttpPost]
