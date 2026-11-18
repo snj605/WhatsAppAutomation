@@ -42,7 +42,7 @@ internal sealed class GetContactsWorkbookQueryHandler(IAppDbContext db, ICurrent
         // Four queries for any number of contacts: contacts with groups, occasion dates, field values.
         var contacts = await db.Contacts.AsNoTracking().Include(c => c.Groups).Where(c => c.UserId == userId)
             .OrderBy(c => c.CreatedAt).ToListAsync(cancellationToken);
-        var moduleIds = occasionColumns.Select(c => c.ModuleId).Concat(birthdayModuleId is { } b ? [b] : []).ToList();
+        var moduleIds = occasionColumns.Select(c => c.ModuleId).Concat(birthdayModuleId is { } birthdayId ? [birthdayId] : []).ToList();
         var dates = (await db.ContactOccasions.AsNoTracking().Where(o => moduleIds.Contains(o.ModuleId)).ToListAsync(cancellationToken))
             .ToDictionary(o => (o.ModuleId, o.ContactId));
         var fieldIds = fieldColumns.Select(f => f.Field.Id).ToList();
