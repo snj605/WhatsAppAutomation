@@ -14,7 +14,6 @@ import '../broadcasts/broadcasts_api.dart';
 import '../sending/results_page.dart';
 import '../sending/sending_api.dart';
 import 'chat_bubble.dart';
-import 'send_flow.dart';
 
 /// How a person's message stands, in words. "read" is shown as Delivered: the app shows sent / delivered / failed.
 ({String label, IconData icon}) recipientStatus(String status) => switch (status) {

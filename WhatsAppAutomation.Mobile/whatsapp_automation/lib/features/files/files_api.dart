@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
@@ -40,14 +41,16 @@ class UploadedFile {
 /// A file the user chose on the phone. Big files are sent from their place on the phone ([path]) without being
 /// read into memory; [bytes] is used only where there is no path.
 class PickedFile {
-  const PickedFile({required this.name, this.bytes = const <int>[], this.path, int? size}) : _size = size;
+  const PickedFile({required this.name, this.bytes = const <int>[], this.path, this.fileSize});
 
   final String name;
   final List<int> bytes;
   final String? path;
-  final int? _size;
 
-  int get size => _size ?? bytes.length;
+  /// The size of the file at [path]; for files read into memory it is [bytes]' length.
+  final int? fileSize;
+
+  int get size => fileSize ?? bytes.length;
 
   String get extension {
     final int dot = name.lastIndexOf('.');
@@ -120,7 +123,7 @@ Future<PickedFile?> pickFile({List<String>? extensions}) async {
   // On a phone the file has a path: it is streamed when sent. Read into memory only where there is none.
   final String? path = file.path;
   return path != null
-      ? PickedFile(name: file.name, path: path, size: file.size)
+      ? PickedFile(name: file.name, path: path, fileSize: await File(path).length())
       : PickedFile(name: file.name, bytes: await file.readAsBytes());
 }
 
