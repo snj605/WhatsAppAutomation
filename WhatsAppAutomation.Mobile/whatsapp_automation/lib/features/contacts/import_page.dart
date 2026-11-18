@@ -71,7 +71,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
       return;
     }
 
-    if (file.bytes.length > 5 * 1024 * 1024) {
+    if (file.size > 5 * 1024 * 1024) {
       setState(() => _error = 'The file is larger than 5 MB. Split it into smaller files.');
       return;
     }
@@ -318,7 +318,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                                   style: theme.typography.body.md.copyWith(fontWeight: FontWeight.w700),
                                 ),
                                 Text(
-                                  '${_file?.name ?? ''} · ${r.rows.length} rows · ${fileSizeText(_file?.bytes.length ?? 0)}',
+                                  '${_file?.name ?? ''} · ${r.rows.length} rows · ${fileSizeText(_file?.size ?? 0)}',
                                   style: theme.typography.body.xs.copyWith(color: theme.colors.mutedForeground),
                                 ),
                               ],

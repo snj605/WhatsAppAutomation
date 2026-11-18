@@ -9,7 +9,7 @@ import '../../core/format.dart';
 import '../../core/realtime/live_updates.dart';
 import '../../core/ui.dart';
 import '../chats/broadcast_page.dart';
-import 'broadcast_models.dart';
+import '../sending/sending_api.dart';
 import 'broadcasts_api.dart';
 
 /// The bar at the top of the app while something is being sent: progress, Pause / Continue / Stop.
@@ -22,8 +22,8 @@ class SendingBar extends ConsumerStatefulWidget {
 }
 
 class _SendingBarState extends ConsumerState<SendingBar> {
-  List<BroadcastSummary> _queue = <BroadcastSummary>[];
-  Pacing? _pacing;
+  List<QueueItem> _queue = <QueueItem>[];
+  SendQueue? _pacing;
   bool _busy = false;
   Timer? _timer;
   StreamSubscription<void>? _live;
@@ -45,14 +45,12 @@ class _SendingBarState extends ConsumerState<SendingBar> {
 
   Future<void> _load() async {
     try {
-      final BroadcastsApi api = ref.read(broadcastsApiProvider);
-      final List<BroadcastSummary> queue =
-          (await api.list()).where((BroadcastSummary b) => b.isLive).toList().reversed.toList();
-      final Pacing? pacing = queue.isEmpty ? null : await api.pacing();
+      // One call: the queue in sending order (occasions first, then the user's order) with the pace.
+      final SendQueue queue = await ref.read(sendingApiProvider).queue();
       if (mounted) {
         setState(() {
-          _queue = queue;
-          _pacing = pacing;
+          _queue = queue.items;
+          _pacing = queue;
         });
       }
     } on Object {
@@ -60,7 +58,7 @@ class _SendingBarState extends ConsumerState<SendingBar> {
     }
   }
 
-  Future<void> _run(BroadcastSummary b, String action) async {
+  Future<void> _run(QueueItem b, String action) async {
     setState(() => _busy = true);
     try {
       await ref.read(broadcastsApiProvider).change(b.id, action);
@@ -76,7 +74,7 @@ class _SendingBarState extends ConsumerState<SendingBar> {
     }
   }
 
-  Future<void> _stop(BroadcastSummary b) async {
+  Future<void> _stop(QueueItem b) async {
     final bool yes = await showConfirmDialog(
       context: context,
       title: 'Stop sending?',
@@ -97,7 +95,7 @@ class _SendingBarState extends ConsumerState<SendingBar> {
     }
 
     final FThemeData theme = context.theme;
-    final BroadcastSummary b = _queue.first;
+    final QueueItem b = _queue.first;
     final int willGet = b.counts.willGet;
     final double percent = willGet == 0 ? 0 : (b.counts.sent / willGet).clamp(0, 1).toDouble();
     final String note = b.status == 'paused'

@@ -157,26 +157,12 @@ class ContactsApi {
         (await _api.upload(
           '/api/v1/contacts/import',
           bytes: file.bytes,
+          filePath: file.path,
           fileName: file.name,
           contentType: contentTypeFor(file.extension),
           query: <String, String>{'apply': '$apply'},
         ))! as Json,
       );
-
-  Future<BirthdaySettings> birthdaySettings() async =>
-      BirthdaySettings.fromJson((await _api.get('/api/v1/birthdays/settings'))! as Json);
-
-  Future<BirthdaySettings> saveBirthdaySettings({required bool enabled, String? time, String? templateId}) async =>
-      BirthdaySettings.fromJson((await _api.put('/api/v1/birthdays/settings', <String, dynamic>{
-        'enabled': enabled,
-        'time': time,
-        'templateId': templateId,
-      }))! as Json);
-
-  Future<List<UpcomingBirthday>> birthdays({int days = 7}) async =>
-      asList(await _api.get('/api/v1/birthdays', query: <String, String>{'days': '$days'}))
-          .map(UpcomingBirthday.fromJson)
-          .toList();
 
   Future<String> defaultLanguage() async =>
       ((await _api.get('/api/v1/preferences'))! as Json)['defaultLanguage'] as String? ?? 'en';

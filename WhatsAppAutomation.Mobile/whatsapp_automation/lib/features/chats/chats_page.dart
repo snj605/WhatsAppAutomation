@@ -15,14 +15,13 @@ import '../broadcasts/broadcasts_api.dart';
 import '../whatsapp/link_whatsapp_page.dart';
 import '../whatsapp/whatsapp_controller.dart';
 import '../whatsapp/whatsapp_models.dart';
-import 'birthdays_chat_page.dart';
 import 'broadcast_page.dart';
 import 'chat_models.dart';
 import 'chats_api.dart';
 import 'new_message_page.dart';
 import 'target_chat_page.dart';
 
-/// The Chats tab: a summary card on top, then groups, categories, today's Birthdays and sent lists,
+/// The Chats tab: a summary card on top, then groups, categories, and sent lists,
 /// like WhatsApp's chat list.
 class ChatsTab extends ConsumerStatefulWidget {
   const ChatsTab({super.key});
@@ -90,7 +89,6 @@ class ChatsTabState extends ConsumerState<ChatsTab> {
 
   Future<void> _open(ChatListItem c) async {
     final Widget page = switch (c.kind) {
-      'birthdays' => const BirthdaysChatPage(),
       'group' || 'category' => TargetChatPage(kind: c.kind, id: c.id!, name: c.name),
       _ => BroadcastPage(id: c.id!),
     };
@@ -107,7 +105,7 @@ class ChatsTabState extends ConsumerState<ChatsTab> {
   Widget _summary(FThemeData theme, String name, WhatsAppAccount? account) {
     final Pacing? p = _pacing;
     final bool connected = account?.isConnected ?? false;
-    final double raw = p == null || p.dailyCap <= 0 ? 0 : p.sentToday / p.dailyCap;
+    final double raw = p == null || p.dailyLimit <= 0 ? 0 : p.sentToday / p.dailyLimit;
     final double used = raw > 1 ? 1 : raw;
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
@@ -161,12 +159,12 @@ class ChatsTabState extends ConsumerState<ChatsTab> {
           ),
           const SizedBox(height: 4),
           Text(
-            p == null || p.dailyCap <= 0
+            p == null || p.dailyLimit <= 0
                 ? 'Send personal messages to your contacts, one by one.'
-                : '${p.sentToday} of ${p.dailyCap} messages sent today',
+                : '${p.sentToday} of ${p.dailyLimit} messages sent today',
             style: theme.typography.body.sm.copyWith(color: const Color(0xE6FFFFFF)),
           ),
-          if (p != null && p.dailyCap > 0) ...<Widget>[
+          if (p != null && p.dailyLimit > 0) ...<Widget>[
             const SizedBox(height: 10),
             ClipRRect(
               borderRadius: BorderRadius.circular(999),
@@ -221,7 +219,7 @@ class ChatsTabState extends ConsumerState<ChatsTab> {
         .where(
           (ChatListItem c) =>
               (_filter == 'all' ||
-                  (_filter == 'other' ? (c.kind == 'broadcast' || c.kind == 'birthdays') : c.kind == _filter)) &&
+                  (_filter == 'other' ? c.kind == 'broadcast' : c.kind == _filter)) &&
               (q.isEmpty || c.name.toLowerCase().contains(q)),
         )
         .toList();
@@ -249,7 +247,7 @@ class ChatsTabState extends ConsumerState<ChatsTab> {
                 ('all', 'All'),
                 ('group', 'Groups'),
                 ('category', 'Categories'),
-                ('other', 'Sent & birthdays'),
+                ('other', 'Sent'),
               ],
               selected: _filter,
               onChange: (String f) => setState(() => _filter = f),
@@ -277,7 +275,6 @@ class ChatsTabState extends ConsumerState<ChatsTab> {
                       name: c.name,
                       size: 50,
                       icon: switch (c.kind) {
-                        'birthdays' => FLucideIcons.cake,
                         'group' => FLucideIcons.users,
                         'category' => FLucideIcons.tag,
                         _ => null,
@@ -289,9 +286,7 @@ class ChatsTabState extends ConsumerState<ChatsTab> {
                         ? const Pill('Sending')
                         : c.last?.status == 'paused'
                             ? const Pill('Paused', color: Color(0xFFD97706))
-                            : c.kind == 'birthdays' && c.memberCount > 0
-                                ? Pill('${c.memberCount}', color: const Color(0xFFEC4899))
-                                : null,
+                            : null,
                     trailing: c.lastAt == null
                         ? null
                         : Text(

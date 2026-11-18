@@ -9,6 +9,7 @@ import '../../core/memory_cache.dart';
 import '../../core/realtime/live_updates.dart';
 import '../../core/ui.dart';
 import '../broadcasts/broadcast_models.dart';
+import '../files/files_api.dart';
 import 'broadcast_page.dart';
 import 'chat_bubble.dart';
 import 'chat_info_page.dart';
@@ -103,7 +104,7 @@ class _TargetChatPageState extends ConsumerState<TargetChatPage> {
     }
   }
 
-  Future<bool> _send(String text, String? attachmentId) async {
+  Future<bool> _send(String text, UploadedFile? file) async {
     final TargetChat? chat = _chat;
     if (chat == null) {
       return false;
@@ -114,7 +115,8 @@ class _TargetChatPageState extends ConsumerState<TargetChatPage> {
       final BroadcastInput input = BroadcastInput(
         name: chat.name,
         text: text,
-        attachmentId: attachmentId,
+        attachmentId: file?.id,
+        sendVideoAsDocument: file?.isBigVideo ?? false,
         groupIds: chat.kind == 'group' ? <String>[chat.id] : const <String>[],
         categoryIds: chat.kind == 'category' ? <String>[chat.id] : const <String>[],
       );

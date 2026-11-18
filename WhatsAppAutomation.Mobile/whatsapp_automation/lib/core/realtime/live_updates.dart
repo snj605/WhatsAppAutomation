@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/auth/auth_models.dart';
 import '../../features/auth/session_controller.dart';
 import '../config.dart';
+import '../json.dart';
 import '../providers.dart';
 import 'hub_connection.dart';
 
@@ -28,6 +29,7 @@ final Provider<LiveUpdates> liveUpdatesProvider = Provider<LiveUpdates>((Ref ref
 class LiveUpdates {
   final StreamController<void> _changed = StreamController<void>.broadcast();
   final StreamController<void> _contacts = StreamController<void>.broadcast();
+  final StreamController<Json> _notifications = StreamController<Json>.broadcast();
   HubConnection? _hub;
   StreamSubscription<HubMessage>? _events;
   Timer? _debounce;
@@ -38,11 +40,18 @@ class LiveUpdates {
   /// Fires after the server checked numbers on WhatsApp (contacts moved to "Not on WhatsApp" or were confirmed).
   Stream<void> get contactsChanged => _contacts.stream;
 
+  /// A new notification (number logged out, sending paused, occasion wishes started), as the server's JSON.
+  Stream<Json> get notificationReceived => _notifications.stream;
+
   void _attach(HubConnection hub) {
     _hub = hub;
     _events = hub.messages.listen((HubMessage m) {
       if (m.target == 'contacts' && !_contacts.isClosed) {
         _contacts.add(null);
+      }
+
+      if (m.target == 'notification' && m.arguments.isNotEmpty && m.arguments.first is Map && !_notifications.isClosed) {
+        _notifications.add((m.arguments.first as Map<dynamic, dynamic>).cast<String, dynamic>());
       }
 
       if (m.target == 'message') {
@@ -65,5 +74,6 @@ class LiveUpdates {
     unawaited(_hub?.stop());
     unawaited(_changed.close());
     unawaited(_contacts.close());
+    unawaited(_notifications.close());
   }
 }

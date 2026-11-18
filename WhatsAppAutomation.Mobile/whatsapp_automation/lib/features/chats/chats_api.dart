@@ -18,5 +18,4 @@ class ChatsApi {
   Future<TargetChat> target(String kind, String id) async =>
       TargetChat.fromJson((await _api.get('/api/v1/chats/$kind/$id'))! as Json);
 
-  Future<BirthdaysChat> birthdays() async => BirthdaysChat.fromJson((await _api.get('/api/v1/chats/birthdays'))! as Json);
 }

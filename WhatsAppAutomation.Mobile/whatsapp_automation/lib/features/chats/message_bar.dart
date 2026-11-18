@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../app/confirm_dialog.dart';
 import '../../core/format.dart';
 import '../../core/ui.dart';
 import '../files/files_api.dart';
@@ -22,8 +23,73 @@ void insertAtCursor(TextEditingController controller, String value) {
   );
 }
 
-/// Choose a file on the phone and upload it. Shows what went wrong as a toast; returns null then.
+/// Choose a file on the phone (or give a Google Drive link) and upload it. A video over 100 MB can only go as a
+/// file: the user is asked once. Shows what went wrong as a toast; returns null then.
 Future<UploadedFile?> pickAndUpload(BuildContext context, WidgetRef ref) async {
+  final String? from = await showChoiceDialog<String>(
+    context: context,
+    icon: FLucideIcons.paperclip,
+    title: 'Attach a file',
+    body: 'A photo, video or document up to 512 MB.',
+    choices: const <DialogChoice<String>>[
+      (value: 'phone', label: 'From this phone', variant: FButtonVariant.primary),
+      (value: 'drive', label: 'Google Drive link', variant: FButtonVariant.outline),
+    ],
+  );
+  if (from == null || !context.mounted) {
+    return null;
+  }
+
+  final UploadedFile? file = from == 'drive' ? await _fromLink(context, ref) : await _fromPhone(context, ref);
+  if (file == null || !context.mounted) {
+    return null;
+  }
+
+  return await confirmBigVideo(context, file) ? file : null;
+}
+
+/// WhatsApp plays videos only up to 100 MB; a bigger one goes as a file. True when the user keeps it.
+Future<bool> confirmBigVideo(BuildContext context, UploadedFile file) async {
+  if (!file.isBigVideo) {
+    return true;
+  }
+
+  return showConfirmDialog(
+    context: context,
+    icon: FLucideIcons.video,
+    title: 'Send this video as a file?',
+    body: '${file.fileName} is ${fileSizeText(file.sizeBytes)}. WhatsApp plays videos only up to 100 MB, so this one goes '
+        'as a file: people download it and then open it.',
+    confirm: 'Yes, send as a file',
+    cancel: 'Remove it',
+  );
+}
+
+Future<UploadedFile?> _fromLink(BuildContext context, WidgetRef ref) async {
+  final String? url = await showTextDialog(
+    context: context,
+    icon: FLucideIcons.link,
+    title: 'Google Drive link',
+    body: 'Share the file with "Anyone with the link", then paste the link here.',
+    hint: 'https://drive.google.com/file/d/…',
+    confirm: 'Add',
+  );
+  if (url == null || !context.mounted) {
+    return null;
+  }
+
+  try {
+    return await ref.read(filesApiProvider).fromLink(url);
+  } on Object catch (e) {
+    if (context.mounted) {
+      showErrorToast(context, 'Could not get the file', e);
+    }
+
+    return null;
+  }
+}
+
+Future<UploadedFile?> _fromPhone(BuildContext context, WidgetRef ref) async {
   final PickedFile? picked;
   try {
     picked = await pickFile();
@@ -64,7 +130,17 @@ Future<UploadedFile?> pickAndUpload(BuildContext context, WidgetRef ref) async {
 
 /// The small pill buttons above a message box: Name, More, Templates and (optionally) File.
 class ComposerTools extends StatelessWidget {
-  const ComposerTools({super.key, required this.controller, this.enabled = true, this.onAttach, this.attaching = false});
+  const ComposerTools({
+    super.key,
+    required this.controller,
+    this.enabled = true,
+    this.onAttach,
+    this.attaching = false,
+    this.onTemplateFile,
+  });
+
+  /// Called with the file of a chosen template (when it has one), so it goes with the text.
+  final ValueChanged<UploadedFile>? onTemplateFile;
 
   final TextEditingController controller;
   final bool enabled;
@@ -101,9 +177,14 @@ class ComposerTools extends StatelessWidget {
               label: 'Templates',
               onTap: enabled
                   ? () async {
-                      final String? text = await pushPage<String>(context, const TemplatePickerPage());
-                      if (text != null) {
+                      final PickedMessage? picked = await pushPage<PickedMessage>(context, const TemplatePickerPage());
+                      if (picked != null) {
+                        final String text = picked.text;
                         controller.value = TextEditingValue(text: text, selection: TextSelection.collapsed(offset: text.length));
+                        final UploadedFile? file = picked.file;
+                        if (file != null) {
+                          onTemplateFile?.call(file);
+                        }
                       }
                     }
                   : null,
@@ -204,7 +285,7 @@ class AttachmentChip extends StatelessWidget {
 }
 
 /// The message box at the bottom of a group, category or Birthdays chat, like WhatsApp.
-/// [onSend] gets the text and the uploaded file's id, and returns true when the message went out;
+/// [onSend] gets the text and the uploaded file, and returns true when the message went out;
 /// the box is then cleared.
 class MessageBar extends ConsumerStatefulWidget {
   const MessageBar({
@@ -217,7 +298,7 @@ class MessageBar extends ConsumerStatefulWidget {
     this.disabledNote,
   });
 
-  final Future<bool> Function(String text, String? attachmentId) onSend;
+  final Future<bool> Function(String text, UploadedFile? file) onSend;
   final String initialText;
   final String hint;
   final bool disabled;
@@ -272,7 +353,7 @@ class _MessageBarState extends ConsumerState<MessageBar> {
     }
 
     FocusScope.of(context).unfocus();
-    if (await widget.onSend(text, _attachment?.id) && mounted) {
+    if (await widget.onSend(text, _attachment) && mounted) {
       _text.clear();
       setState(() => _attachment = null);
     }
@@ -299,7 +380,13 @@ class _MessageBarState extends ConsumerState<MessageBar> {
               Text(widget.disabledNote!, style: theme.typography.body.xs.copyWith(color: theme.colors.mutedForeground)),
               const SizedBox(height: 6),
             ],
-            ComposerTools(controller: _text, enabled: !widget.busy, onAttach: _attach, attaching: _uploading),
+            ComposerTools(
+              controller: _text,
+              enabled: !widget.busy,
+              onAttach: _attach,
+              attaching: _uploading,
+              onTemplateFile: (UploadedFile f) => setState(() => _attachment = f),
+            ),
             if (_attachment != null) ...<Widget>[
               const SizedBox(height: 8),
               AttachmentChip(file: _attachment!, onRemove: widget.busy ? null : () => setState(() => _attachment = null)),
@@ -376,7 +463,10 @@ class _InsertsPage extends StatelessWidget {
       );
 }
 
-/// The user's own templates and the ready messages. Returns the chosen text.
+/// A message chosen in [TemplatePickerPage]: its text and, for a template with one, its file.
+typedef PickedMessage = ({String text, UploadedFile? file});
+
+/// The user's own templates, the shared ones and the ready messages. Returns the chosen one.
 class TemplatePickerPage extends ConsumerStatefulWidget {
   const TemplatePickerPage({super.key});
 
@@ -420,10 +510,10 @@ class _TemplatePickerPageState extends ConsumerState<TemplatePickerPage> {
                 children: <Widget>[
                   for (final MessageTemplate t in _mine!)
                     ListRow(
-                      leading: const IconBadge(FLucideIcons.fileText),
-                      title: t.name,
+                      leading: IconBadge(t.attachment != null ? FLucideIcons.paperclip : FLucideIcons.fileText),
+                      title: t.shared ? '${t.name} · Shared' : t.name,
                       subtitle: friendlyPlaceholders(t.text),
-                      onTap: () => Navigator.of(context).pop(t.text),
+                      onTap: () => Navigator.of(context).pop<PickedMessage>((text: t.text, file: t.attachment)),
                     ),
                 ],
               ),
@@ -435,7 +525,7 @@ class _TemplatePickerPageState extends ConsumerState<TemplatePickerPage> {
                     leading: const IconBadge(FLucideIcons.sparkles, color: Color(0xFFF59E0B)),
                     title: label,
                     subtitle: friendlyPlaceholders(text),
-                    onTap: () => Navigator.of(context).pop(text),
+                    onTap: () => Navigator.of(context).pop<PickedMessage>((text: text, file: null)),
                   ),
               ],
             ),

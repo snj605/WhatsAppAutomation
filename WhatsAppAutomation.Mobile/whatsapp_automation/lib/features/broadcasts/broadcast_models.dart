@@ -89,6 +89,9 @@ class BroadcastAttachment {
   /// False once the server freed the file after sending: it cannot be sent again.
   final bool kept;
 
+  /// A video over 100 MB goes as a file (the user agreed when it was first sent).
+  bool get isBigVideo => contentType.startsWith('video/') && sizeBytes > 100 * 1024 * 1024;
+
   final String id;
   final String fileName;
   final String contentType;
@@ -221,7 +224,7 @@ class Pacing {
     required this.nextSendAt,
     this.connected = false,
     this.sentToday = 0,
-    this.dailyCap = 0,
+    this.dailyLimit = 0,
     this.sendingHours,
   });
 
@@ -230,13 +233,13 @@ class Pacing {
         nextSendAt: asDateOrNull(json['nextSendAt']),
         connected: asBool(json['connected']),
         sentToday: asInt(json['sentToday']),
-        dailyCap: asInt(json['dailyCap']),
+        dailyLimit: asInt(json['dailyLimit']),
         sendingHours: json['sendingHours'] as String?,
       );
 
   final bool connected;
   final int sentToday;
-  final int dailyCap;
+  final int dailyLimit;
 
   /// For example "9:00–21:00".
   final String? sendingHours;
@@ -256,7 +259,8 @@ class BroadcastInput {
     this.groupIds = const <String>[],
     this.contactIds = const <String>[],
     this.allContacts = false,
-    this.forBirthday = false,
+    this.moduleId,
+    this.sendVideoAsDocument = false,
   });
 
   final String name;
@@ -266,7 +270,12 @@ class BroadcastInput {
   final List<String> groupIds;
   final List<String> contactIds;
   final bool allContacts;
-  final bool forBirthday;
+
+  /// Wishes of an occasion module (Birthday, Anniversary, ...): they go first and show on its page.
+  final String? moduleId;
+
+  /// The file is a video over 100 MB and the user agreed that it goes as a file.
+  final bool sendVideoAsDocument;
 
   Json toJson() => <String, dynamic>{
         'name': name,
@@ -279,7 +288,8 @@ class BroadcastInput {
         'contactIds': contactIds,
         'allContacts': allContacts,
         'attachmentId': attachmentId,
-        'forBirthday': forBirthday,
+        'moduleId': moduleId,
+        'sendVideoAsDocument': sendVideoAsDocument,
       };
 }
 

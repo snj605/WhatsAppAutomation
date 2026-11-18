@@ -12,27 +12,42 @@ final Provider<FilesApi> filesApiProvider = Provider<FilesApi>((Ref ref) => File
 
 /// A file uploaded to send with a message (POST /api/v1/files).
 class UploadedFile {
-  const UploadedFile({required this.id, required this.fileName, required this.contentType, required this.sizeBytes});
+  const UploadedFile({
+    required this.id,
+    required this.fileName,
+    required this.contentType,
+    required this.sizeBytes,
+    this.isBigVideo = false,
+  });
 
   factory UploadedFile.fromJson(Json json) => UploadedFile(
         id: json['id'] as String,
         fileName: json['fileName'] as String? ?? '',
         contentType: json['contentType'] as String? ?? '',
         sizeBytes: asInt(json['sizeBytes']),
+        isBigVideo: asBool(json['isBigVideo']),
       );
 
   final String id;
   final String fileName;
   final String contentType;
   final int sizeBytes;
+
+  /// A video over 100 MB: WhatsApp takes it only as a file (document), not as a playable video.
+  final bool isBigVideo;
 }
 
-/// A file the user chose on the phone, read into memory.
+/// A file the user chose on the phone. Big files are sent from their place on the phone ([path]) without being
+/// read into memory; [bytes] is used only where there is no path.
 class PickedFile {
-  const PickedFile({required this.name, required this.bytes});
+  const PickedFile({required this.name, this.bytes = const <int>[], this.path, int? size}) : _size = size;
 
   final String name;
   final List<int> bytes;
+  final String? path;
+  final int? _size;
+
+  int get size => _size ?? bytes.length;
 
   String get extension {
     final int dot = name.lastIndexOf('.');
@@ -40,7 +55,8 @@ class PickedFile {
   }
 }
 
-const int maxFileBytes = 16 * 1024 * 1024;
+const int maxFileBytes = 512 * 1024 * 1024;
+const int maxVideoBytes = 100 * 1024 * 1024;
 
 /// Programs and scripts the server refuses; checked here too so the user hears it at once (same list as the website).
 const List<String> _blocked = <String>[
@@ -49,12 +65,12 @@ const List<String> _blocked = <String>[
 
 /// Why a file cannot be sent, or null when it can (same rules as the website).
 String? fileProblem(PickedFile file) {
-  if (file.bytes.isEmpty) {
+  if (file.size == 0) {
     return 'The file is empty.';
   }
 
-  if (file.bytes.length > maxFileBytes) {
-    return 'The file is larger than 16 MB.';
+  if (file.size > maxFileBytes) {
+    return 'The file is larger than 512 MB.';
   }
 
   if (_blocked.contains(file.extension)) {
@@ -101,7 +117,11 @@ Future<PickedFile?> pickFile({List<String>? extensions}) async {
     return null;
   }
 
-  return PickedFile(name: file.name, bytes: await file.readAsBytes());
+  // On a phone the file has a path: it is streamed when sent. Read into memory only where there is none.
+  final String? path = file.path;
+  return path != null
+      ? PickedFile(name: file.name, path: path, size: file.size)
+      : PickedFile(name: file.name, bytes: await file.readAsBytes());
 }
 
 /// Asks where to save [bytes] on the phone (Downloads, Drive…) and saves them there.
@@ -126,9 +146,14 @@ class FilesApi {
       (await _api.upload(
         '/api/v1/files',
         bytes: file.bytes,
+        filePath: file.path,
         fileName: file.name,
         contentType: contentTypeFor(file.extension),
       ))! as Json,
     );
   }
+
+  /// A Google Drive link shared with "Anyone with the link": the server fetches the file.
+  Future<UploadedFile> fromLink(String url) async =>
+      UploadedFile.fromJson((await _api.post('/api/v1/files/from-link', <String, dynamic>{'url': url}))! as Json);
 }

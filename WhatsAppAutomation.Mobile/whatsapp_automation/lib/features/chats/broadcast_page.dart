@@ -11,6 +11,8 @@ import '../../core/realtime/live_updates.dart';
 import '../../core/ui.dart';
 import '../broadcasts/broadcast_models.dart';
 import '../broadcasts/broadcasts_api.dart';
+import '../sending/results_page.dart';
+import '../sending/sending_api.dart';
 import 'chat_bubble.dart';
 import 'send_flow.dart';
 
@@ -132,27 +134,35 @@ class _BroadcastPageState extends ConsumerState<BroadcastPage> {
     }
   }
 
-  /// A new message with the same text (and file, while the server still has it) to the people who failed.
+  /// Puts the people who failed back in this message's queue (numbers not on WhatsApp are left out).
   Future<void> _sendAgain(BroadcastDetails d, List<Recipient> failed) async {
-    final List<String> ids = failed.map((Recipient r) => r.contactId).whereType<String>().toSet().toList();
-    if (ids.isEmpty || d.text == null) {
+    if (failed.isEmpty) {
+      return;
+    }
+
+    final bool yes = await showConfirmDialog(
+      context: context,
+      icon: FLucideIcons.rotateCcw,
+      title: 'Send again to ${failed.length} ${failed.length == 1 ? 'person' : 'people'}?',
+      body: 'They go back in the queue and go out one by one. Numbers not on WhatsApp are left out.',
+      confirm: 'Send again',
+      cancel: 'Not now',
+    );
+    if (!yes || !mounted) {
       return;
     }
 
     setState(() => _busy = true);
     try {
-      final BroadcastSummary? created = await confirmAndSend(
-        context,
-        ref,
-        BroadcastInput(
-          name: '${d.summary.name} (again)',
-          text: d.text!,
-          attachmentId: (d.attachment?.kept ?? false) ? d.attachment!.id : null,
-          contactIds: ids,
-        ),
-      );
-      if (created != null && mounted) {
-        await Navigator.of(context).pushReplacement(MaterialPageRoute<void>(builder: (_) => BroadcastPage(id: created.id)));
+      await ref.read(sendingApiProvider).retry(widget.id, null);
+      if (mounted) {
+        showInfoToast(context, 'Sending again', description: 'They are back in the queue.');
+      }
+
+      await _load(showErrors: true);
+    } on Object catch (e) {
+      if (mounted) {
+        showErrorToast(context, 'Not sent again', e);
       }
     } finally {
       if (mounted) {
@@ -267,11 +277,20 @@ class _BroadcastPageState extends ConsumerState<BroadcastPage> {
       fontWeight: FontWeight.w600,
     );
     final Color tone = statusColor(context, s.status);
-    final bool canSendAgain = !s.isLive && failed.isNotEmpty && d.text != null;
+    final bool canSendAgain = failed.isNotEmpty;
 
     return PageScaffold(
       title: s.name,
       subtitle: '${dayMonthText(s.createdAt)} · ${timeText(s.createdAt)}',
+      actions: <Widget>[
+        FHeaderAction(
+          icon: const Icon(FLucideIcons.listChecks),
+          onPress: () async {
+            await pushPage<void>(context, ResultsPage(id: widget.id));
+            await _load(showErrors: false);
+          },
+        ),
+      ],
       child: RefreshIndicator(
         onRefresh: () => _load(showErrors: true),
         child: ListView(

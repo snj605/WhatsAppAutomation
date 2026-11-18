@@ -24,10 +24,10 @@ class ChatListItem {
         last: json['last'] == null ? null : BroadcastSummary.fromJson(json['last'] as Json),
       );
 
-  /// group, category, birthdays or broadcast.
+  /// group, category or broadcast.
   final String kind;
 
-  /// Group, category or broadcast id; null for today's Birthdays.
+  /// Group, category or broadcast id.
   final String? id;
   final String name;
   final int memberCount;
@@ -40,10 +40,6 @@ class ChatListItem {
     final BroadcastSummary? l = last;
     if (l != null && l.isLive) {
       return chatSubtitle(l);
-    }
-
-    if (kind == 'birthdays') {
-      return memberCount == 1 ? '1 birthday today · tap to wish' : '$memberCount birthdays today · tap to wish';
     }
 
     if (lastText != null) {
@@ -98,45 +94,3 @@ class TargetChat {
   final List<ChatMessage> messages;
 }
 
-class BirthdayPerson {
-  const BirthdayPerson({
-    required this.contactId,
-    required this.name,
-    required this.phoneNumber,
-    required this.turnsAge,
-    required this.optedOut,
-    required this.status,
-  });
-
-  factory BirthdayPerson.fromJson(Json json) => BirthdayPerson(
-        contactId: json['contactId'] as String,
-        name: json['name'] as String? ?? '',
-        phoneNumber: json['phoneNumber'] as String? ?? '',
-        turnsAge: asIntOrNull(json['turnsAge']),
-        optedOut: asBool(json['optedOut']),
-        status: json['status'] as String? ?? 'not_sent',
-      );
-
-  final String contactId;
-  final String name;
-  final String phoneNumber;
-  final int? turnsAge;
-  final bool optedOut;
-
-  /// not_sent, pending, sent, delivered, read, failed or skipped.
-  final String status;
-}
-
-class BirthdaysChat {
-  const BirthdaysChat({required this.date, required this.people, required this.messages});
-
-  factory BirthdaysChat.fromJson(Json json) => BirthdaysChat(
-        date: asDateOrNull(json['date']) ?? DateTime.now(),
-        people: asList(json['people']).map(BirthdayPerson.fromJson).toList(),
-        messages: asList(json['messages']).map(ChatMessage.fromJson).toList(),
-      );
-
-  final DateTime date;
-  final List<BirthdayPerson> people;
-  final List<ChatMessage> messages;
-}

@@ -17,14 +17,17 @@ import 'message_bar.dart';
 
 /// People and a text to start with, for example birthday wishes from the Birthdays tab.
 class ComposerPreset {
-  const ComposerPreset({required this.name, required this.people, required this.text, this.forBirthday = false});
+  const ComposerPreset({required this.name, required this.people, required this.text, this.moduleId, this.attachment});
 
   final String name;
   final List<({String id, String label})> people;
   final String text;
 
-  /// All of them have their birthday today: the wishes then show in today's Birthdays chat.
-  final bool forBirthday;
+  /// Wishes of an occasion module: they go before other messages and show on the module's page.
+  final String? moduleId;
+
+  /// The module template's file, sent with the text.
+  final UploadedFile? attachment;
 }
 
 /// A new message in three steps, like the website: 1. Who  2. Message  3. Check and send.
@@ -73,6 +76,7 @@ class _NewMessagePageState extends ConsumerState<NewMessagePage> {
     final ComposerPreset? preset = widget.preset;
     if (preset != null) {
       _text.text = preset.text;
+      _attachment = preset.attachment;
       _picked = <String, String>{for (final ({String id, String label}) p in preset.people) p.id: p.label};
       _audience = 'people';
       _step = 2;
@@ -184,8 +188,9 @@ class _NewMessagePageState extends ConsumerState<NewMessagePage> {
       name: widget.preset?.name ?? chatName(text),
       text: text,
       attachmentId: _attachment?.id,
+      sendVideoAsDocument: _attachment?.isBigVideo ?? false,
       allContacts: _audience == 'all',
-      forBirthday: _audience == 'people' && (widget.preset?.forBirthday ?? false),
+      moduleId: _audience == 'people' ? widget.preset?.moduleId : null,
       categoryIds: _audience == 'categories' ? _categoryIds.toList() : const <String>[],
       groupIds: _audience == 'groups' ? _groupIds.toList() : const <String>[],
       contactIds: _audience == 'people' ? _picked.keys.toList() : const <String>[],
@@ -469,6 +474,7 @@ class _NewMessagePageState extends ConsumerState<NewMessagePage> {
           ComposerTools(
             controller: _text,
             attaching: _uploading,
+            onTemplateFile: (UploadedFile f) => setState(() => _attachment = f),
             onAttach: () async {
               setState(() => _uploading = true);
               final UploadedFile? file = await pickAndUpload(context, ref);

@@ -8,14 +8,6 @@ import '../home/me_page.dart';
 import 'admin_api.dart';
 import 'admin_forms.dart';
 
-/// The platform admin's whole app: the tenants, and Me (password, look, sign out).
-class PlatformHomePage extends StatelessWidget {
-  const PlatformHomePage({super.key});
-
-  @override
-  Widget build(BuildContext context) => const TenantsPage(showMe: true);
-}
-
 /// Tenants (platform admin): every tenant with counts. Never shows a tenant's contacts or messages.
 /// Same screen as the website's Tenants page.
 class TenantsPage extends ConsumerStatefulWidget {

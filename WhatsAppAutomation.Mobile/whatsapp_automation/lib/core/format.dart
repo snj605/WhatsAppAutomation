@@ -143,3 +143,10 @@ String sampleText(String text, {String name = 'Ramesh Patel'}) => text
     .replaceAll(RegExp(r'\{\{\s*name_en\s*\}\}|\{name_en\}', caseSensitive: false), name)
     .replaceAll(RegExp(r'\{\{\s*name\s*\}\}|\{name\}', caseSensitive: false), name)
     .replaceAll(RegExp(r'\{\{\s*salutation\s*\}\}|\{salutation\}', caseSensitive: false), 'Dear');
+
+/// "07:15" → "07:15 AM".
+String hhmmText(String? hhmm) {
+  final List<String> parts = (hhmm ?? '00:00').split(':');
+  final DateTime t = DateTime(2000, 1, 1, int.tryParse(parts.first) ?? 0, parts.length > 1 ? int.tryParse(parts[1]) ?? 0 : 0);
+  return timeText(t);
+}

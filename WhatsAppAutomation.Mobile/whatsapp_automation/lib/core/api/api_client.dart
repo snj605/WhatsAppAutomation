@@ -55,11 +55,13 @@ class ApiClient {
     return response.bodyBytes;
   }
 
-  /// Sends one file as multipart form data in the field "file", like the website's uploads.
-  /// Uploads get more time than other calls: a 16 MB file on a slow phone connection takes a while.
+  /// Sends one file as multipart form data in the field "file", like the website's uploads. With [filePath] the
+  /// file is streamed from the phone (big videos are not read into memory); otherwise [bytes] are sent.
+  /// Uploads get much more time than other calls: a big file on a slow phone connection takes a while.
   Future<Object?> upload(
     String path, {
     required List<int> bytes,
+    String? filePath,
     required String fileName,
     String? contentType,
     Map<String, String>? query,
@@ -71,7 +73,7 @@ class ApiClient {
       throw signedOut;
     }
 
-    http.Response response = await _uploadOnce(uri, token, bytes, fileName, contentType);
+    http.Response response = await _uploadOnce(uri, token, bytes, filePath, fileName, contentType);
     if (response.statusCode == 401) {
       final String? renewed =
           await _guarded<bool>(_auth.refresh) ? await _guarded<String?>(_auth.accessToken) : null;
@@ -79,7 +81,7 @@ class ApiClient {
         throw signedOut;
       }
 
-      response = await _uploadOnce(uri, renewed, bytes, fileName, contentType);
+      response = await _uploadOnce(uri, renewed, bytes, filePath, fileName, contentType);
     }
 
     if (response.statusCode >= 400) {
@@ -89,21 +91,26 @@ class ApiClient {
     return response.body.isEmpty ? null : jsonDecode(response.body);
   }
 
-  Future<http.Response> _uploadOnce(Uri uri, String token, List<int> bytes, String fileName, String? contentType) {
-    final http.MultipartRequest request = http.MultipartRequest('POST', uri)
-      ..headers['Authorization'] = 'Bearer $token'
-      ..headers['Accept'] = 'application/json'
-      ..files.add(
-        http.MultipartFile.fromBytes(
-          'file',
-          bytes,
-          filename: fileName,
-          contentType: contentType == null ? null : MediaType.parse(contentType),
-        ),
-      );
-    return _guarded(
-      () async => http.Response.fromStream(await _http.send(request).timeout(const Duration(minutes: 3))),
-    );
+  Future<http.Response> _uploadOnce(
+    Uri uri,
+    String token,
+    List<int> bytes,
+    String? filePath,
+    String fileName,
+    String? contentType,
+  ) {
+    final MediaType? type = contentType == null ? null : MediaType.parse(contentType);
+    return _guarded(() async {
+      final http.MultipartRequest request = http.MultipartRequest('POST', uri)
+        ..headers['Authorization'] = 'Bearer $token'
+        ..headers['Accept'] = 'application/json'
+        ..files.add(
+          filePath != null
+              ? await http.MultipartFile.fromPath('file', filePath, filename: fileName, contentType: type)
+              : http.MultipartFile.fromBytes('file', bytes, filename: fileName, contentType: type),
+        );
+      return http.Response.fromStream(await _http.send(request).timeout(const Duration(minutes: 30)));
+    });
   }
 
   Future<Object?> _send(String method, String path, {Object? body, Map<String, String>? query}) async {

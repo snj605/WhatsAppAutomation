@@ -4,7 +4,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../core/config.dart';
 import '../features/account/change_password_page.dart';
-import '../features/admin/tenants_page.dart';
+import '../features/admin/dashboard_page.dart';
 import '../features/auth/auth_models.dart';
 import '../features/auth/lock_page.dart';
 import '../features/auth/login_page.dart';

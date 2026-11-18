@@ -5,10 +5,14 @@ import 'package:material_ui/material_ui.dart';
 import '../../app/confirm_dialog.dart';
 import '../../core/format.dart';
 import '../../core/ui.dart';
+import '../auth/auth_models.dart';
+import '../auth/session_controller.dart';
 import '../chats/message_bar.dart';
+import '../files/files_api.dart';
 import 'templates_api.dart';
 
-/// The user's saved messages: add, change, delete. Same as the website's Templates page.
+/// The user's saved messages and the organisation's shared ones: add, change, delete. Same as the website's Templates
+/// page. Only an organisation's admin can share a template; members see shared ones read-only.
 class TemplatesPage extends ConsumerStatefulWidget {
   const TemplatesPage({super.key});
 
@@ -106,15 +110,18 @@ class _TemplatesPageState extends ConsumerState<TemplatesPage> {
                         children: <Widget>[
                       for (final MessageTemplate t in _list!)
                         ListRow(
-                          leading: const IconBadge(FLucideIcons.fileText),
+                          leading: IconBadge(t.attachment != null ? FLucideIcons.paperclip : FLucideIcons.fileText),
                           title: t.name,
                           subtitle: friendlyPlaceholders(t.text),
-                          trailing: FButton.icon(
-                            variant: FButtonVariant.ghost,
-                            onPress: () => _delete(t),
-                            child: const Icon(FLucideIcons.trash2),
-                          ),
-                          onTap: () => _edit(t),
+                          badge: t.shared ? const Pill('Shared') : null,
+                          trailing: t.canEdit
+                              ? FButton.icon(
+                                  variant: FButtonVariant.ghost,
+                                  onPress: () => _delete(t),
+                                  child: const Icon(FLucideIcons.trash2),
+                                )
+                              : null,
+                          onTap: t.canEdit ? () => _edit(t) : null,
                         ),
                         ],
                       ),
@@ -135,8 +142,22 @@ class _TemplateEditPage extends ConsumerStatefulWidget {
 class _TemplateEditPageState extends ConsumerState<_TemplateEditPage> {
   late final TextEditingController _name = TextEditingController(text: widget.template?.name ?? '');
   late final TextEditingController _text = TextEditingController(text: widget.template?.text ?? '');
+  late bool _shared = widget.template?.shared ?? false;
+  late UploadedFile? _file = widget.template?.attachment;
   bool _saving = false;
+  bool _uploading = false;
   String? _error;
+
+  Future<void> _attach() async {
+    setState(() => _uploading = true);
+    final UploadedFile? file = await pickAndUpload(context, ref);
+    if (mounted) {
+      setState(() {
+        _uploading = false;
+        _file = file ?? _file;
+      });
+    }
+  }
 
   @override
   void initState() {
@@ -163,7 +184,15 @@ class _TemplateEditPageState extends ConsumerState<_TemplateEditPage> {
       _error = null;
     });
     try {
-      await ref.read(templatesApiProvider).save(widget.template?.id, _name.text.trim(), _text.text.trim());
+      final SessionState session = ref.read(sessionProvider);
+      final bool admin = session is SignedIn && session.user.kind == UserKind.tenantAdmin;
+      await ref.read(templatesApiProvider).save(
+            widget.template?.id,
+            _name.text.trim(),
+            _text.text.trim(),
+            shared: admin && _shared,
+            attachmentId: _file?.id,
+          );
       if (mounted) {
         Navigator.of(context).pop(true);
       }
@@ -179,7 +208,10 @@ class _TemplateEditPageState extends ConsumerState<_TemplateEditPage> {
   }
 
   @override
-  Widget build(BuildContext context) => PageScaffold(
+  Widget build(BuildContext context) {
+    final SessionState session = ref.watch(sessionProvider);
+    final bool admin = session is SignedIn && session.user.kind == UserKind.tenantAdmin;
+    return PageScaffold(
         title: widget.template == null ? 'New template' : 'Edit template',
         footer: SafeArea(
           top: false,
@@ -198,7 +230,17 @@ class _TemplateEditPageState extends ConsumerState<_TemplateEditPage> {
               enabled: !_saving,
             ),
             const SizedBox(height: 16),
-            ComposerTools(controller: _text, enabled: !_saving),
+            ComposerTools(
+              controller: _text,
+              enabled: !_saving,
+              onAttach: _attach,
+              attaching: _uploading,
+              onTemplateFile: (UploadedFile f) => setState(() => _file = f),
+            ),
+            if (_file != null) ...<Widget>[
+              const SizedBox(height: 8),
+              AttachmentChip(file: _file!, onRemove: _saving ? null : () => setState(() => _file = null)),
+            ],
             const SizedBox(height: 8),
             FTextField.multiline(
               control: FTextFieldControl.managed(controller: _text),
@@ -220,6 +262,21 @@ class _TemplateEditPageState extends ConsumerState<_TemplateEditPage> {
                 child: Text(sampleText(_text.text.trim()), style: context.theme.typography.body.md),
               ),
             ],
+            if (admin) ...<Widget>[
+              const SizedBox(height: 16),
+              CardSection(
+                margin: EdgeInsets.zero,
+                children: <Widget>[
+                  ListRow(
+                    leading: const IconBadge(FLucideIcons.users),
+                    title: 'Share with my organisation',
+                    subtitle: 'Every member can use it; only you can change it',
+                    trailing: FSwitch(value: _shared, onChange: _saving ? null : (bool v) => setState(() => _shared = v)),
+                    onTap: _saving ? null : () => setState(() => _shared = !_shared),
+                  ),
+                ],
+              ),
+            ],
             if (_error != null) ...<Widget>[
               const SizedBox(height: 12),
               FAlert(variant: FAlertVariant.destructive, icon: const Icon(FLucideIcons.circleAlert), title: Text(_error!)),
@@ -227,4 +284,5 @@ class _TemplateEditPageState extends ConsumerState<_TemplateEditPage> {
           ],
         ),
       );
+  }
 }

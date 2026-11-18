@@ -12,6 +12,7 @@ import '../auth/auth_models.dart';
 import '../auth/session_controller.dart';
 import '../contacts/import_page.dart';
 import '../contacts/lists_page.dart';
+import '../notifications/notifications_page.dart';
 import '../templates/templates_page.dart';
 import '../update/update_controller.dart';
 import '../whatsapp/link_whatsapp_page.dart';
@@ -143,6 +144,18 @@ class _MePageState extends ConsumerState<MePage> {
               ),
           ],
         ),
+        if (can('messages.send'))
+          CardSection(
+            children: <Widget>[
+              ListRow(
+                leading: const IconBadge(FLucideIcons.bell),
+                title: 'Notifications',
+                subtitle: 'Your number, sending and occasion wishes',
+                trailing: chevron,
+                onTap: () => pushPage<void>(context, const NotificationsPage()),
+              ),
+            ],
+          ),
         if (can('contacts.view'))
         CardSection(
           title: 'Messages & contacts',
