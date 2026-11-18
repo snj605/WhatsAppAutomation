@@ -122,6 +122,11 @@ namespace WhatsAppAutomation.Infrastructure.Persistence.Migrations
                 principalTable: "stored_files",
                 principalColumn: "id",
                 onDelete: ReferentialAction.SetNull);
+
+            // Hand-written: existing templates belong to their creator's tenant (still private, not shared).
+            migrationBuilder.Sql("""
+                UPDATE message_templates t SET tenant_id = u.tenant_id FROM users u WHERE u.id = t.user_id AND t.tenant_id IS NULL;
+                """);
         }
 
         /// <inheritdoc />

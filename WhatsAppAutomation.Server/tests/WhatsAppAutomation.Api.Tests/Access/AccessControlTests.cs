@@ -199,6 +199,12 @@ public sealed class AccessControlTests(ApiFactory factory)
         var me = (await admin.GetFromJsonAsync<MeResponse>("/api/v1/auth/me", Ct))!;
         Assert.Equal((name, true), (me.User.TenantName, me.User.MustChangePassword));
 
+        var dashboard = (await platform.GetFromJsonAsync<WhatsAppAutomation.Application.Features.Platform.DashboardDto>("/api/v1/platform/dashboard", Ct))!;
+        Assert.Contains(dashboard.TenantRows, r => r.Id == tenantId && r.Users == 1);
+        var audit = (await platform.GetFromJsonAsync<WhatsAppAutomation.Application.Features.Platform.AuditPage>("/api/v1/platform/audit", Ct))!;
+        Assert.Contains(audit.Items, a => a.Action == "tenant.created" && a.TenantName == name);
+        Assert.Equal(HttpStatusCode.Forbidden, (await admin.GetAsync("/api/v1/platform/dashboard", Ct)).StatusCode);
+
         // The platform admin reaches no tenant's contacts or members.
         Assert.Equal(HttpStatusCode.Forbidden, (await platform.GetAsync("/api/v1/members", Ct)).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await platform.GetAsync("/api/v1/contacts", Ct)).StatusCode);
