@@ -92,7 +92,7 @@ The website and the app show the same screens, in the approved look (grey page, 
 **Occasions (modules)**
 
 6. **Occasions** (rail on the website, tab in the app) → **New occasion**: Anniversary (Every year), Asthi (Every year, second name "In memory of"), an Event (One time). A member starts with none; a new tenant admin gets Birthday. Up to 20.
-7. Open an occasion → **Dates** → **Add date** (choose the person, day, month, year; the second name if the occasion has one). Or download the Excel template on **Import contacts**: it has a column per occasion (and "Asthi - In memory of"); fill and import.
+7. Open an occasion → **Dates** → **Add date** (choose the person, day, month, year; the second name if the occasion has one). Or **Import contacts → Download my contacts**: your real contacts with a column per occasion (and "Asthi - In memory of"); fill in dates and import it back.
 8. **Next 7 days**: people by day; **Select all** for a day → **Send to N people** → the composer opens with the occasion's template (or a ready wish) → send. They show "Waiting", then "Sent" and "Delivered" with the time.
 9. **Settings** of the occasion: **Send by itself** on, a time a few minutes ahead, a template with `{{name}}` (and `{{for_name}}`). At that time it sends to everyone with today's date, before other messages, and a notification says it started. Saving a time that already passed today sends to today's people who have not got it yet **within a minute**; changing the time again never sends twice to the same person.
 
@@ -115,9 +115,11 @@ The website and the app show the same screens, in the approved look (grey page, 
 18. **A contact**: Edit → **Occasions** lists only the dates this contact has. **+ Asthi** adds one (day, month, optional year; the second name if the occasion has one). Only your own occasions can be added; remove one with ✕. **More details** shows your fields by type. A member without Birthday sees no birthday anywhere.
 19. **Your old birthdays**: after updating the database (step 2), every contact's birthday is a date of your Birthday occasion — nothing is lost (the old columns stay too).
 20. **Search**: Contacts → choose a field (and a value) → only those people. The same filter is in **New message → People**.
-21. **In messages**: in a template or new message, the field buttons put `{{city}}` in. Each person gets their own value; a person without it is skipped with "Needs details: no City". The Excel template has a column per field and per occasion.
+21. **In messages**: in a template or new message, the field buttons put `{{city}}` in. Each person gets their own value; a person without it is skipped with "Needs details: no City". The Excel download has a column per field and per occasion.
 22. **WhatsApp preview**: in New message, Templates, an occasion's Settings and a sent chat, the message shows as on WhatsApp: green bubble, the real **photo**, the **video** (website: first frame, play inside; app: tap to play), a **document** card (PDF/Word/Excel, size), *bold* _italic_ ~strike~, time and ticks. **Preview for…** picks a person and shows exactly their message (their name, language, second name, fields), or why they would be skipped.
 23. **Unlink really removes the device**: WhatsApp page → **Unlink** → on the phone, WhatsApp → Settings → **Linked devices**: the device is gone. Also try it while the PC's internet is off for a moment or right after restarting the gateway: it reconnects once just to log out. If WhatsApp truly cannot be reached, the app says so and asks you to remove it on the phone.
+24. **Excel with your real data**: Import contacts → **Download my contacts** → the file has all your contacts and their occasion dates and fields (no sample rows). Change a cell, add a new person in a new row, import it: the preview says *N to update, 1 to add*; after importing, the change and the new person are there and nothing else changed. An empty cell keeps what is saved.
+25. **App and website together**: link WhatsApp in the app, then sign in on the website with the same user: it shows the same number as Connected and can send; the app stays signed in and connected.
 
 ## If something goes wrong
 

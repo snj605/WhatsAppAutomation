@@ -201,6 +201,67 @@ public sealed class ContactFieldsApiTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.OK, template.StatusCode);
     }
 
+    [Fact]
+    public async Task The_excel_has_the_real_contacts_and_importing_it_back_updates_and_adds()
+    {
+        var client = await ClientAsync();
+        var birthday = await ModuleAsync(client, "Birthday", "birthday");
+        var asthi = await ModuleAsync(client, "Asthi", "yearly", "In memory of");
+        var city = await FieldAsync(client, "City", "text");
+        var joined = await FieldAsync(client, "Joined", "date");
+        var phone = ApiFactory.UniquePhone();
+        var saved = await SaveAsync(client, null, Input(phone, "Ramesh") with
+        {
+            Language = "gu",
+            NameGu = "રમેશ",
+            Occasions = [new(birthday.Id, 15, 8, 1960, null), new(asthi.Id, 5, 3, null, "Shantaben")],
+            Fields = new Dictionary<Guid, string?> { [city.Id] = "Rajkot", [joined.Id] = "2019-03-05" },
+        });
+
+        // The download is the user's real data in the import's own columns, not sample rows.
+        var bytes = await (await client.GetAsync("/api/v1/contacts/import/template", Ct)).Content.ReadAsByteArrayAsync(Ct);
+        using (var workbook = new ClosedXML.Excel.XLWorkbook(new MemoryStream(bytes)))
+        {
+            var sheet = workbook.Worksheet("Contacts");
+            var headers = sheet.Row(1).CellsUsed().Select(c => c.GetString()).ToList();
+            string Cell(int row, string header) => sheet.Cell(row, headers.IndexOf(header) + 1).GetString();
+            Assert.Equal(2, sheet.LastRowUsed()!.RowNumber());
+            Assert.Equal(phone, Cell(2, "Phone*"));
+            Assert.Equal("gu", Cell(2, "Language"));
+            Assert.Equal("15-08-1960", Cell(2, "Birthday"));
+            Assert.Equal("05-03", Cell(2, "Asthi"));
+            Assert.Equal("Shantaben", Cell(2, "Asthi - In memory of"));
+            Assert.Equal("Rajkot", Cell(2, "City"));
+            Assert.Equal("05-03-2019", Cell(2, "Joined"));
+
+            // The user changes a cell, clears the language (kept as saved) and adds a new person.
+            sheet.Cell(2, headers.IndexOf("City") + 1).SetValue("Surat");
+            sheet.Cell(2, headers.IndexOf("Language") + 1).SetValue(string.Empty);
+            sheet.Cell(3, headers.IndexOf("Phone*") + 1).SetValue(ApiFactory.UniquePhone());
+            sheet.Cell(3, headers.IndexOf("Name (English)") + 1).SetValue("Suresh");
+            sheet.Cell(3, headers.IndexOf("Asthi") + 1).SetValue("01-01");
+            using var edited = new MemoryStream();
+            workbook.SaveAs(edited);
+            bytes = edited.ToArray();
+        }
+
+        using var content = new MultipartFormDataContent();
+        content.Add(new ByteArrayContent(bytes), "file", "my-contacts.xlsx");
+        var response = await client.PostAsync("/api/v1/contacts/import?apply=true", content, Ct);
+        Assert.True(response.IsSuccessStatusCode, await response.Content.ReadAsStringAsync(Ct));
+        var result = (await response.Content.ReadFromJsonAsync<ImportResultDto>(Ct))!;
+        Assert.Equal((1, 1, 0), (result.Created, result.Updated, result.Failed));
+
+        var ramesh = (await client.GetFromJsonAsync<ContactDto>($"/api/v1/contacts/{saved.Id}", Ct))!;
+        Assert.Equal("gu", ramesh.Language);
+        Assert.Equal("Surat", ramesh.Fields[city.Id]);
+        Assert.Equal("2019-03-05", ramesh.Fields[joined.Id]);
+        Assert.Contains(new ContactOccasionDto(birthday.Id, 15, 8, 1960, null), ramesh.Occasions);
+        Assert.Contains(new ContactOccasionDto(asthi.Id, 5, 3, null, "Shantaben"), ramesh.Occasions);
+        var suresh = (await PageAsync(client, "?search=Suresh")).Items.Single();
+        Assert.Equal(new ContactOccasionDto(asthi.Id, 1, 1, null, null), Assert.Single(suresh.Occasions));
+    }
+
     private async Task<HttpClient> ClientAsync() => await factory.CreateClientForAsync(await factory.CreateUserAsync(UserKind.TenantAdmin));
 
     private static ContactInput Input(string phone, string name) => new(phone, null, name, null, null, "en", null, null, null, null, null);

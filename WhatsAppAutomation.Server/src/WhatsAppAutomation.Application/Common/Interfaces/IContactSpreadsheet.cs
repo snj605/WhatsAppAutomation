@@ -16,8 +16,9 @@ public interface IContactSpreadsheet
     /// </summary>
     SpreadsheetReadResult Read(Stream file, string fileName, int maxRows);
 
-    /// <summary>An .xlsx with an Instructions sheet and a Contacts sheet with sample rows and dropdowns.</summary>
-    /// <param name="extraColumns">The user's occasion and custom field columns (header and help text), after the standard ones.</param>
-    /// <param name="withBirthday">Whether the Birthday column is included: only for users with a Birthday occasion.</param>
-    byte[] CreateTemplate(IReadOnlyList<string> categoryNames, IReadOnlyList<(string Header, string Help)> extraColumns, bool withBirthday);
+    /// <summary>
+    /// An .xlsx with an Instructions sheet and a Contacts sheet holding the user's real contacts (one row each), their
+    /// own occasion and field columns after the standard ones, and dropdowns. Importing it again updates and adds.
+    /// </summary>
+    byte[] CreateWorkbook(Features.Contacts.Import.ContactsWorkbook data);
 }

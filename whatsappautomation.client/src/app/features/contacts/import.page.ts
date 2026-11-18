@@ -12,7 +12,7 @@ import { ImportResult, ImportRow } from './contacts.models';
 
 type Step = 'choose' | 'preview' | 'done';
 
-/** Import contacts from Excel or CSV: download the template, preview every row, then import. */
+/** Import contacts from Excel or CSV: download your real contacts, edit or add rows, preview every row, then import. */
 @Component({
   selector: 'app-import-page',
   imports: [FormsModule, RouterLink, ButtonModule, SelectButtonModule, TableModule, TagModule],
@@ -47,7 +47,7 @@ export class ImportPage {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'contacts-template.xlsx';
+      a.download = 'my-contacts.xlsx';
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (e) {

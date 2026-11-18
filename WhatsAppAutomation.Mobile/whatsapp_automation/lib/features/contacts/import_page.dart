@@ -34,12 +34,12 @@ class _ImportPageState extends ConsumerState<ImportPage> {
     try {
       final List<int> bytes = await ref.read(apiClientProvider).getBytes('/api/v1/contacts/import/template');
       final bool saved = await saveToPhone(
-        fileName: 'contacts-template.xlsx',
+        fileName: 'my-contacts.xlsx',
         bytes: bytes,
         mimeType: contentTypeFor('xlsx'),
       );
       if (saved && mounted) {
-        showInfoToast(context, 'Template saved', description: 'Fill it in, then choose it below.');
+        showInfoToast(context, 'Your contacts are saved', description: 'Change or add rows, then choose the file below.');
       }
     } on Object catch (e) {
       if (mounted) {
@@ -215,7 +215,7 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                         ('Name (English / Hindi / Gujarati)', 'the one in the contact’s language is required'),
                         ('Language', 'en, hi or gu; empty uses your default'),
                         ('Groups', 'comma-separated'),
-                        ('Each of your occasions (Birthday, Asthi, …)', 'DD-MM or DD-MM-YYYY; the template has a column for each'),
+                        ('Each of your occasions (Birthday, Asthi, …)', 'DD-MM or DD-MM-YYYY; the file has a column for each'),
                         ('Each of your contact fields (City, …)', 'a column with the field’s name'),
                       ])
                         Padding(
@@ -253,11 +253,12 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                             ? const FCircularProgress.loader(size: FCircularProgressSizeVariant.sm)
                             : const Icon(FLucideIcons.download),
                         onPress: _downloading ? null : _downloadTemplate,
-                        child: const Text('Download the Excel template'),
+                        child: const Text('Download my contacts (Excel)'),
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'With the right columns, dropdowns for Category and Language, and sample rows.',
+                        'All your saved contacts, with a column for each occasion and field. Saved numbers are updated, new ones '
+                        'added; an empty cell keeps what is saved.',
                         style: theme.typography.body.xs.copyWith(color: theme.colors.mutedForeground),
                       ),
                     ],

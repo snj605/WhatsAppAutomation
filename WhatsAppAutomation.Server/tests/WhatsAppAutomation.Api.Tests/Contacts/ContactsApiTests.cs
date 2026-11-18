@@ -174,20 +174,17 @@ public sealed class ContactsApiTests(ApiFactory factory)
     }
 
     [Fact]
-    public async Task The_template_downloads_and_imports_its_own_sample_rows()
+    public async Task Without_contacts_the_excel_has_the_columns_and_no_sample_rows()
     {
         var client = await OwnerAsync();
 
-        var template = await client.GetAsync("/api/v1/contacts/import/template", Ct);
-        Assert.Equal(HttpStatusCode.OK, template.StatusCode);
-        var bytes = await template.Content.ReadAsByteArrayAsync(Ct);
-
-        var response = await ImportRawAsync(client, bytes, "contacts-template.xlsx");
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var preview = (await response.Content.ReadFromJsonAsync<ImportResultDto>(Ct))!;
-        Assert.Equal(3, preview.Created);
-        Assert.Equal(0, preview.Failed);
-        Assert.Equal(["Elders", "Youngers", "Others"], preview.NewCategories);
+        var download = await client.GetAsync("/api/v1/contacts/import/template", Ct);
+        Assert.Equal(HttpStatusCode.OK, download.StatusCode);
+        Assert.Equal("my-contacts.xlsx", download.Content.Headers.ContentDisposition?.FileName?.Trim('"'));
+        using var workbook = new ClosedXML.Excel.XLWorkbook(new MemoryStream(await download.Content.ReadAsByteArrayAsync(Ct)));
+        var sheet = workbook.Worksheet("Contacts");
+        Assert.Equal("Phone*", sheet.Cell(1, 1).GetString());
+        Assert.Equal(1, sheet.LastRowUsed()!.RowNumber());
     }
 
     [Fact]

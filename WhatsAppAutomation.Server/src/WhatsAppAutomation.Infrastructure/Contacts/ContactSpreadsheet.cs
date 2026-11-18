@@ -22,17 +22,20 @@ internal sealed class ContactSpreadsheet : IContactSpreadsheet
         };
     }
 
-    public byte[] CreateTemplate(IReadOnlyList<string> categoryNames, IReadOnlyList<(string Header, string Help)> extraColumns, bool withBirthday)
+    public byte[] CreateWorkbook(ContactsWorkbook data)
     {
+        var (categoryNames, extraColumns, withBirthday) = (data.CategoryNames, data.ExtraColumns, data.WithBirthday);
         using var workbook = new XLWorkbook();
         var columns = ImportColumns.All.Where(c => withBirthday || c.Key != ImportColumns.Birthday).ToList();
 
         var help = workbook.AddWorksheet("Instructions");
-        help.Cell(1, 1).Value = "How to fill in the Contacts sheet";
+        help.Cell(1, 1).Value = "Your contacts: change them here and import the file again";
         help.Cell(1, 1).Style.Font.SetBold().Font.SetFontSize(14);
-        help.Cell(2, 1).Value = "One row per person. Columns marked * are required. Replace or delete the three sample rows before importing.";
-        help.Cell(3, 1).Value = "The real name in the contact's language is required too: messages use it. Rows with mistakes are listed in the preview and not saved.";
-        help.Cell(4, 1).Value = "Existing contacts are matched by phone number and updated; empty cells keep what is saved.";
+        help.Cell(2, 1).Value = $"The Contacts sheet has your {data.Rows.Count} saved contacts, with a column for each of your occasions and contact fields. "
+            + "Change any cell, or add new people in new rows. Columns marked * are required.";
+        help.Cell(3, 1).Value = "Import: rows are matched by phone number, so saved contacts are updated and new numbers are added. An empty cell keeps what is saved; "
+            + "groups listed are added (the contact stays in its other groups). Removing a row does not delete the contact.";
+        help.Cell(4, 1).Value = "The real name in the contact's language is required: messages use it. The import shows a preview first; rows with mistakes are listed and not saved. Up to 5000 rows per file.";
         help.Cell(6, 1).Value = "Column";
         help.Cell(6, 2).Value = "What to enter";
         help.Range(6, 1, 6, 2).Style.Font.SetBold().Fill.SetBackgroundColor(XLColor.FromHtml("#d1fae5"));
@@ -77,26 +80,17 @@ internal sealed class ContactSpreadsheet : IContactSpreadsheet
             sheet.Column(columns.Count + i + 1).Width = 22;
         }
 
-        string[] keys = [ImportColumns.Phone, ImportColumns.SavedName, ImportColumns.NameEn, ImportColumns.NameHi, ImportColumns.NameGu,
-            ImportColumns.Category, ImportColumns.Language, ImportColumns.Salutation, ImportColumns.Birthday, ImportColumns.Groups, ImportColumns.Notes];
-        string[][] samples =
-        [
-            ["+919876543210", "Daddy", "Rameshbhai", "रमेशभाई", "રમેશભાઈ", "Elders", "gu", "Pujya", "15-08-1960", "Family, Surat", ""],
-            ["+919812345678", "Rahul", "Rahul", "राहुल", "", "Youngers", "hi", "", "02-10", "Family", ""],
-            ["+447700900123", "Mr Smith", "John Smith", "", "", "Others", "en", "Dear", "", "", "Met at the conference"],
-        ];
-        for (var r = 0; r < samples.Length; r++)
+        // The real contacts, one per row, as text (so "+91…" and "15-08" stay as typed).
+        var keys = columns.Select(c => c.Key).Concat(extraColumns.Select(c => ImportColumns.KeyOf(c.Header))).ToList();
+        for (var r = 0; r < data.Rows.Count; r++)
         {
-            for (var k = 0; k < keys.Length; k++)
+            for (var k = 0; k < keys.Count; k++)
             {
-                var c = columns.FindIndex(col => col.Key == keys[k]);
-                if (c >= 0)
+                if (data.Rows[r].TryGetValue(keys[k], out var value) && value.Length > 0)
                 {
-                    sheet.Cell(r + 2, c + 1).SetValue(samples[r][k]);
+                    sheet.Cell(r + 2, k + 1).SetValue(value);
                 }
             }
-
-            sheet.Row(r + 2).Style.Font.SetItalic().Font.SetFontColor(XLColor.FromHtml("#64748b"));
         }
 
         var lists = workbook.AddWorksheet("Lists");
@@ -114,13 +108,14 @@ internal sealed class ContactSpreadsheet : IContactSpreadsheet
         lists.Hide();
 
         var languageColumn = columns.FindIndex(c => c.Key == ImportColumns.Language) + 1;
-        var languageRule = sheet.Range(2, languageColumn, 2000, languageColumn).CreateDataValidation();
+        var lastRow = Math.Max(2000, data.Rows.Count + 1000);
+        var languageRule = sheet.Range(2, languageColumn, lastRow, languageColumn).CreateDataValidation();
         languageRule.List(lists.Range(2, 1, 4, 1));
         languageRule.IgnoreBlanks = true;
 
         // Not strict: a new category name is allowed and creates that category.
         var categoryColumn = columns.FindIndex(c => c.Key == ImportColumns.Category) + 1;
-        var categoryRule = sheet.Range(2, categoryColumn, 2000, categoryColumn).CreateDataValidation();
+        var categoryRule = sheet.Range(2, categoryColumn, lastRow, categoryColumn).CreateDataValidation();
         categoryRule.List(lists.Range(2, 2, categories.Count + 1, 2));
         categoryRule.ShowErrorMessage = false;
 

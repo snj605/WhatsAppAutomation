@@ -24,7 +24,7 @@ public static class ImportColumns
         (NameHi, "Name (Hindi)", "Real name used in Hindi messages, for example रमेशभाई."),
         (NameGu, "Name (Gujarati)", "Real name used in Gujarati messages, for example રમેશભાઈ."),
         (Category, "Category", "Optional. One category; a new name creates that category. Empty keeps the existing one."),
-        (Language, "Language", "en, hi or gu (or English, Hindi, Gujarati). Empty means your default language."),
+        (Language, "Language", "en, hi or gu (or English, Hindi, Gujarati). Empty keeps a saved contact's language; new contacts get your default language."),
         (Salutation, "Salutation", "For example Pujya, Respected, Dear."),
         (Birthday, "Birthday", "DD-MM or DD-MM-YYYY, for example 15-08 or 15-08-1960."),
         (Groups, "Groups", "Comma-separated. New names create those groups."),

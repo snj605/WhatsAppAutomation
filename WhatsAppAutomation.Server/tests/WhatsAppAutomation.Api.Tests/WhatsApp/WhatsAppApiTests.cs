@@ -252,6 +252,29 @@ public sealed class WhatsAppApiTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.Accepted, relink.StatusCode);
     }
 
+    [Fact]
+    public async Task A_number_linked_in_the_app_works_on_the_website_for_the_same_sign_in()
+    {
+        var userName = await factory.CreateUserAsync(UserKind.TenantAdmin);
+        var userId = await factory.UserIdAsync(userName);
+        var app = await factory.CreateClientForAsync(userName, "phone-app");
+        (await app.PostAsJsonAsync("/api/v1/whatsapp/link", new LinkWhatsAppRequest("code", "+919876500001"), Ct)).EnsureSuccessStatusCode();
+        await PostEventAsync(new
+        {
+            type = "connection", accountId = await AccountIdAsync(userId), status = "connected", reason = "linked", phoneNumber = ApiFactory.UniquePhone(),
+        });
+
+        // Signing in on the website later uses the same link: no new link, nothing logged out, and both can send.
+        var web = await factory.CreateClientForAsync(userName, "web-browser");
+        Assert.Equal(WhatsAppConnectionStatus.Connected, (await GetAccountAsync(web)).Status);
+        Assert.Equal(WhatsAppConnectionStatus.Connected, (await GetAccountAsync(app)).Status);
+        Assert.Equal(HttpStatusCode.OK, (await web.PostAsJsonAsync("/api/v1/whatsapp/messages", new SendTestMessageRequest("+919876543210", "From the web"), Ct)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await app.PostAsJsonAsync("/api/v1/whatsapp/messages", new SendTestMessageRequest("+919876543210", "From the app"), Ct)).StatusCode);
+        Assert.Equal(2, (await GetMessagesAsync(web)).Count);
+        var accountId = await AccountIdAsync(userId);
+        Assert.DoesNotContain($"unlink {accountId}", factory.Gateway.Calls);
+    }
+
     private async Task<(HttpClient Client, Guid UserId)> OwnerAsync()
     {
         var userName = await factory.CreateUserAsync(UserKind.TenantAdmin);

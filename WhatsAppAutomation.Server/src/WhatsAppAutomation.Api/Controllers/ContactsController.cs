@@ -179,26 +179,23 @@ public sealed class ContactsController(ISender mediator, IContactSpreadsheet spr
 
     // Import
 
-    /// <summary>The .xlsx import template, with the user's own categories in the Category dropdown.</summary>
+    /// <summary>
+    /// The user's contacts as .xlsx, in the import's own columns (with one per occasion and contact field): edit it,
+    /// add new rows, and import it again to update and add. Categories are in the Category dropdown.
+    /// </summary>
     [HttpGet("contacts/import/template")]
     [HasPermission(Permissions.Contacts.Import)]
     [Produces("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")]
     public async Task<IActionResult> GetImportTemplate(CancellationToken cancellationToken)
     {
-        var categories = await mediator.Send(new GetCategoriesQuery(), cancellationToken);
-        if (categories.Error is { } error)
+        var data = await mediator.Send(new Application.Features.Contacts.Import.GetContactsWorkbookQuery(), cancellationToken);
+        if (data.Error is { } error)
         {
             return this.ToProblem(error);
         }
 
-        var columns = await mediator.Send(new Application.Features.Contacts.Import.GetImportTemplateColumnsQuery(), cancellationToken);
-        if (columns.Error is { } columnsError)
-        {
-            return this.ToProblem(columnsError);
-        }
-
-        var bytes = spreadsheet.CreateTemplate(categories.Value.Select(c => c.Name).ToList(), columns.Value.Extra, columns.Value.WithBirthday);
-        return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "contacts-template.xlsx");
+        var bytes = spreadsheet.CreateWorkbook(data.Value);
+        return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "my-contacts.xlsx");
     }
 
     /// <summary>

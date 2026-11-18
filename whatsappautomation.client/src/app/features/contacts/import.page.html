@@ -20,17 +20,17 @@
       <section class="card">
         <div class="card-head">
           <span class="card-icon"><i class="pi pi-file-excel" aria-hidden="true"></i></span>
-          <h2>1. Get the template</h2>
+          <h2>1. Get your contacts in Excel</h2>
         </div>
-        <p class="muted">An Excel file with the right columns, dropdowns for Category and Language, and three sample rows. Your own categories are in the dropdown.</p>
+        <p class="muted">All your saved contacts, with a column for each of your occasions (Asthi, Anniversary…) and contact fields (City…). Change any cell, add new people in new rows, then import it below: saved numbers are updated, new numbers are added.</p>
         <ul class="columns">
-          <li><b>Phone*</b> with country code, e.g. +919876543210</li>
-          <li><b>Category</b> optional; a new name creates the category</li>
+          <li><b>Phone*</b> with country code, e.g. +919876543210: how rows are matched</li>
           <li><b>Name (English / Hindi / Gujarati)</b>: the one in the contact's language is required</li>
-          <li><b>Language</b> en, hi or gu; empty uses your default</li>
-          <li><b>Birthday</b> DD-MM or DD-MM-YYYY, <b>Groups</b> comma-separated</li>
+          <li><b>Language</b> en, hi or gu; <b>Category</b> one name; <b>Groups</b> comma-separated (added)</li>
+          <li>Each <b>occasion</b>: DD-MM or DD-MM-YYYY; each <b>field</b> in its own column</li>
+          <li>An <b>empty cell keeps</b> what is saved; removing a row does not delete the contact</li>
         </ul>
-        <p-button label="Download template (.xlsx)" icon="pi pi-download" severity="secondary" (onClick)="downloadTemplate()" />
+        <p-button label="Download my contacts (.xlsx)" icon="pi pi-download" severity="secondary" (onClick)="downloadTemplate()" />
         <p class="hint">Use .xlsx for Hindi and Gujarati. If you use CSV, save it as "CSV UTF-8".</p>
       </section>
 

@@ -80,6 +80,12 @@ internal sealed class ImportContactsCommandHandler(
         foreach (var row in read.Rows)
         {
             var p = Parse(row, defaultLanguage);
+            if (!p.LanguageGiven && p.Phone is { } known && existing.TryGetValue(known, out var current))
+            {
+                // An empty Language cell keeps a saved contact's language, like the other optional cells.
+                p.Language = current.Language;
+            }
+
             ParseOccasions(row, moduleColumns, p);
             ParseFields(row, fieldColumns, p);
             if (birthdayModuleId is { } birthdayModule && p.Birthday is { } birthday)
@@ -283,6 +289,7 @@ internal sealed class ImportContactsCommandHandler(
         else if (ContactLanguages.Parse(languageText) is { } language)
         {
             p.Language = language;
+            p.LanguageGiven = true;
         }
         else
         {
@@ -422,6 +429,9 @@ internal sealed class ImportContactsCommandHandler(
         public string? Category { get; set; }
 
         public ContactLanguage Language { get; set; }
+
+        /// <summary>False when the Language cell was empty (the default language, or a saved contact's own).</summary>
+        public bool LanguageGiven { get; set; }
 
         public string? Salutation { get; set; }
 

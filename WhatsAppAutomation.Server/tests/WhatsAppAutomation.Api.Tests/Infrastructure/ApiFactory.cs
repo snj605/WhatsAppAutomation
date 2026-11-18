@@ -173,12 +173,12 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         return (await scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>().FindByNameAsync(userName))!.TenantId;
     }
 
-    /// <summary>An HTTP client already signed in as this user.</summary>
-    public async Task<HttpClient> CreateClientForAsync(string userName)
+    /// <summary>An HTTP client already signed in as this user, as one device (for example the app or a browser).</summary>
+    public async Task<HttpClient> CreateClientForAsync(string userName, string deviceId = "test-device")
     {
         var client = CreateClient();
         var response = await client.PostAsJsonAsync(
-            "/api/v1/auth/login", new LoginRequest(userName, TestPassword, "test-device", null));
+            "/api/v1/auth/login", new LoginRequest(userName, TestPassword, deviceId, null));
         response.EnsureSuccessStatusCode();
         var session = (await response.Content.ReadFromJsonAsync<SessionResponse>())!;
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", session.AccessToken);
