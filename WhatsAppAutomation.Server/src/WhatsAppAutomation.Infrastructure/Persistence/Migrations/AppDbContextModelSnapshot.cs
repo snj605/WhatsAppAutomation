@@ -152,6 +152,54 @@ namespace WhatsAppAutomation.Infrastructure.Persistence.Migrations
                     b.ToTable("user_tokens", (string)null);
                 });
 
+            modelBuilder.Entity("WhatsAppAutomation.Domain.Entities.AuditEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("action");
+
+                    b.Property<Guid?>("ActorId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("actor_id");
+
+                    b.Property<string>("ActorName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("actor_name");
+
+                    b.Property<DateTimeOffset>("At")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("at");
+
+                    b.Property<Guid?>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("text");
+
+                    b.HasKey("Id")
+                        .HasName("pk_audit_entries");
+
+                    b.HasIndex("At")
+                        .HasDatabaseName("ix_audit_entries_at");
+
+                    b.HasIndex("TenantId", "At")
+                        .HasDatabaseName("ix_audit_entries_tenant_id_at");
+
+                    b.ToTable("audit_entries", (string)null);
+                });
+
             modelBuilder.Entity("WhatsAppAutomation.Domain.Entities.Broadcast", b =>
                 {
                     b.Property<Guid>("Id")
@@ -184,6 +232,10 @@ namespace WhatsAppAutomation.Infrastructure.Persistence.Migrations
                     b.Property<int>("QueuePosition")
                         .HasColumnType("integer")
                         .HasColumnName("queue_position");
+
+                    b.Property<bool>("SendAsDocument")
+                        .HasColumnType("boolean")
+                        .HasColumnName("send_as_document");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -551,15 +603,27 @@ namespace WhatsAppAutomation.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<Guid?>("AttachmentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("attachment_id");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
+
+                    b.Property<bool>("IsShared")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_shared");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(60)
                         .HasColumnType("character varying(60)")
                         .HasColumnName("name");
+
+                    b.Property<Guid?>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
 
                     b.Property<string>("Text")
                         .IsRequired()
@@ -578,10 +642,60 @@ namespace WhatsAppAutomation.Infrastructure.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("pk_message_templates");
 
+                    b.HasIndex("AttachmentId")
+                        .HasDatabaseName("ix_message_templates_attachment_id");
+
                     b.HasIndex("UserId")
                         .HasDatabaseName("ix_message_templates_user_id");
 
+                    b.HasIndex("TenantId", "IsShared")
+                        .HasDatabaseName("ix_message_templates_tenant_id_is_shared");
+
                     b.ToTable("message_templates", (string)null);
+                });
+
+            modelBuilder.Entity("WhatsAppAutomation.Domain.Entities.Notification", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Body")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("body");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("kind");
+
+                    b.Property<DateTimeOffset?>("ReadAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("read_at");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("title");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_notifications");
+
+                    b.HasIndex("UserId", "CreatedAt")
+                        .HasDatabaseName("ix_notifications_user_id_created_at");
+
+                    b.ToTable("notifications", (string)null);
                 });
 
             modelBuilder.Entity("WhatsAppAutomation.Domain.Entities.OccasionModule", b =>
@@ -930,6 +1044,14 @@ namespace WhatsAppAutomation.Infrastructure.Persistence.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)")
                         .HasColumnName("file_name");
+
+                    b.Property<bool>("OnDisk")
+                        .HasColumnType("boolean")
+                        .HasColumnName("on_disk");
+
+                    b.Property<string>("Sha256")
+                        .HasColumnType("text")
+                        .HasColumnName("sha256");
 
                     b.Property<long>("SizeBytes")
                         .HasColumnType("bigint")
@@ -1467,12 +1589,28 @@ namespace WhatsAppAutomation.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("WhatsAppAutomation.Domain.Entities.MessageTemplate", b =>
                 {
+                    b.HasOne("WhatsAppAutomation.Domain.Entities.StoredFile", null)
+                        .WithMany()
+                        .HasForeignKey("AttachmentId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_message_templates_stored_files_attachment_id");
+
                     b.HasOne("WhatsAppAutomation.Infrastructure.Identity.AppUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_message_templates_users_user_id");
+                });
+
+            modelBuilder.Entity("WhatsAppAutomation.Domain.Entities.Notification", b =>
+                {
+                    b.HasOne("WhatsAppAutomation.Infrastructure.Identity.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_notifications_users_user_id");
                 });
 
             modelBuilder.Entity("WhatsAppAutomation.Domain.Entities.OccasionModule", b =>
