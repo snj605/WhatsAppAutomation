@@ -28,7 +28,7 @@ This **keeps all your data**. What the migrations do with what you already have:
 
 - Tenants (P1): your existing users go into one tenant called "My company"; Owners become its admins, everyone else becomes a member with matching switches.
 - Occasions (this version): each user's old birthday settings (on/off, time, template) become their **Birthday** occasion; old birthday wishes are linked to it. Contacts keep their birthdays.
-- Sending: every user starts at **300 messages a day**, 50 in one go, 15 minutes rest, 30–90 seconds between messages, 09:00–21:00. Each user changes this under **Sending → Settings** (300–500 a day, from the first day; no warm-up).
+- Sending: every user starts at **300 messages a day**, 09:00–21:00. Each user changes the number (300–500 a day, from the first day; no warm-up) and the hours under **Sending → Settings**. The rhythm inside is the system's own: random pauses, a rest after a random number of messages, random rest lengths, now and then a short extra break, so there is never a pattern.
 - Templates: each template gets its creator's tenant; none are shared until an admin shares them.
 
 ## 3. Create the platform admin (once)
@@ -105,7 +105,7 @@ The website and the app show the same screens, in the approved look (grey page, 
 
 **Sending**
 
-10. **Sending → Settings**: messages a day 300–500, messages in one go, rest after each go, shortest and longest pause, sending hours (or any time). It shows about how many fit in a day.
+10. **Sending → Settings**: only **messages a day** (300–500) and **sending hours** (or any time). It shows how many fit and about one message every how long; pauses and rests are chosen by the system and change all the time.
 11. Send two group messages → **Sending → Today's queue** shows them in order with "Starts … · done about …". Use ▲ ▼ to change which goes first; occasion wishes always stay on top. Pause, Continue and Stop work per message.
 12. **Results** (from the queue, or the list icon in a chat): lists All / Waiting / Sent / Delivered / Read / Failed / Skipped. When some fail (for example a number WhatsApp refuses) → **Send again to all failed** (or tick some) → they go back in the queue. Numbers not on WhatsApp are left out. **Report** prints or saves a PDF (website).
 13. Reaching the daily limit: the queue shows "Left today 0" and the rest continues the next day in the sending hours.

@@ -325,18 +325,14 @@ public sealed class UserPreferences
 
     public const int MinDailyLimit = 300;
     public const int MaxDailyLimit = 500;
-    public const int MaxChunkSize = 500;
-    public const int MaxChunkRestMinutes = 600;
-    public const int MinGap = 5;
-    public const int MaxGap = 600;
 
     /// <summary>Most messages a day from the user's number, occasions and broadcasts together (300 to 500).</summary>
     public int DailyLimit { get; private set; } = MinDailyLimit;
 
-    /// <summary>Messages sent in one go before a rest.</summary>
+    /// <summary>No longer used: the rhythm is the system's own. Kept so saved data stays as it was.</summary>
     public int ChunkSize { get; private set; } = 50;
 
-    /// <summary>Rest between two chunks, in minutes.</summary>
+    /// <summary>No longer used (see <see cref="ChunkSize"/>).</summary>
     public int ChunkRestMinutes { get; private set; } = 15;
 
     /// <summary>Messages go out from this local time (sending time zone)…</summary>
@@ -345,20 +341,16 @@ public sealed class UserPreferences
     /// <summary>…until this local time. Equal to <see cref="SendFrom"/> means any time of day.</summary>
     public TimeOnly SendUntil { get; private set; } = new(21, 0);
 
-    /// <summary>The pause between two messages is picked at random from this many seconds…</summary>
+    /// <summary>No longer used (see <see cref="ChunkSize"/>).</summary>
     public int MinGapSeconds { get; private set; } = 30;
 
-    /// <summary>…to this many, so the sending looks human.</summary>
+    /// <summary>No longer used (see <see cref="ChunkSize"/>).</summary>
     public int MaxGapSeconds { get; private set; } = 90;
 
-    public void SetSending(
-        int dailyLimit, int chunkSize, int chunkRestMinutes, TimeOnly sendFrom, TimeOnly sendUntil, int minGapSeconds, int maxGapSeconds)
+    /// <summary>What the user chooses: how many messages a day, and the hours.</summary>
+    public void SetSending(int dailyLimit, TimeOnly sendFrom, TimeOnly sendUntil)
     {
-        MinGapSeconds = minGapSeconds;
-        MaxGapSeconds = maxGapSeconds;
         DailyLimit = dailyLimit;
-        ChunkSize = chunkSize;
-        ChunkRestMinutes = chunkRestMinutes;
         SendFrom = sendFrom;
         SendUntil = sendUntil;
     }

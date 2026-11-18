@@ -41,7 +41,7 @@ export class SendingPage implements OnInit {
 
   protected readonly settings = signal<SendingSettings | null>(null);
   protected readonly saving = signal(false);
-  protected form = { dailyLimit: 300, chunkSize: 50, chunkRestMinutes: 15, sendFrom: '09:00', sendUntil: '21:00', minGapSeconds: 30, maxGapSeconds: 90, anyTime: false };
+  protected form = { dailyLimit: 300, sendFrom: '09:00', sendUntil: '21:00', anyTime: false };
 
   protected readonly usedPercent = computed(() => {
     const q = this.queue();
@@ -51,14 +51,14 @@ export class SendingPage implements OnInit {
   /** How many fit in a day with what is on the form: the same calculation as the server's FitsPerDay. */
   protected fitsPerDay(): number {
     const f = this.form;
-    return fitsPerDay(
-      Number(f.dailyLimit),
-      Number(f.chunkSize),
-      Number(f.chunkRestMinutes),
-      Number(f.minGapSeconds),
-      Number(f.maxGapSeconds),
-      f.anyTime ? 24 : windowHours(f.sendFrom, f.sendUntil),
-    );
+    return fitsPerDay(Number(f.dailyLimit), f.anyTime ? 24 : windowHours(f.sendFrom, f.sendUntil));
+  }
+
+  /** "2 minutes", "45 seconds": the average time per message for what is on the form. */
+  protected everyText(): string {
+    const f = this.form;
+    const s = Math.round(averageSeconds(Number(f.dailyLimit), f.anyTime ? 24 : windowHours(f.sendFrom, f.sendUntil)));
+    return s >= 90 ? `${Math.round(s / 60)} minutes` : `${s} seconds`;
   }
 
   constructor() {
@@ -161,12 +161,8 @@ export class SendingPage implements OnInit {
     this.settings.set(s);
     this.form = {
       dailyLimit: s.dailyLimit,
-      chunkSize: s.chunkSize,
-      chunkRestMinutes: s.chunkRestMinutes,
       sendFrom: s.sendFrom,
       sendUntil: s.sendUntil,
-      minGapSeconds: s.minGapSeconds,
-      maxGapSeconds: s.maxGapSeconds,
       anyTime: s.sendFrom === s.sendUntil,
     };
   }
@@ -174,11 +170,6 @@ export class SendingPage implements OnInit {
   protected problem(): string | null {
     const f = this.form;
     if (!(f.dailyLimit >= 300 && f.dailyLimit <= 500)) return 'Messages a day: choose 300 to 500.';
-    if (!(f.chunkSize >= 1 && f.chunkSize <= 500)) return 'Messages in one go: choose 1 to 500.';
-    if (!(f.chunkRestMinutes >= 0 && f.chunkRestMinutes <= 600)) return 'Rest after each go: choose 0 to 600 minutes.';
-    if (!(f.minGapSeconds >= 5 && f.minGapSeconds <= 600)) return 'Shortest pause: choose 5 to 600 seconds.';
-    if (!(f.maxGapSeconds >= 5 && f.maxGapSeconds <= 600)) return 'Longest pause: choose 5 to 600 seconds.';
-    if (Number(f.maxGapSeconds) < Number(f.minGapSeconds)) return 'The longest pause must not be shorter than the shortest one.';
     if (!f.anyTime && f.sendFrom === f.sendUntil) return 'Choose different start and end times, or tick "Any time".';
     return null;
   }
@@ -195,12 +186,8 @@ export class SendingPage implements OnInit {
     try {
       const saved = await this.api.saveSettings({
         dailyLimit: Number(f.dailyLimit),
-        chunkSize: Number(f.chunkSize),
-        chunkRestMinutes: Number(f.chunkRestMinutes),
         sendFrom: f.anyTime ? '00:00' : f.sendFrom,
         sendUntil: f.anyTime ? '00:00' : f.sendUntil,
-        minGapSeconds: Number(f.minGapSeconds),
-        maxGapSeconds: Number(f.maxGapSeconds),
       });
       this.useSettings(saved);
       this.toast.add({ severity: 'success', summary: 'Saved', detail: `About ${saved.fitsPerDay} messages fit in a day.` });
@@ -217,16 +204,20 @@ export class SendingPage implements OnInit {
   }
 }
 
-/** Same as UserSending.FitsPerDay on the server: whole chunks with their rest, then what fits in the time left. */
-export function fitsPerDay(limit: number, chunk: number, restMinutes: number, minGap: number, maxGap: number, hours: number): number {
-  const perMessage = (minGap + maxGap) / 2;
-  if (!(perMessage > 0) || !(chunk > 0)) return 0;
-  const perChunk = chunk * perMessage + restMinutes * 60;
-  const seconds = hours * 3600;
-  const full = Math.floor(seconds / perChunk);
-  const left = seconds - full * perChunk;
-  const count = full * chunk + Math.min(chunk, Math.floor(left / perMessage));
-  return Math.min(limit, Math.max(0, count));
+/** Same as the server's HumanPace: 85% of the hours, never faster than 20 s a message on average. */
+const WINDOW_SHARE = 0.85;
+const MIN_AVERAGE_SECONDS = 20;
+const MAX_AVERAGE_SECONDS = 300;
+
+/** How many messages fit in a day with these hours (at most the daily limit); same as HumanPace.FitsPerDay. */
+export function fitsPerDay(limit: number, hours: number): number {
+  if (!(limit > 0) || !(hours > 0)) return 0;
+  return Math.min(limit, Math.floor((hours * 3600 * WINDOW_SHARE) / MIN_AVERAGE_SECONDS));
+}
+
+/** The average time per message, pauses and rests included; same as HumanPace.AverageSeconds. */
+export function averageSeconds(limit: number, hours: number): number {
+  return Math.min(MAX_AVERAGE_SECONDS, Math.max(MIN_AVERAGE_SECONDS, (hours * 3600 * WINDOW_SHARE) / Math.max(1, limit)));
 }
 
 /** Hours between two "HH:mm" times; past midnight counts (21:00 to 06:00 = 9 hours). */

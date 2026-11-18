@@ -316,7 +316,8 @@ class SendingTabState extends ConsumerState<SendingTab> {
   }
 }
 
-/// Messages a day, chunk and rest, pauses and sending hours. All chosen by the user.
+/// Messages a day and sending hours: the only things the user chooses. The rhythm inside (pauses, how many in one
+/// go, rests) is the system's own and changes all the time, so WhatsApp sees no pattern.
 class SendingSettingsForm extends ConsumerStatefulWidget {
   const SendingSettingsForm({super.key});
 
@@ -326,10 +327,6 @@ class SendingSettingsForm extends ConsumerStatefulWidget {
 
 class _SendingSettingsFormState extends ConsumerState<SendingSettingsForm> {
   final TextEditingController _limit = TextEditingController();
-  final TextEditingController _chunk = TextEditingController();
-  final TextEditingController _rest = TextEditingController();
-  final TextEditingController _min = TextEditingController();
-  final TextEditingController _max = TextEditingController();
   FTime _from = const FTime(9, 0);
   FTime _until = const FTime(21, 0);
   bool _anyTime = false;
@@ -337,7 +334,7 @@ class _SendingSettingsFormState extends ConsumerState<SendingSettingsForm> {
   bool _saving = false;
   String? _error;
 
-  List<TextEditingController> get _all => <TextEditingController>[_limit, _chunk, _rest, _min, _max];
+  List<TextEditingController> get _all => <TextEditingController>[_limit];
 
   @override
   void initState() {
@@ -368,10 +365,6 @@ class _SendingSettingsFormState extends ConsumerState<SendingSettingsForm> {
   void _use(SendingSettings s) {
     _settings = s;
     _limit.text = '${s.dailyLimit}';
-    _chunk.text = '${s.chunkSize}';
-    _rest.text = '${s.chunkRestMinutes}';
-    _min.text = '${s.minGapSeconds}';
-    _max.text = '${s.maxGapSeconds}';
     _from = _parse(s.sendFrom);
     _until = _parse(s.sendUntil);
     _anyTime = s.anyTime;
@@ -393,25 +386,9 @@ class _SendingSettingsFormState extends ConsumerState<SendingSettingsForm> {
   int _n(TextEditingController c) => int.tryParse(c.text.trim()) ?? -1;
 
   String? _problem() {
-    final int limit = _n(_limit), chunk = _n(_chunk), rest = _n(_rest), min = _n(_min), max = _n(_max);
+    final int limit = _n(_limit);
     if (limit < 300 || limit > 500) {
       return 'Messages a day: choose 300 to 500.';
-    }
-
-    if (chunk < 1 || chunk > 500) {
-      return 'Messages in one go: choose 1 to 500.';
-    }
-
-    if (rest < 0 || rest > 600) {
-      return 'Rest after each go: choose 0 to 600 minutes.';
-    }
-
-    if (min < 5 || min > 600 || max < 5 || max > 600) {
-      return 'Pauses: choose 5 to 600 seconds.';
-    }
-
-    if (max < min) {
-      return 'The longest pause must not be shorter than the shortest one.';
     }
 
     if (!_anyTime && _hhmm(_from) == _hhmm(_until)) {
@@ -422,14 +399,15 @@ class _SendingSettingsFormState extends ConsumerState<SendingSettingsForm> {
   }
 
   /// How many fit in a day with what is on the form: the same calculation as the server and the website.
-  int _fits() => fitsPerDay(
-        limit: _n(_limit),
-        chunk: _n(_chunk),
-        restMinutes: _n(_rest),
-        minGap: _n(_min),
-        maxGap: _n(_max),
-        hours: _anyTime ? 24 : windowHours(_hhmm(_from), _hhmm(_until)),
-      );
+  double get _hours => _anyTime ? 24 : windowHours(_hhmm(_from), _hhmm(_until));
+
+  int _fits() => fitsPerDay(limit: _n(_limit), hours: _hours);
+
+  /// "2 minutes", "45 seconds": the average time per message for what is on the form.
+  String _every() {
+    final int s = averageSeconds(limit: _n(_limit), hours: _hours).round();
+    return s >= 90 ? '${(s / 60).round()} minutes' : '$s seconds';
+  }
 
   Future<void> _save() async {
     final String? problem = _problem();
@@ -445,12 +423,8 @@ class _SendingSettingsFormState extends ConsumerState<SendingSettingsForm> {
     try {
       final SendingSettings saved = await ref.read(sendingApiProvider).saveSettings(
             dailyLimit: _n(_limit),
-            chunkSize: _n(_chunk),
-            chunkRestMinutes: _n(_rest),
             sendFrom: _anyTime ? '00:00' : _hhmm(_from),
             sendUntil: _anyTime ? '00:00' : _hhmm(_until),
-            minGapSeconds: _n(_min),
-            maxGapSeconds: _n(_max),
           );
       if (mounted) {
         setState(() => _use(saved));
@@ -507,22 +481,9 @@ class _SendingSettingsFormState extends ConsumerState<SendingSettingsForm> {
             spacing: 12,
             children: <Widget>[
               _number(_limit, 'Messages a day', description: '300 to 500, from the first day.'),
-              Row(
-                spacing: 8,
-                children: <Widget>[
-                  Expanded(child: _number(_chunk, 'In one go')),
-                  Expanded(child: _number(_rest, 'Rest after (min)')),
-                ],
-              ),
-              Row(
-                spacing: 8,
-                children: <Widget>[
-                  Expanded(child: _number(_min, 'Shortest pause (s)')),
-                  Expanded(child: _number(_max, 'Longest pause (s)')),
-                ],
-              ),
               Text(
-                'Each pause is a random time between the two, like a person sending.',
+                'The pauses, how many go before a rest and the rests change all the time, like a person sending, '
+                'so WhatsApp sees no pattern. You only choose how many a day and the hours.',
                 style: theme.typography.body.xs.copyWith(color: theme.colors.mutedForeground),
               ),
             ],
@@ -550,8 +511,8 @@ class _SendingSettingsFormState extends ConsumerState<SendingSettingsForm> {
             title: Text('About $fits messages fit in a day'),
             subtitle: Text(
               fits < _n(_limit)
-                  ? 'Fewer than your limit: choose shorter pauses, longer hours or a shorter rest to reach it.'
-                  : 'Times are in ${_settings!.timeZone}.',
+                  ? 'Fewer than you chose: the hours are too short for a safe pace. Choose longer hours to reach it.'
+                  : 'About one message every ${_every()}. Times are in ${_settings!.timeZone}.',
             ),
           ),
         ),

@@ -73,7 +73,7 @@ internal sealed class GetQueueQueryHandler(
             .ToDictionary(s => s.Id);
 
         var connected = account?.CanSend ?? false;
-        var plan = new SendPlan(rules, settings, sentToday, pace?.SentSinceRest ?? 0, startOfDay,
+        var plan = new SendPlan(rules, settings, sentToday, startOfDay,
             Max(now, pace?.NextSendAt ?? now));
         var broadcasts = ordered.Where(b => b.Target != BroadcastTarget.Occasion).Select(b => b.Id).ToList();
         var items = new List<QueueItemDto>();
@@ -117,17 +117,15 @@ internal sealed class GetQueueQueryHandler(
 }
 
 /// <summary>
-/// Walks the queue forward in time the way the sender does (average gap, rest after each chunk, sending hours,
-/// daily limit), to tell when each item's messages go out. An estimate: the real gaps are random.
+/// Walks the queue forward in time the way the sender does (the average time per message, which includes the
+/// rests, sending hours, daily limit), to tell when each item's messages go out. An estimate: the real pauses are random.
 /// </summary>
-internal sealed class SendPlan(PacingRules rules, UserSending settings, int sentToday, int sentSinceRest, DateTimeOffset startOfToday, DateTimeOffset from)
+internal sealed class SendPlan(PacingRules rules, UserSending settings, int sentToday, DateTimeOffset startOfToday, DateTimeOffset from)
 {
-    private readonly TimeSpan _gap = TimeSpan.FromSeconds((settings.MinGapSeconds + settings.MaxGapSeconds) / 2.0);
-    private readonly TimeSpan _rest = TimeSpan.FromMinutes(settings.ChunkRestMinutes);
+    private readonly TimeSpan _gap = TimeSpan.FromSeconds(settings.AverageSeconds);
     private DateTimeOffset _t = from;
     private DateTimeOffset _dayStart = startOfToday;
     private int _leftToday = Math.Max(0, settings.DailyLimit - sentToday);
-    private int _sinceRest = sentSinceRest;
 
     /// <summary>Plans this many messages; returns when the first and the last are expected.</summary>
     public (DateTimeOffset First, DateTimeOffset Last) Take(int count)
@@ -144,7 +142,6 @@ internal sealed class SendPlan(PacingRules rules, UserSending settings, int sent
                 {
                     _dayStart = day;
                     _leftToday = settings.DailyLimit;
-                    _sinceRest = 0;
                 }
 
                 if (_leftToday > 0)
@@ -159,13 +156,7 @@ internal sealed class SendPlan(PacingRules rules, UserSending settings, int sent
             first ??= _t;
             last = _t;
             _leftToday--;
-            _sinceRest++;
             _t += _gap;
-            if (_sinceRest >= settings.ChunkSize)
-            {
-                _t += _rest;
-                _sinceRest = 0;
-            }
         }
 
         return (first ?? _t, last);

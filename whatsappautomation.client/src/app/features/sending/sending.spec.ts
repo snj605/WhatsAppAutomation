@@ -1,6 +1,6 @@
 import { defaultWish } from '../modules/composer-preset';
 import { statusLook } from '../modules/time-text';
-import { fitsPerDay, windowHours } from './sending.page';
+import { averageSeconds, fitsPerDay, windowHours } from './sending.page';
 
 describe('sending hours', () => {
   it('counts the hours between two times, past midnight too', () => {
@@ -11,13 +11,11 @@ describe('sending hours', () => {
 });
 
 describe('fits per day', () => {
-  it('matches the server: whole chunks with rest, then the time left, never above the limit', () => {
-    // 12 hours, 50 at a time with 60 s average and 15 min rest: 11 whole chunks (550) and more, capped at 300.
-    expect(fitsPerDay(300, 50, 15, 30, 90, 12)).toBe(300);
-    // Same as the server test: 500 a day, 100 in one go, 5 min rest, 10-20 s, 07:00-22:00.
-    expect(fitsPerDay(500, 100, 5, 10, 20, 15)).toBe(500);
-    // 1 hour, 50 at a time, 60 s average, 15 min rest: one chunk (3900 s > 3600) is not whole, so 3600/60 = 60, capped at 50.
-    expect(fitsPerDay(500, 50, 15, 30, 90, 1)).toBe(50);
+  it('matches the server: 85% of the hours at no more than one message per 20 s, never above the limit', () => {
+    expect(fitsPerDay(500, 12)).toBe(500);
+    expect(fitsPerDay(500, 1)).toBe(153); // same as HumanPaceTests
+    expect(averageSeconds(500, 1)).toBe(20);
+    expect(Math.round(averageSeconds(300, 12))).toBe(122);
   });
 });
 

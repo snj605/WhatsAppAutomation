@@ -106,7 +106,7 @@ public sealed class BroadcastDispatcher(
         var settings = await UserSending.ForAsync(db, userId, cancellationToken);
         if (_options.NoWaits)
         {
-            settings = settings with { SendFrom = TimeOnly.MinValue, SendUntil = TimeOnly.MinValue, MinGapSeconds = 0, MaxGapSeconds = 0, ChunkRestMinutes = 0 };
+            settings = settings with { SendFrom = TimeOnly.MinValue, SendUntil = TimeOnly.MinValue, NoWaits = true };
         }
 
         if (!_rules.InWindow(settings, now))
@@ -236,10 +236,16 @@ public sealed class BroadcastDispatcher(
             pace.ResetFailures();
         }
 
-        var delay = TimeSpan.FromSeconds(Random.Shared.Next(settings.MinGapSeconds, Math.Max(settings.MinGapSeconds, settings.MaxGapSeconds) + 1));
-        if (pace.CountSent(settings.ChunkSize))
+        // The system's own rhythm: random pauses, a rest after a random number of messages, random rests.
+        var delay = TimeSpan.Zero;
+        var sentInGo = pace.CountSent();
+        if (!settings.NoWaits)
         {
-            delay += TimeSpan.FromMinutes(settings.ChunkRestMinutes);
+            delay = HumanPace.NextDelay(Random.Shared, settings.AverageSeconds, sentInGo, out var rests);
+            if (rests)
+            {
+                pace.Rested();
+            }
         }
 
         pace.ScheduleNext(done + delay);

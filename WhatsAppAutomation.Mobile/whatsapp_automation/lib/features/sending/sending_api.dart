@@ -11,37 +11,30 @@ final Provider<SendingApi> sendingApiProvider = Provider<SendingApi>((Ref ref) =
 class SendingSettings {
   const SendingSettings({
     required this.dailyLimit,
-    required this.chunkSize,
-    required this.chunkRestMinutes,
     required this.sendFrom,
     required this.sendUntil,
     required this.timeZone,
-    required this.minGapSeconds,
-    required this.maxGapSeconds,
     required this.fitsPerDay,
+    required this.averageSeconds,
   });
 
   factory SendingSettings.fromJson(Json json) => SendingSettings(
         dailyLimit: asInt(json['dailyLimit']),
-        chunkSize: asInt(json['chunkSize']),
-        chunkRestMinutes: asInt(json['chunkRestMinutes']),
         sendFrom: json['sendFrom'] as String? ?? '09:00',
         sendUntil: json['sendUntil'] as String? ?? '21:00',
         timeZone: json['timeZone'] as String? ?? '',
-        minGapSeconds: asInt(json['minGapSeconds']),
-        maxGapSeconds: asInt(json['maxGapSeconds']),
         fitsPerDay: asInt(json['fitsPerDay']),
+        averageSeconds: asInt(json['averageSeconds']),
       );
 
   final int dailyLimit;
-  final int chunkSize;
-  final int chunkRestMinutes;
   final String sendFrom;
   final String sendUntil;
   final String timeZone;
-  final int minGapSeconds;
-  final int maxGapSeconds;
   final int fitsPerDay;
+
+  /// About how long one message takes on average, pauses and rests included (the system's own rhythm).
+  final int averageSeconds;
 
   /// The same start and end time means any time of day.
   bool get anyTime => sendFrom == sendUntil;
@@ -188,21 +181,13 @@ class SendingApi {
 
   Future<SendingSettings> saveSettings({
     required int dailyLimit,
-    required int chunkSize,
-    required int chunkRestMinutes,
     required String sendFrom,
     required String sendUntil,
-    required int minGapSeconds,
-    required int maxGapSeconds,
   }) async =>
       SendingSettings.fromJson((await _api.put('/api/v1/sending/settings', <String, dynamic>{
         'dailyLimit': dailyLimit,
-        'chunkSize': chunkSize,
-        'chunkRestMinutes': chunkRestMinutes,
         'sendFrom': sendFrom,
         'sendUntil': sendUntil,
-        'minGapSeconds': minGapSeconds,
-        'maxGapSeconds': maxGapSeconds,
       }))! as Json);
 
   Future<SendQueue> queue() async => SendQueue.fromJson((await _api.get('/api/v1/broadcasts/queue'))! as Json);
@@ -232,25 +217,21 @@ double windowHours(String from, String until) {
   return (diff == 0 ? 1440 : diff) / 60;
 }
 
-/// Same as UserSending.FitsPerDay on the server: whole chunks with their rest, then what fits in the time left.
-int fitsPerDay({
-  required int limit,
-  required int chunk,
-  required int restMinutes,
-  required int minGap,
-  required int maxGap,
-  required double hours,
-}) {
-  final double perMessage = (minGap + maxGap) / 2;
-  if (perMessage <= 0 || chunk <= 0) {
+// Same as the server's HumanPace: 85% of the hours, never faster than 20 s a message on average.
+const double _windowShare = 0.85;
+const double _minAverageSeconds = 20;
+const double _maxAverageSeconds = 300;
+
+/// How many messages fit in a day with these hours (at most the daily limit). Same as the server and the website.
+int fitsPerDay({required int limit, required double hours}) {
+  if (limit <= 0 || hours <= 0) {
     return 0;
   }
 
-  final double perChunk = chunk * perMessage + restMinutes * 60;
-  final double seconds = hours * 3600;
-  final int full = (seconds / perChunk).floor();
-  final double left = seconds - full * perChunk;
-  final int leftCount = (left / perMessage).floor();
-  final int count = full * chunk + (leftCount < chunk ? leftCount : chunk);
-  return count < 0 ? 0 : (count > limit ? limit : count);
+  final int fit = (hours * 3600 * _windowShare / _minAverageSeconds).floor();
+  return fit < limit ? fit : limit;
 }
+
+/// The average time per message, pauses and rests included. Same as the server and the website.
+double averageSeconds({required int limit, required double hours}) =>
+    (hours * 3600 * _windowShare / (limit < 1 ? 1 : limit)).clamp(_minAverageSeconds, _maxAverageSeconds);

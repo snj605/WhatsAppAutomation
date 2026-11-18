@@ -6,14 +6,12 @@ import { BroadcastCounts, BroadcastSummary } from '../broadcasts/broadcasts.mode
 /** Shapes of /api/v1/sending/settings and /api/v1/broadcasts/queue. They mirror the server DTOs. */
 export interface SendingSettings {
   dailyLimit: number;
-  chunkSize: number;
-  chunkRestMinutes: number;
   sendFrom: string;
   sendUntil: string;
   timeZone: string;
-  minGapSeconds: number;
-  maxGapSeconds: number;
   fitsPerDay: number;
+  /** About how long one message takes on average, pauses and rests included (the system's own rhythm). */
+  averageSeconds: number;
 }
 
 export interface QueueItem {
@@ -68,7 +66,7 @@ export class SendingApi {
   private readonly http = inject(HttpClient);
 
   settings = () => firstValueFrom(this.http.get<SendingSettings>('/api/v1/sending/settings'));
-  saveSettings = (s: Omit<SendingSettings, 'timeZone' | 'fitsPerDay'>) =>
+  saveSettings = (s: Omit<SendingSettings, 'timeZone' | 'fitsPerDay' | 'averageSeconds'>) =>
     firstValueFrom(this.http.put<SendingSettings>('/api/v1/sending/settings', s));
   queue = () => firstValueFrom(this.http.get<Queue>('/api/v1/broadcasts/queue'));
   move = (id: string, direction: 'up' | 'down') => firstValueFrom(this.http.post<void>(`/api/v1/broadcasts/${id}/move`, { direction }));

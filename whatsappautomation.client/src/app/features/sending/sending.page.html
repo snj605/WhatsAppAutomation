@@ -107,25 +107,6 @@
         <input id="s-limit" type="number" min="300" max="500" step="10" [(ngModel)]="form.dailyLimit" />
         <span class="ap-hint">300 to 500, from the first day.</span>
 
-        <div class="ap-grid-2">
-          <span class="ap-form">
-            <label for="s-chunk">Messages in one go</label>
-            <input id="s-chunk" type="number" min="1" max="500" [(ngModel)]="form.chunkSize" />
-          </span>
-          <span class="ap-form">
-            <label for="s-rest">Rest after each go (minutes)</label>
-            <input id="s-rest" type="number" min="0" max="600" [(ngModel)]="form.chunkRestMinutes" />
-          </span>
-          <span class="ap-form">
-            <label for="s-min">Shortest pause between messages (seconds)</label>
-            <input id="s-min" type="number" min="5" max="600" [(ngModel)]="form.minGapSeconds" />
-          </span>
-          <span class="ap-form">
-            <label for="s-max">Longest pause (seconds)</label>
-            <input id="s-max" type="number" min="5" max="600" [(ngModel)]="form.maxGapSeconds" />
-          </span>
-        </div>
-        <span class="ap-hint">Each pause is a random time between the two, like a person sending.</span>
 
         <label>Sending hours</label>
         <label class="check-line"><input type="checkbox" class="ap-check" [(ngModel)]="form.anyTime" /> Any time of day</label>
@@ -138,7 +119,11 @@
 
         <div class="fits">
           <strong>About {{ fitsPerDay() }} messages fit in a day</strong>
-          <small>With these settings @if (fitsPerDay() < form.dailyLimit) {— fewer than your limit, so choose shorter pauses, longer hours or a shorter rest to reach it}.</small>
+          <small>
+            @if (fitsPerDay() < form.dailyLimit) {Fewer than you chose: the hours are too short for a safe pace. Choose longer hours to reach it.}
+            @else {About one message every {{ everyText() }}.}
+            The pauses, how many go before a rest and the rests change all the time, like a person sending, so WhatsApp sees no pattern.
+          </small>
         </div>
         @if (problem(); as p) {
           <p class="ap-error">{{ p }}</p>

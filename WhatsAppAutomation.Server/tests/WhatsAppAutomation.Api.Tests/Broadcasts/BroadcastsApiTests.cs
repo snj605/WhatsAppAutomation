@@ -516,15 +516,22 @@ public sealed class BroadcastsApiTests(ApiFactory factory)
         var defaults = (await client.GetFromJsonAsync<SendingSettingsDto>("/api/v1/sending/settings", Ct))!;
         Assert.Equal(300, defaults.DailyLimit);
 
-        var tooLow = await client.PutAsJsonAsync("/api/v1/sending/settings", new SetSendingSettingsRequest(200, 50, 15, "09:00", "21:00", 30, 90), Ct);
+        var tooLow = await client.PutAsJsonAsync("/api/v1/sending/settings", new SetSendingSettingsRequest(200, "09:00", "21:00"), Ct);
         Assert.Equal(HttpStatusCode.BadRequest, tooLow.StatusCode);
-        var tooHigh = await client.PutAsJsonAsync("/api/v1/sending/settings", new SetSendingSettingsRequest(501, 50, 15, "09:00", "21:00", 30, 90), Ct);
+        var tooHigh = await client.PutAsJsonAsync("/api/v1/sending/settings", new SetSendingSettingsRequest(501, "09:00", "21:00"), Ct);
         Assert.Equal(HttpStatusCode.BadRequest, tooHigh.StatusCode);
 
+        // Only the number and the hours are the user's: old pace fields in a request change nothing.
+        var oldStyle = (await (await client.PutAsJsonAsync("/api/v1/sending/settings",
+            new { dailyLimit = 400, sendFrom = "09:00", sendUntil = "21:00", chunkSize = 20, minGapSeconds = 5, maxGapSeconds = 5 }, Ct))
+            .Content.ReadFromJsonAsync<SendingSettingsDto>(Ct))!;
+        Assert.Equal(HumanPace.AverageSeconds(400, 12), oldStyle.AverageSeconds, 0);
+
         var saved = (await (await client.PutAsJsonAsync(
-            "/api/v1/sending/settings", new SetSendingSettingsRequest(500, 100, 5, "07:00", "22:00", 10, 20), Ct)).Content.ReadFromJsonAsync<SendingSettingsDto>(Ct))!;
-        Assert.Equal((500, 100, 5, "07:00", "22:00"), (saved.DailyLimit, saved.ChunkSize, saved.ChunkRestMinutes, saved.SendFrom, saved.SendUntil));
+            "/api/v1/sending/settings", new SetSendingSettingsRequest(500, "07:00", "22:00"), Ct)).Content.ReadFromJsonAsync<SendingSettingsDto>(Ct))!;
+        Assert.Equal((500, "07:00", "22:00"), (saved.DailyLimit, saved.SendFrom, saved.SendUntil));
         Assert.Equal(500, saved.FitsPerDay);
+        Assert.InRange(saved.AverageSeconds, 20, 300);
     }
 
     [Fact]

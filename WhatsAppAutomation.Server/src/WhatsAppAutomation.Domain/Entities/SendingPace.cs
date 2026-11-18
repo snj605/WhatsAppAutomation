@@ -34,21 +34,11 @@ public sealed class SendingPace
 
     public void ResetFailures() => FailuresInRow = 0;
 
-    /// <summary>
-    /// Counts one handed-over message and returns true when this one completes a batch, so the caller adds a
-    /// longer rest. The caller then sets the next time with <see cref="ScheduleNext"/>.
-    /// </summary>
-    public bool CountSent(int batchSize)
-    {
-        SentSinceRest++;
-        if (SentSinceRest < batchSize)
-        {
-            return false;
-        }
+    /// <summary>Counts one handed-over message; returns how many went since the last rest, this one included.</summary>
+    public int CountSent() => ++SentSinceRest;
 
-        SentSinceRest = 0;
-        return true;
-    }
+    /// <summary>The wait after this message is a rest: the count starts again.</summary>
+    public void Rested() => SentSinceRest = 0;
 
     public void ScheduleNext(DateTimeOffset at) => NextSendAt = at;
 }

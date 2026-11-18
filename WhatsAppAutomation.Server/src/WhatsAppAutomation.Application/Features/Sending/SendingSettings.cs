@@ -11,68 +11,55 @@ using WhatsAppAutomation.Domain.Entities;
 
 namespace WhatsAppAutomation.Application.Features.Sending;
 
-/// <summary>How the user's number sends: chosen by the user.</summary>
+/// <summary>
+/// How the user's number sends. The user chooses only how many messages a day and the hours; the rhythm inside
+/// them (pauses, how many in one go, rests) is the system's own and changes all the time (see <see cref="HumanPace"/>).
+/// </summary>
 /// <param name="DailyLimit">Messages a day, occasions and broadcasts together: 300 to 500, from the first day.</param>
-/// <param name="ChunkSize">Messages sent in one go before a rest.</param>
-/// <param name="ChunkRestMinutes">Rest between chunks.</param>
 /// <param name="SendFrom">"HH:mm": messages go out from this time…</param>
 /// <param name="SendUntil">"HH:mm": …until this time. The same as SendFrom means any time.</param>
-/// <param name="MinGapSeconds">The pause between two messages is picked at random from this…</param>
-/// <param name="MaxGapSeconds">…to this, so it looks human.</param>
-/// <param name="FitsPerDay">How many messages fit in a day with these hours, gaps and rests (at most the daily limit).</param>
+/// <param name="FitsPerDay">How many messages fit in a day with these hours (at most the daily limit).</param>
+/// <param name="AverageSeconds">About how long one message takes on average, pauses and rests included.</param>
 public sealed record SendingSettingsDto(
     int DailyLimit,
-    int ChunkSize,
-    int ChunkRestMinutes,
     string SendFrom,
     string SendUntil,
     string TimeZone,
-    int MinGapSeconds,
-    int MaxGapSeconds,
-    int FitsPerDay);
+    int FitsPerDay,
+    int AverageSeconds);
 
 /// <summary>The values the sender uses for one user.</summary>
-internal sealed record UserSending(
-    int DailyLimit, int ChunkSize, int ChunkRestMinutes, TimeOnly SendFrom, TimeOnly SendUntil, int MinGapSeconds, int MaxGapSeconds)
+internal sealed record UserSending(int DailyLimit, TimeOnly SendFrom, TimeOnly SendUntil)
 {
-    public static readonly UserSending Default = new(UserPreferences.MinDailyLimit, 50, 15, new TimeOnly(9, 0), new TimeOnly(21, 0), 30, 90);
+    public static readonly UserSending Default = new(UserPreferences.MinDailyLimit, new TimeOnly(9, 0), new TimeOnly(21, 0));
+
+    /// <summary>Set only by tests (Broadcasts:NoWaits): no pauses at all.</summary>
+    public bool NoWaits { get; init; }
 
     public bool AnyTime => SendFrom == SendUntil;
 
     public static async Task<UserSending> ForAsync(IAppDbContext db, Guid userId, CancellationToken cancellationToken) =>
         await db.UserPreferences.AsNoTracking().Where(p => p.UserId == userId)
-            .Select(p => new UserSending(p.DailyLimit, p.ChunkSize, p.ChunkRestMinutes, p.SendFrom, p.SendUntil, p.MinGapSeconds, p.MaxGapSeconds))
+            .Select(p => new UserSending(p.DailyLimit, p.SendFrom, p.SendUntil))
             .SingleOrDefaultAsync(cancellationToken) ?? Default;
 
     /// <summary>Hours of sending in a day: the window, or 24 for any time.</summary>
     public double WindowHours => AnyTime ? 24
         : SendFrom < SendUntil ? (SendUntil - SendFrom).TotalHours : 24 - (SendFrom - SendUntil).TotalHours;
 
-    /// <summary>How many messages fit in one day's sending hours with these gaps and rests (at most the daily limit).</summary>
-    public int FitsPerDay
-    {
-        get
-        {
-            var perMessage = (MinGapSeconds + MaxGapSeconds) / 2.0;
-            var perChunk = ChunkSize * perMessage + ChunkRestMinutes * 60.0;
-            var seconds = WindowHours * 3600;
-            var full = Math.Floor(seconds / perChunk);
-            var rest = seconds - full * perChunk;
-            var count = (int)(full * ChunkSize + Math.Min(ChunkSize, Math.Floor(rest / perMessage)));
-            return Math.Min(DailyLimit, Math.Max(0, count));
-        }
-    }
+    /// <summary>How many messages fit in one day's sending hours (at most the daily limit).</summary>
+    public int FitsPerDay => HumanPace.FitsPerDay(DailyLimit, WindowHours);
+
+    /// <summary>The average time one message takes, pauses and rests included.</summary>
+    public double AverageSeconds => NoWaits ? 0 : HumanPace.AverageSeconds(DailyLimit, WindowHours);
 
     public SendingSettingsDto ToDto(BroadcastOptions options) => new(
         DailyLimit,
-        ChunkSize,
-        ChunkRestMinutes,
         SendFrom.ToString("HH:mm", CultureInfo.InvariantCulture),
         SendUntil.ToString("HH:mm", CultureInfo.InvariantCulture),
         options.TimeZone,
-        MinGapSeconds,
-        MaxGapSeconds,
-        FitsPerDay);
+        FitsPerDay,
+        (int)Math.Round(AverageSeconds));
 }
 
 public sealed record GetSendingSettingsQuery : IQuery<SendingSettingsDto>;
@@ -91,9 +78,7 @@ internal sealed class GetSendingSettingsQueryHandler(IAppDbContext db, ICurrentU
     }
 }
 
-public sealed record SetSendingSettingsCommand(
-    int DailyLimit, int ChunkSize, int ChunkRestMinutes, string SendFrom, string SendUntil, int MinGapSeconds, int MaxGapSeconds)
-    : ICommand<SendingSettingsDto>;
+public sealed record SetSendingSettingsCommand(int DailyLimit, string SendFrom, string SendUntil) : ICommand<SendingSettingsDto>;
 
 internal sealed class SetSendingSettingsCommandValidator : AbstractValidator<SetSendingSettingsCommand>
 {
@@ -101,16 +86,8 @@ internal sealed class SetSendingSettingsCommandValidator : AbstractValidator<Set
     {
         RuleFor(c => c.DailyLimit).InclusiveBetween(UserPreferences.MinDailyLimit, UserPreferences.MaxDailyLimit)
             .WithMessage($"Messages a day: choose {UserPreferences.MinDailyLimit} to {UserPreferences.MaxDailyLimit}.");
-        RuleFor(c => c.ChunkSize).InclusiveBetween(1, UserPreferences.MaxChunkSize)
-            .WithMessage($"Messages in one go: choose 1 to {UserPreferences.MaxChunkSize}.");
-        RuleFor(c => c.ChunkRestMinutes).InclusiveBetween(0, UserPreferences.MaxChunkRestMinutes)
-            .WithMessage($"Rest between chunks: choose 0 to {UserPreferences.MaxChunkRestMinutes} minutes.");
         RuleFor(c => c.SendFrom).Must(t => Modules.ModuleReads.TryParseTime(t, out _)).WithMessage("Choose the start time, like 09:00.");
         RuleFor(c => c.SendUntil).Must(t => Modules.ModuleReads.TryParseTime(t, out _)).WithMessage("Choose the end time, like 21:00.");
-        RuleFor(c => c.MinGapSeconds).InclusiveBetween(UserPreferences.MinGap, UserPreferences.MaxGap)
-            .WithMessage($"Shortest pause: choose {UserPreferences.MinGap} to {UserPreferences.MaxGap} seconds.");
-        RuleFor(c => c.MaxGapSeconds).InclusiveBetween(UserPreferences.MinGap, UserPreferences.MaxGap)
-            .GreaterThanOrEqualTo(c => c.MinGapSeconds).WithMessage("The longest pause must not be shorter than the shortest one.");
     }
 }
 
@@ -133,8 +110,7 @@ internal sealed class SetSendingSettingsCommandHandler(IAppDbContext db, ICurren
             db.UserPreferences.Add(preferences);
         }
 
-        preferences.SetSending(
-            command.DailyLimit, command.ChunkSize, command.ChunkRestMinutes, from, until, command.MinGapSeconds, command.MaxGapSeconds);
+        preferences.SetSending(command.DailyLimit, from, until);
         await db.SaveChangesAsync(cancellationToken);
         return (await UserSending.ForAsync(db, userId, cancellationToken)).ToDto(options.Value);
     }
