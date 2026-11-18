@@ -53,17 +53,82 @@ class Group {
   final int contactCount;
 }
 
-class Birthday {
-  const Birthday({required this.day, required this.month, this.year});
+/// One of the contact's occasion dates (Birthday, Asthi, Anniversary, …): only for occasions the user created.
+class ContactOccasion {
+  const ContactOccasion({required this.moduleId, required this.day, required this.month, this.year, this.forName});
 
-  factory Birthday.fromJson(Json json) =>
-      Birthday(day: asInt(json['day']), month: asInt(json['month']), year: asIntOrNull(json['year']));
+  factory ContactOccasion.fromJson(Json json) => ContactOccasion(
+        moduleId: json['moduleId'] as String,
+        day: asInt(json['day']),
+        month: asInt(json['month']),
+        year: asIntOrNull(json['year']),
+        forName: asStringOrNull(json['forName']),
+      );
 
+  final String moduleId;
   final int day;
   final int month;
   final int? year;
 
-  Json toJson() => <String, dynamic>{'day': day, 'month': month, 'year': year};
+  /// The second name, for occasions that have one (for example "In memory of").
+  final String? forName;
+
+  Json toJson() => <String, dynamic>{'moduleId': moduleId, 'day': day, 'month': month, 'year': year, 'forName': forName};
+}
+
+/// One of the user's own contact fields (GET /api/v1/contact-fields), used in messages as {{key}}.
+class ContactField {
+  const ContactField({
+    required this.id,
+    required this.name,
+    required this.key,
+    required this.type,
+    required this.options,
+    required this.contactCount,
+  });
+
+  factory ContactField.fromJson(Json json) => ContactField(
+        id: json['id'] as String,
+        name: json['name'] as String? ?? '',
+        key: json['key'] as String? ?? '',
+        type: json['type'] as String? ?? 'text',
+        options: asStrings(json['options']),
+        contactCount: asInt(json['contactCount']),
+      );
+
+  final String id;
+  final String name;
+  final String key;
+
+  /// "text", "number", "date" (stored as yyyy-MM-dd) or "choice".
+  final String type;
+  final List<String> options;
+  final int contactCount;
+
+  static const List<(String, String)> types = <(String, String)>[
+    ('text', 'Text'),
+    ('number', 'Number'),
+    ('date', 'Date'),
+    ('choice', 'Choice'),
+  ];
+
+  /// How a stored value reads, as in messages: dates as "5 Mar 2019".
+  String display(String? stored) {
+    if (stored == null || stored.isEmpty) {
+      return '';
+    }
+
+    if (type == 'date') {
+      final List<int?> parts = stored.split('-').map(int.tryParse).toList();
+      if (parts.length == 3 && parts.every((int? p) => p != null) && parts[1]! >= 1 && parts[1]! <= 12) {
+        return '${parts[2]} ${_months[parts[1]! - 1]} ${parts[0]}';
+      }
+    }
+
+    return stored;
+  }
+
+  static const List<String> _months = <String>['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 }
 
 class Contact {
@@ -77,7 +142,8 @@ class Contact {
     required this.language,
     required this.categoryId,
     required this.salutation,
-    required this.birthday,
+    required this.occasions,
+    required this.fields,
     required this.notes,
     required this.groups,
     required this.needsDetails,
@@ -95,7 +161,11 @@ class Contact {
         language: json['language'] as String? ?? 'en',
         categoryId: json['categoryId'] as String?,
         salutation: json['salutation'] as String?,
-        birthday: json['birthday'] == null ? null : Birthday.fromJson(json['birthday'] as Json),
+        occasions: asList(json['occasions']).map(ContactOccasion.fromJson).toList(),
+        fields: <String, String>{
+          for (final MapEntry<String, dynamic> e in (json['fields'] as Map<String, dynamic>? ?? const <String, dynamic>{}).entries)
+            e.key: '${e.value}',
+        },
         notes: json['notes'] as String?,
         groups: asList(json['groups']).map((Json g) => (id: g['id'] as String, name: g['name'] as String? ?? '')).toList(),
         needsDetails: asBool(json['needsDetails']),
@@ -112,7 +182,12 @@ class Contact {
   final String language;
   final String? categoryId;
   final String? salutation;
-  final Birthday? birthday;
+
+  /// Dates for the user's own occasions only; occasions without a date are not here.
+  final List<ContactOccasion> occasions;
+
+  /// Custom field values by field id (stored form: dates yyyy-MM-dd).
+  final Map<String, String> fields;
   final String? notes;
   final List<({String id, String name})> groups;
   final bool needsDetails;
@@ -154,9 +229,10 @@ class ContactInput {
     required this.language,
     required this.categoryId,
     required this.salutation,
-    required this.birthday,
     required this.notes,
     required this.groupIds,
+    this.occasions,
+    this.fields,
   });
 
   final String phoneNumber;
@@ -167,9 +243,14 @@ class ContactInput {
   final String language;
   final String? categoryId;
   final String? salutation;
-  final Birthday? birthday;
   final String? notes;
   final List<String> groupIds;
+
+  /// Null leaves the contact's dates as they are; a list replaces them all.
+  final List<ContactOccasion>? occasions;
+
+  /// Null leaves all values; a null value clears that field.
+  final Map<String, String?>? fields;
 
   Json toJson() => <String, dynamic>{
         'phoneNumber': phoneNumber,
@@ -180,7 +261,8 @@ class ContactInput {
         'language': language,
         'categoryId': categoryId,
         'salutation': salutation,
-        'birthday': birthday?.toJson(),
+        if (occasions != null) 'occasions': occasions!.map((ContactOccasion o) => o.toJson()).toList(),
+        if (fields != null) 'fields': fields,
         'notes': notes,
         'groupIds': groupIds,
       };

@@ -214,8 +214,9 @@ class _ImportPageState extends ConsumerState<ImportPage> {
                         ('Category', 'optional; a new name creates the category'),
                         ('Name (English / Hindi / Gujarati)', 'the one in the contact’s language is required'),
                         ('Language', 'en, hi or gu; empty uses your default'),
-                        ('Birthday', 'DD-MM or DD-MM-YYYY'),
                         ('Groups', 'comma-separated'),
+                        ('Each of your occasions (Birthday, Asthi, …)', 'DD-MM or DD-MM-YYYY; the template has a column for each'),
+                        ('Each of your contact fields (City, …)', 'a column with the field’s name'),
                       ])
                         Padding(
                           padding: const EdgeInsets.only(bottom: 8),

@@ -3,10 +3,56 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:material_ui/material_ui.dart';
 
-import '../../core/format.dart';
 import '../../core/ui.dart';
+import '../modules/modules_api.dart';
+import '../modules/modules_page.dart';
+import 'contact_fields_page.dart';
 import 'contact_models.dart';
 import 'contacts_api.dart';
+
+/// One occasion date being edited.
+class _OccasionRow {
+  _OccasionRow(this.moduleId, {int? day, int? month, int? year, String? forName})
+      : day = TextEditingController(text: day?.toString() ?? ''),
+        month = TextEditingController(text: month?.toString() ?? ''),
+        year = TextEditingController(text: year?.toString() ?? ''),
+        forName = TextEditingController(text: forName ?? '');
+
+  final String moduleId;
+  final TextEditingController day;
+  final TextEditingController month;
+  final TextEditingController year;
+  final TextEditingController forName;
+
+  void dispose() {
+    day.dispose();
+    month.dispose();
+    year.dispose();
+    forName.dispose();
+  }
+}
+
+/// "2019-03-05" → "05-03-2019", the form people type dates in.
+String _dateForInput(String stored) {
+  final List<String> p = stored.split('-');
+  return p.length == 3 ? '${p[2]}-${p[1]}-${p[0]}' : stored;
+}
+
+/// "5-3-2019", "05/03/2019" or "2019-03-05" → "2019-03-05"; null when it is not a real date.
+String? _dateToStore(String typed) {
+  final List<int?> p = typed.trim().split(RegExp(r'[-/.\s]+')).map(int.tryParse).toList();
+  if (p.length != 3 || p.any((int? x) => x == null)) {
+    return null;
+  }
+
+  final (int y, int m, int d) = p[0]! > 31 ? (p[0]!, p[1]!, p[2]!) : (p[2]!, p[1]!, p[0]!);
+  final DateTime t = DateTime(y, m, d);
+  if (y < 1900 || y > 2200 || t.month != m || t.day != d) {
+    return null;
+  }
+
+  return '${y.toString().padLeft(4, '0')}-${m.toString().padLeft(2, '0')}-${d.toString().padLeft(2, '0')}';
+}
 
 /// Add or edit a contact: same fields and checks as the website's contact dialog.
 /// Returns the saved contact.
@@ -37,9 +83,14 @@ class _ContactFormPageState extends ConsumerState<ContactFormPage> {
   late final TextEditingController _nameHi = TextEditingController(text: _c?.nameHi ?? '');
   late final TextEditingController _nameGu = TextEditingController(text: _c?.nameGu ?? '');
   late final TextEditingController _salutation = TextEditingController(text: _c?.salutation ?? '');
-  late final TextEditingController _day = TextEditingController(text: _c?.birthday?.day.toString() ?? '');
-  late final TextEditingController _month = TextEditingController(text: _c?.birthday?.month.toString() ?? '');
-  late final TextEditingController _year = TextEditingController(text: _c?.birthday?.year?.toString() ?? '');
+  late final List<_OccasionRow> _occasions = <_OccasionRow>[
+    for (final ContactOccasion o in _c?.occasions ?? const <ContactOccasion>[])
+      _OccasionRow(o.moduleId, day: o.day, month: o.month, year: o.year, forName: o.forName),
+  ];
+
+  /// Text, number and date fields by field id (choice values are in [_choices]).
+  final Map<String, TextEditingController> _fieldText = <String, TextEditingController>{};
+  late final Map<String, String?> _choices = <String, String?>{...?_c?.fields};
   late final TextEditingController _notes = TextEditingController(text: _c?.notes ?? '');
   late String _language = _c?.language ?? widget.defaultLanguage;
   late String? _categoryId = _c?.categoryId;
@@ -56,12 +107,14 @@ class _ContactFormPageState extends ConsumerState<ContactFormPage> {
       _nameHi,
       _nameGu,
       _salutation,
-      _day,
-      _month,
-      _year,
       _notes,
+      ..._fieldText.values,
     ]) {
       c.dispose();
+    }
+
+    for (final _OccasionRow o in _occasions) {
+      o.dispose();
     }
 
     super.dispose();
@@ -86,17 +139,63 @@ class _ContactFormPageState extends ConsumerState<ContactFormPage> {
       return;
     }
 
-    final int? day = int.tryParse(_day.text.trim());
-    final int? month = int.tryParse(_month.text.trim());
-    final int? year = int.tryParse(_year.text.trim());
-    if ((day == null) != (month == null)) {
-      setState(() => _error = 'For a birthday enter both the day and the month (the year is optional).');
-      return;
+    final List<OccasionModule> modules = ref.read(modulesProvider).value ?? const <OccasionModule>[];
+    final List<ContactOccasion> occasions = <ContactOccasion>[];
+    for (final _OccasionRow o in _occasions) {
+      final OccasionModule? m = modules.where((OccasionModule x) => x.id == o.moduleId).firstOrNull;
+      final String name = m?.name ?? 'the occasion';
+      final int? day = int.tryParse(o.day.text.trim());
+      final int? month = int.tryParse(o.month.text.trim());
+      final int? year = int.tryParse(o.year.text.trim());
+      if (day == null || month == null || day < 1 || day > 31 || month < 1 || month > 12) {
+        setState(() => _error = 'For $name enter the day (1 to 31) and the month (1 to 12), or remove it.');
+        return;
+      }
+
+      if (m?.kind == 'once' && year == null) {
+        setState(() => _error = '$name happens one time: enter the year too.');
+        return;
+      }
+
+      if (year != null && (year < 1900 || year > 2200 || DateTime(year, month, day).day != day)) {
+        setState(() => _error = 'The date for $name is not a real date.');
+        return;
+      }
+
+      occasions.add(ContactOccasion(
+        moduleId: o.moduleId,
+        day: day,
+        month: month,
+        year: year,
+        forName: m?.forNameLabel != null && o.forName.text.trim().isNotEmpty ? o.forName.text.trim() : null,
+      ));
     }
 
-    if ((day != null && (day < 1 || day > 31)) || (month != null && (month < 1 || month > 12))) {
-      setState(() => _error = 'The birthday day must be 1 to 31 and the month 1 to 12.');
-      return;
+    final List<ContactField> fields = ref.read(contactFieldsProvider).value ?? const <ContactField>[];
+    final Map<String, String?> values = <String, String?>{};
+    for (final ContactField f in fields) {
+      if (f.type == 'choice') {
+        values[f.id] = _choices[f.id];
+        continue;
+      }
+
+      final String typed = _fieldText[f.id]?.text.trim() ?? '';
+      if (typed.isEmpty) {
+        values[f.id] = null;
+      } else if (f.type == 'date') {
+        final String? stored = _dateToStore(typed);
+        if (stored == null) {
+          setState(() => _error = '${f.name}: enter a date like 05-03-2019.');
+          return;
+        }
+
+        values[f.id] = stored;
+      } else if (f.type == 'number' && num.tryParse(typed.replaceAll(',', '')) == null) {
+        setState(() => _error = '${f.name}: enter a number.');
+        return;
+      } else {
+        values[f.id] = typed;
+      }
     }
 
     setState(() {
@@ -115,9 +214,11 @@ class _ContactFormPageState extends ConsumerState<ContactFormPage> {
               language: _language,
               categoryId: _categoryId,
               salutation: _orNull(_salutation),
-              birthday: day != null && month != null ? Birthday(day: day, month: month, year: year) : null,
               notes: _orNull(_notes),
               groupIds: _groupIds.toList(),
+              // Only sent once the occasions are known, so a failed load never clears the contact's dates.
+              occasions: ref.read(modulesProvider).hasValue ? occasions : null,
+              fields: ref.read(contactFieldsProvider).hasValue ? values : null,
             ),
           );
       if (mounted) {
@@ -146,6 +247,151 @@ class _ContactFormPageState extends ConsumerState<ContactFormPage> {
           enabled: !_saving,
         ),
       );
+
+  /// The contact's dates, only for the user's own occasions; "Add" lists the occasions not on it yet.
+  List<Widget> _occasionSection(FThemeData theme) {
+    final AsyncValue<List<OccasionModule>> loaded = ref.watch(modulesProvider);
+    final List<OccasionModule> modules = loaded.value ?? const <OccasionModule>[];
+    final TextStyle muted = theme.typography.body.sm.copyWith(color: theme.colors.mutedForeground);
+    final List<OccasionModule> notAdded =
+        modules.where((OccasionModule m) => !_occasions.any((_OccasionRow o) => o.moduleId == m.id)).toList();
+    return <Widget>[
+      const SectionLabel('Occasions'),
+      if (loaded.hasError)
+        Padding(padding: const EdgeInsets.only(bottom: 12), child: Text('Occasions could not load; dates stay as they are.', style: muted))
+      else if (!loaded.hasValue)
+        const Padding(padding: EdgeInsets.only(bottom: 12), child: FCircularProgress.loader(size: FCircularProgressSizeVariant.sm))
+      else if (modules.isEmpty)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: GestureDetector(
+            onTap: () => openModuleBuilder(context, ref),
+            child: Text('Make an occasion first (Birthday, Anniversary, Asthi…), then add their dates here.', style: muted),
+          ),
+        )
+      else ...<Widget>[
+        for (final _OccasionRow o in _occasions)
+          if (modules.where((OccasionModule m) => m.id == o.moduleId).firstOrNull case final OccasionModule m)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: DecoratedBox(
+                decoration: BoxDecoration(border: Border.all(color: theme.colors.border), borderRadius: BorderRadius.circular(12)),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 8, 4, 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Row(
+                        children: <Widget>[
+                          Icon(moduleIcon(m), size: 18),
+                          const SizedBox(width: 8),
+                          Expanded(child: Text(m.name, style: theme.typography.body.md.copyWith(fontWeight: FontWeight.w600))),
+                          FButton.icon(
+                            variant: FButtonVariant.ghost,
+                            onPress: _saving
+                                ? null
+                                : () => setState(() {
+                                      _occasions.remove(o);
+                                      o.dispose();
+                                    }),
+                            child: const Icon(FLucideIcons.x),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: Row(
+                          children: <Widget>[
+                            Expanded(child: _field(o.day, 'Day', hint: '14', keyboard: TextInputType.number)),
+                            const SizedBox(width: 8),
+                            Expanded(child: _field(o.month, 'Month', hint: '11', keyboard: TextInputType.number)),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _field(o.year, m.kind == 'once' ? 'Year' : 'Year (optional)', hint: '1980', keyboard: TextInputType.number),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (m.forNameLabel != null)
+                        Padding(padding: const EdgeInsets.only(right: 8), child: _field(o.forName, '${m.forNameLabel} (optional)')),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        if (notAdded.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: ChoiceChips<String>(
+              options: <(String, String)>[for (final OccasionModule m in notAdded) (m.id, '+ ${m.name}')],
+              selected: null,
+              onChange: _saving ? null : (String id) => setState(() => _occasions.add(_OccasionRow(id))),
+            ),
+          ),
+      ],
+    ];
+  }
+
+  /// The user's own fields, by type. Empty fields are left empty (nothing is stored for them).
+  List<Widget> _fieldSection(FThemeData theme) {
+    final List<ContactField> fields = ref.watch(contactFieldsProvider).value ?? const <ContactField>[];
+    final TextStyle muted = theme.typography.body.sm.copyWith(color: theme.colors.mutedForeground);
+    return <Widget>[
+      const SectionLabel('More details'),
+      if (fields.isEmpty)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: GestureDetector(
+            onTap: () => pushPage<void>(context, const ContactFieldsPage()),
+            child: Text('Add your own fields, like City or Shop name, in Contact fields.', style: muted),
+          ),
+        )
+      else
+        for (final ContactField f in fields)
+          if (f.type == 'choice')
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(f.name, style: theme.typography.body.sm.copyWith(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 6),
+                  ChoiceChips<String?>(
+                    options: <(String?, String)>[(null, 'None'), for (final String o in f.options) (o, o)],
+                    selected: _choices[f.id],
+                    onChange: _saving ? null : (String? v) => setState(() => _choices[f.id] = v),
+                  ),
+                ],
+              ),
+            )
+          else
+            _field(
+              _fieldText.putIfAbsent(
+                f.id,
+                () => TextEditingController(
+                  text: switch (_c?.fields[f.id]) {
+                    final String v when f.type == 'date' => _dateForInput(v),
+                    final String v => v,
+                    null => '',
+                  },
+                ),
+              ),
+              f.name,
+              hint: switch (f.type) {
+                'date' => 'DD-MM-YYYY',
+                'number' => '0',
+                _ => null,
+              },
+              description: 'In messages: {{${f.key}}}',
+              keyboard: switch (f.type) {
+                'number' => const TextInputType.numberWithOptions(decimal: true, signed: true),
+                'date' => TextInputType.datetime,
+                _ => null,
+              },
+            ),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -225,24 +471,8 @@ class _ContactFormPageState extends ConsumerState<ContactFormPage> {
                       }),
             ),
           const SizedBox(height: 12),
-          const SectionLabel('Birthday (optional)'),
-          Row(
-            children: <Widget>[
-              Expanded(child: _field(_day, 'Day', hint: '14', keyboard: TextInputType.number)),
-              const SizedBox(width: 8),
-              Expanded(child: _field(_month, 'Month', hint: '11', keyboard: TextInputType.number)),
-              const SizedBox(width: 8),
-              Expanded(child: _field(_year, 'Year', hint: '1980', keyboard: TextInputType.number)),
-            ],
-          ),
-          if (int.tryParse(_month.text) case final int m when m >= 1 && m <= 12)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Text(
-                'Month: ${monthName(m)}',
-                style: theme.typography.body.xs.copyWith(color: theme.colors.mutedForeground),
-              ),
-            ),
+          ..._occasionSection(theme),
+          ..._fieldSection(theme),
           Padding(
             padding: const EdgeInsets.only(bottom: 12),
             child: FTextField.multiline(

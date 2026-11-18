@@ -6,12 +6,14 @@ import 'package:material_ui/material_ui.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../app/confirm_dialog.dart';
+import '../../core/format.dart';
 import '../../core/memory_cache.dart';
 import '../../core/realtime/live_updates.dart';
 import '../../core/ui.dart';
 import '../auth/auth_models.dart';
 import '../auth/session_controller.dart';
 import '../chats/new_message_page.dart';
+import '../modules/modules_api.dart';
 import 'contact_form_page.dart';
 import 'contact_models.dart';
 import 'contacts_api.dart';
@@ -59,6 +61,10 @@ class ContactsTabState extends ConsumerState<ContactsTab> {
   String _defaultLanguage = 'en';
   String? _categoryId;
   bool _needsDetails = false;
+
+  /// Only people with a value in this custom field (text: containing [_fieldValue]; other types: equal to it).
+  String? _fieldId;
+  final TextEditingController _fieldValue = TextEditingController();
   final List<Contact> _contacts = <Contact>[];
   int _total = 0;
   int _page = 0;
@@ -82,7 +88,8 @@ class ContactsTabState extends ConsumerState<ContactsTab> {
     return s is SignedIn && s.can('contacts.manage');
   }
 
-  bool get _unfiltered => _search.text.trim().isEmpty && _categoryId == null && !_needsDetails && _whatsApp == null;
+  bool get _unfiltered =>
+      _search.text.trim().isEmpty && _categoryId == null && !_needsDetails && _whatsApp == null && _fieldId == null;
 
   bool get _showingNotOnWhatsApp => _whatsApp == 'not_on_whatsapp';
 
@@ -111,6 +118,7 @@ class ContactsTabState extends ConsumerState<ContactsTab> {
     _live?.cancel();
     _searchTimer?.cancel();
     _search.dispose();
+    _fieldValue.dispose();
     super.dispose();
   }
 
@@ -181,6 +189,70 @@ class ContactsTabState extends ConsumerState<ContactsTab> {
     await _more(replace: keepShowing);
   }
 
+  /// A date typed as DD-MM-YYYY goes to the server as stored (yyyy-MM-dd); the rest as typed.
+  String _storedFilterValue() {
+    final String typed = _fieldValue.text.trim();
+    final ContactField? f = (ref.read(contactFieldsProvider).value ?? const <ContactField>[])
+        .where((ContactField x) => x.id == _fieldId)
+        .firstOrNull;
+    final List<String> p = typed.split(RegExp(r'[-/.]'));
+    if (f?.type == 'date' && p.length == 3 && p[0].length <= 2) {
+      return '${p[2]}-${p[1].padLeft(2, '0')}-${p[0].padLeft(2, '0')}';
+    }
+
+    return typed;
+  }
+
+  /// "Any detail" plus the user's fields; with one chosen, its value (choices as chips).
+  List<Widget> _fieldFilter(FThemeData theme) {
+    final List<ContactField> fields = ref.watch(contactFieldsProvider).value ?? const <ContactField>[];
+    if (fields.isEmpty || _showingNotOnWhatsApp) {
+      return const <Widget>[];
+    }
+
+    final ContactField? chosen = fields.where((ContactField f) => f.id == _fieldId).firstOrNull;
+    return <Widget>[
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+        child: ChoiceChips<String?>(
+          options: <(String?, String)>[(null, 'Any detail'), for (final ContactField f in fields) (f.id, f.name)],
+          selected: chosen?.id,
+          onChange: (String? id) {
+            setState(() {
+              _fieldId = id;
+              _fieldValue.clear();
+            });
+            reload();
+          },
+        ),
+      ),
+      if (chosen != null)
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+          child: chosen.type == 'choice'
+              ? ChoiceChips<String>(
+                  options: <(String, String)>[('', 'Any ${chosen.name}'), for (final String o in chosen.options) (o, o)],
+                  selected: _fieldValue.text,
+                  onChange: (String v) {
+                    setState(() => _fieldValue.text = v);
+                    reload();
+                  },
+                )
+              : FTextField(
+                  control: FTextFieldControl.managed(
+                    controller: _fieldValue,
+                    onChange: (_) {
+                      _searchTimer?.cancel();
+                      _searchTimer = Timer(const Duration(milliseconds: 400), reload);
+                    },
+                  ),
+                  hint: chosen.type == 'date' ? 'Any ${chosen.name} · DD-MM-YYYY' : 'Any ${chosen.name}',
+                  keyboardType: chosen.type == 'number' ? TextInputType.number : null,
+                ),
+        ),
+    ];
+  }
+
   Future<void> _more({bool replace = false}) async {
     final int seq = ++_seq;
     setState(() {
@@ -192,6 +264,8 @@ class ContactsTabState extends ConsumerState<ContactsTab> {
             search: _search.text,
             categoryId: _categoryId,
             needsDetails: _needsDetails,
+            fieldId: _fieldId,
+            fieldValue: _fieldId == null ? null : _storedFilterValue(),
             page: _page + 1,
             pageSize: _pageSize,
             whatsApp: _whatsApp,
@@ -549,6 +623,7 @@ class ContactsTabState extends ConsumerState<ContactsTab> {
                             FTextField.prefixIconBuilder(context, style, variants, const Icon(FLucideIcons.search)),
                       ),
                     ),
+                    ..._fieldFilter(theme),
                     _checkBanner(theme),
                     if (_check.notOnWhatsApp > 0 || _showingNotOnWhatsApp)
                       Padding(
@@ -726,21 +801,29 @@ class ContactsTabState extends ConsumerState<ContactsTab> {
 }
 
 /// One contact: details and what can be done. Pops with message, edit, optout, delete or recheck.
-class _ContactPage extends StatelessWidget {
+class _ContactPage extends ConsumerWidget {
   const _ContactPage({required this.contact, required this.canManage});
 
   final Contact contact;
   final bool canManage;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final FThemeData theme = context.theme;
     final Contact c = contact;
     final List<String> details = <String>[
       languageLabel(c.language),
       if (c.salutation != null) c.salutation!,
-      if (c.birthday != null)
-        'Birthday ${c.birthday!.day}/${c.birthday!.month}${c.birthday!.year != null ? '/${c.birthday!.year}' : ''}',
+    ];
+    final List<OccasionModule> modules = ref.watch(modulesProvider).value ?? const <OccasionModule>[];
+    final List<ContactField> fields = ref.watch(contactFieldsProvider).value ?? const <ContactField>[];
+    final List<(OccasionModule, ContactOccasion)> dates = <(OccasionModule, ContactOccasion)>[
+      for (final ContactOccasion o in c.occasions)
+        if (modules.where((OccasionModule m) => m.id == o.moduleId).firstOrNull case final OccasionModule m) (m, o),
+    ];
+    final List<(ContactField, String)> values = <(ContactField, String)>[
+      for (final ContactField f in fields)
+        if (c.fields[f.id] case final String v when v.isNotEmpty) (f, f.display(v)),
     ];
     return PageScaffold(
       title: c.displayName,
@@ -827,6 +910,29 @@ class _ContactPage extends StatelessWidget {
                 ),
               ],
             ),
+          if (dates.isNotEmpty)
+            CardSection(
+              title: 'Occasions',
+              children: <Widget>[
+                for (final (OccasionModule m, ContactOccasion o) in dates)
+                  ListRow(
+                    leading: IconBadge(moduleIcon(m)),
+                    title: m.name,
+                    subtitle: <String>[
+                      '${o.day} ${monthName(o.month)}${o.year != null ? ' ${o.year}' : ''}',
+                      if (o.forName != null && m.forNameLabel != null) '${m.forNameLabel}: ${o.forName}',
+                    ].join(' · '),
+                  ),
+              ],
+            ),
+          if (values.isNotEmpty)
+            CardSection(
+              title: 'More details',
+              children: <Widget>[
+                for (final (ContactField f, String v) in values)
+                  ListRow(leading: const IconBadge(FLucideIcons.tag), title: v, subtitle: f.name),
+              ],
+            ),
           if (c.notes != null)
             CardSection(
               title: 'Notes',
@@ -839,7 +945,7 @@ class _ContactPage extends StatelessWidget {
                 ListRow(
                   leading: const IconBadge(FLucideIcons.pencil),
                   title: 'Edit',
-                  subtitle: 'Names, category, groups, birthday',
+                  subtitle: 'Names, groups, occasions, details',
                   trailing: const Icon(FLucideIcons.chevronRight, size: 18),
                   onTap: () => Navigator.of(context).pop('edit'),
                 ),

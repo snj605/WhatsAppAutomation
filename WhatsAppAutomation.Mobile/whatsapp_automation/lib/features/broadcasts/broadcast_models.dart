@@ -201,6 +201,8 @@ class BroadcastPreview {
     required this.skipped,
     required this.samples,
     required this.estimatedDays,
+    this.people = const <({String contactId, String name})>[],
+    this.person,
   });
 
   factory BroadcastPreview.fromJson(Json json) => BroadcastPreview(
@@ -209,6 +211,10 @@ class BroadcastPreview {
         skipped: asList(json['skipped']).map(SkippedPerson.fromJson).toList(),
         samples: asList(json['samples']).map(PreviewSample.fromJson).toList(),
         estimatedDays: asInt(json['estimatedDays']),
+        people: asList(json['people'])
+            .map((Json p) => (contactId: p['contactId'] as String, name: p['name'] as String? ?? ''))
+            .toList(),
+        person: json['person'] == null ? null : PersonMessage.fromJson(json['person'] as Json),
       );
 
   final int total;
@@ -216,6 +222,29 @@ class BroadcastPreview {
   final List<SkippedPerson> skipped;
   final List<PreviewSample> samples;
   final int estimatedDays;
+
+  /// The first 100 people, for "Preview for".
+  final List<({String contactId, String name})> people;
+
+  /// Exactly what the person asked for gets, or why they are left out.
+  final PersonMessage? person;
+}
+
+/// One person's own message in a preview (POST /api/v1/broadcasts/preview?for=…).
+class PersonMessage {
+  const PersonMessage({required this.contactId, required this.name, required this.text, required this.skipReason});
+
+  factory PersonMessage.fromJson(Json json) => PersonMessage(
+        contactId: json['contactId'] as String,
+        name: json['name'] as String? ?? '',
+        text: asStringOrNull(json['text']),
+        skipReason: asStringOrNull(json['skipReason']),
+      );
+
+  final String contactId;
+  final String name;
+  final String? text;
+  final String? skipReason;
 }
 
 class Pacing {

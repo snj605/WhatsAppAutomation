@@ -4,13 +4,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:forui/forui.dart';
 import 'package:material_ui/material_ui.dart';
 
-import '../../core/format.dart';
 import '../../core/ui.dart';
 import '../broadcasts/broadcast_models.dart';
 import '../broadcasts/broadcasts_api.dart';
 import '../contacts/contact_models.dart';
 import '../contacts/contacts_api.dart';
 import '../files/files_api.dart';
+import '../preview/wa_bubble.dart';
+import '../preview/wa_person_preview.dart';
 import '../whatsapp/whatsapp_gate.dart';
 import 'broadcast_page.dart';
 import 'message_bar.dart';
@@ -504,17 +505,8 @@ class _NewMessagePageState extends ConsumerState<NewMessagePage> {
           ),
           if (_text.text.trim().isNotEmpty) ...<Widget>[
             const SizedBox(height: 16),
-            const SectionLabel('Preview · for example Ramesh Patel'),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: theme.colors.card,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: theme.colors.border),
-                boxShadow: cardShadow(context),
-              ),
-              child: Text(sampleText(_text.text.trim()), style: theme.typography.body.md),
-            ),
+            const SectionLabel('How it looks on WhatsApp'),
+            WaPersonPreview(text: _text.text.trim(), file: WaFile.upload(_attachment), moduleId: _audience == 'people' ? widget.preset?.moduleId : null),
           ],
         ],
       );
@@ -570,25 +562,7 @@ class _NewMessagePageState extends ConsumerState<NewMessagePage> {
         if (sample != null) ...<Widget>[
           const SizedBox(height: 16),
           SectionLabel('${sample.contactName} will get'),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: theme.colors.card,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: theme.colors.border),
-              boxShadow: cardShadow(context),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                if (_attachment != null) ...<Widget>[
-                  AttachmentChip(file: _attachment!, onRemove: null),
-                  const SizedBox(height: 8),
-                ],
-                Text(sample.text, style: theme.typography.body.md),
-              ],
-            ),
-          ),
+          WaBubble(text: sample.text, file: WaFile.upload(_attachment), chip: sample.contactName),
           if (samples.length > 1)
             Align(
               alignment: Alignment.centerRight,

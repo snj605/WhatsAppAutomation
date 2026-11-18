@@ -20,8 +20,13 @@ class BroadcastsApi {
   Future<BroadcastDetails> get(String id) async =>
       BroadcastDetails.fromJson((await _api.get('/api/v1/broadcasts/$id'))! as Json);
 
-  Future<BroadcastPreview> preview(BroadcastInput input) async =>
-      BroadcastPreview.fromJson((await _api.post('/api/v1/broadcasts/preview', input.toJson()))! as Json);
+  /// With [forContactId]: also exactly what that person gets.
+  Future<BroadcastPreview> preview(BroadcastInput input, {String? forContactId}) async => BroadcastPreview.fromJson(
+        (forContactId == null
+            ? await _api.post('/api/v1/broadcasts/preview', input.toJson())
+            : await _api.postWithQuery('/api/v1/broadcasts/preview', input.toJson(), <String, String>{'for': forContactId}))!
+            as Json,
+      );
 
   Future<BroadcastSummary> create(BroadcastInput input) async =>
       BroadcastSummary.fromJson((await _api.post('/api/v1/broadcasts', input.toJson()))! as Json);

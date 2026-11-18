@@ -11,6 +11,7 @@ import '../../core/realtime/live_updates.dart';
 import '../../core/ui.dart';
 import '../broadcasts/broadcast_models.dart';
 import '../broadcasts/broadcasts_api.dart';
+import '../preview/wa_bubble.dart';
 import '../sending/results_page.dart';
 import '../sending/sending_api.dart';
 import 'chat_bubble.dart';
@@ -438,8 +439,12 @@ class _BroadcastPageState extends ConsumerState<BroadcastPage> {
                         '${example.name} got:',
                         style: theme.typography.body.xs.copyWith(color: theme.colors.mutedForeground, fontWeight: FontWeight.w600),
                       ),
-                      const SizedBox(height: 4),
-                      Text(example.text!, style: theme.typography.body.sm),
+                      const SizedBox(height: 6),
+                      WaBubble(
+                        text: example.text,
+                        file: WaFile.sent(d.attachment),
+                        status: example.status == 'skipped' ? null : example.status,
+                      ),
                     ],
                   ],
                 ),

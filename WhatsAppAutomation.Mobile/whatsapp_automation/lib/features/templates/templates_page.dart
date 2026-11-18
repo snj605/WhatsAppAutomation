@@ -9,6 +9,8 @@ import '../auth/auth_models.dart';
 import '../auth/session_controller.dart';
 import '../chats/message_bar.dart';
 import '../files/files_api.dart';
+import '../preview/wa_bubble.dart';
+import '../preview/wa_person_preview.dart';
 import 'templates_api.dart';
 
 /// The user's saved messages and the organisation's shared ones: add, change, delete. Same as the website's Templates
@@ -250,17 +252,8 @@ class _TemplateEditPageState extends ConsumerState<_TemplateEditPage> {
             ),
             if (_text.text.trim().isNotEmpty) ...<Widget>[
               const SizedBox(height: 16),
-              const SectionLabel('Preview · for example Ramesh Patel'),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: context.theme.colors.card,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: context.theme.colors.border),
-                  boxShadow: cardShadow(context),
-                ),
-                child: Text(sampleText(_text.text.trim()), style: context.theme.typography.body.md),
-              ),
+              const SectionLabel('How it looks on WhatsApp'),
+              WaPersonPreview(text: _text.text.trim(), file: WaFile.upload(_file)),
             ],
             if (admin) ...<Widget>[
               const SizedBox(height: 16),

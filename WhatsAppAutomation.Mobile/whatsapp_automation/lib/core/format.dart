@@ -142,7 +142,10 @@ String sampleText(String text, {String name = 'Ramesh Patel'}) => text
     .replaceAll(RegExp(r'\{\{\s*name_hi\s*\}\}|\{name_hi\}', caseSensitive: false), 'रमेश पटेल')
     .replaceAll(RegExp(r'\{\{\s*name_en\s*\}\}|\{name_en\}', caseSensitive: false), name)
     .replaceAll(RegExp(r'\{\{\s*name\s*\}\}|\{name\}', caseSensitive: false), name)
-    .replaceAll(RegExp(r'\{\{\s*salutation\s*\}\}|\{salutation\}', caseSensitive: false), 'Dear');
+    .replaceAll(RegExp(r'\{\{\s*salutation\s*\}\}|\{salutation\}', caseSensitive: false), 'Dear')
+    .replaceAll(RegExp(r'\{\{\s*for_name\s*\}\}', caseSensitive: false), 'Late Shri Mohanbhai')
+    // The user's own contact fields ({{city}}): each person's value goes there.
+    .replaceAllMapped(RegExp(r'\{\{\s*([A-Za-z0-9_]+)\s*\}\}'), (Match m) => '[${m.group(1)}]');
 
 /// "07:15" → "07:15 AM".
 String hhmmText(String? hhmm) {

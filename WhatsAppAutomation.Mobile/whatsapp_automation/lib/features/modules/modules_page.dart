@@ -4,6 +4,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../core/format.dart';
 import '../../core/ui.dart';
+import '../contacts/contact_fields_page.dart';
 import 'module_page.dart';
 import 'modules_api.dart';
 
@@ -51,6 +52,17 @@ class ModulesTab extends ConsumerWidget {
                         trailing: Icon(FLucideIcons.chevronRight, size: 18, color: theme.colors.mutedForeground),
                         onTap: () => _open(context, ref, m),
                       ),
+                  ],
+                ),
+                CardSection(
+                  children: <Widget>[
+                    ListRow(
+                      leading: const IconBadge(FLucideIcons.tags),
+                      title: 'Contact fields',
+                      subtitle: 'Your own details on each contact, like City',
+                      trailing: Icon(FLucideIcons.chevronRight, size: 18, color: theme.colors.mutedForeground),
+                      onTap: () => pushPage<void>(context, const ContactFieldsPage()),
+                    ),
                   ],
                 ),
                 Padding(

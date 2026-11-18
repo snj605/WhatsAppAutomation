@@ -10,6 +10,8 @@ import '../../core/ui.dart';
 import '../chats/new_message_page.dart';
 import '../contacts/contact_models.dart';
 import '../contacts/contacts_api.dart';
+import '../preview/wa_bubble.dart';
+import '../preview/wa_person_preview.dart';
 import '../sending/status_look.dart';
 import '../templates/templates_api.dart';
 import '../templates/templates_page.dart';
@@ -519,9 +521,9 @@ class _ModuleSettingsState extends ConsumerState<_ModuleSettings> {
         ),
         if (chosen != null)
           CardSection(
-            title: 'What people get (example)',
+            title: 'How it looks on WhatsApp',
             padding: const EdgeInsets.all(12),
-            children: <Widget>[SelectableText(sampleText(chosen.text), style: theme.typography.body.sm)],
+            children: <Widget>[WaPersonPreview(text: chosen.text, file: WaFile.upload(chosen.attachment), moduleId: widget.module.id)],
           ),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),

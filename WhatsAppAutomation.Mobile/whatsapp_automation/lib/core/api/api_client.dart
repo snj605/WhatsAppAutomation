@@ -24,6 +24,9 @@ class ApiClient {
 
   Future<Object?> post(String path, [Object? body]) => _send('POST', path, body: body);
 
+  Future<Object?> postWithQuery(String path, Object? body, Map<String, String> query) =>
+      _send('POST', path, body: body, query: query);
+
   Future<Object?> put(String path, [Object? body]) => _send('PUT', path, body: body);
 
   Future<Object?> delete(String path) => _send('DELETE', path);
