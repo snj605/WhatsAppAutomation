@@ -116,8 +116,8 @@ The website and the app show the same screens, in the approved look (grey page, 
 19. **Your old birthdays**: after updating the database (step 2), every contact's birthday is a date of your Birthday occasion — nothing is lost (the old columns stay too).
 20. **Search**: Contacts → choose a field (and a value) → only those people. The same filter is in **New message → People**.
 21. **In messages**: in a template or new message, the field buttons put `{{city}}` in. Each person gets their own value; a person without it is skipped with "Needs details: no City". The Excel template has a column per field and per occasion.
-23. **Unlink really removes the device**: WhatsApp page → **Unlink** → on the phone, WhatsApp → Settings → **Linked devices**: the device is gone. Also try it while the PC's internet is off for a moment or right after restarting the gateway: it reconnects once just to log out. If WhatsApp truly cannot be reached, the app says so and asks you to remove it on the phone.
 22. **WhatsApp preview**: in New message, Templates, an occasion's Settings and a sent chat, the message shows as on WhatsApp: green bubble, the real **photo**, the **video** (website: first frame, play inside; app: tap to play), a **document** card (PDF/Word/Excel, size), *bold* _italic_ ~strike~, time and ticks. **Preview for…** picks a person and shows exactly their message (their name, language, second name, fields), or why they would be skipped.
+23. **Unlink really removes the device**: WhatsApp page → **Unlink** → on the phone, WhatsApp → Settings → **Linked devices**: the device is gone. Also try it while the PC's internet is off for a moment or right after restarting the gateway: it reconnects once just to log out. If WhatsApp truly cannot be reached, the app says so and asks you to remove it on the phone.
 
 ## If something goes wrong
 
