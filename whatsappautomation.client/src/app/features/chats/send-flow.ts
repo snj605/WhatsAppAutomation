@@ -73,6 +73,8 @@ export class SendFlow {
 export interface ComposedMessage {
   text: string;
   attachmentId: string | null;
+  /** The file is a video over 100 MB and the user agreed it goes as a file. */
+  sendVideoAsDocument?: boolean;
 }
 
 /** The parts every chat send needs; the caller adds who gets it. */
@@ -87,5 +89,6 @@ export function baseInput(name: string, message: ComposedMessage): BroadcastInpu
     groupIds: [],
     contactIds: [],
     attachmentId: message.attachmentId,
+    sendVideoAsDocument: message.sendVideoAsDocument === true,
   };
 }

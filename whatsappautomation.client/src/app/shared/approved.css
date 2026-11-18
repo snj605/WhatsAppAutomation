@@ -3,16 +3,17 @@
  * action, large titles, status as a dot plus text. Shared by the screens that already use it.
  */
 :host {
-  --ap-bg: #f7f8fa;
-  --ap-card: #ffffff;
-  --ap-border: #eaecf0;
-  --ap-line: #f2f4f7;
-  --ap-text: #101828;
-  --ap-text-2: #475467;
-  --ap-muted: #667085;
-  --ap-accent: #0f766e;
-  --ap-accent-hover: #115e59;
-  --ap-accent-soft: #f0fdf9;
+  /* Follows the global light/dark tokens in styles.css. */
+  --ap-bg: var(--ui-bg);
+  --ap-card: var(--ui-surface);
+  --ap-border: var(--ui-border);
+  --ap-line: var(--ui-surface-2);
+  --ap-text: var(--ui-text);
+  --ap-text-2: var(--ui-text-2);
+  --ap-muted: var(--ui-muted);
+  --ap-accent: var(--ui-accent);
+  --ap-accent-hover: var(--ui-accent-strong);
+  --ap-accent-soft: var(--ui-accent-soft);
   --ap-good: #17b26a;
   --ap-warn: #f79009;
   --ap-bad: #d92d20;
@@ -39,10 +40,10 @@
 .ap-row { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 0; border-bottom: 1px solid var(--ap-line); background: transparent; width: 100%; text-align: left; font: inherit; color: inherit; }
 .ap-row:last-child { border-bottom: 0; }
 button.ap-row { cursor: pointer; }
-button.ap-row:hover { background: #fafbfc; }
+button.ap-row:hover { background: var(--ap-line); }
 .ap-row.selected { background: var(--ap-accent-soft); }
-.ap-avatar { width: 40px; height: 40px; border-radius: 20px; background: var(--ap-line); color: #344054; display: grid; place-items: center; font-weight: 600; font-size: 14px; flex: none; }
-.ap-icon { width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--ap-border); color: #344054; display: grid; place-items: center; flex: none; }
+.ap-avatar { width: 40px; height: 40px; border-radius: 20px; background: var(--ap-line); color: var(--ap-text-2); display: grid; place-items: center; font-weight: 600; font-size: 14px; flex: none; }
+.ap-icon { width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--ap-border); color: var(--ap-text-2); display: grid; place-items: center; flex: none; }
 .ap-text { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
 .ap-text strong { font-size: 14px; font-weight: 600; }
 .ap-text small { font-size: 12px; color: var(--ap-muted); display: flex; align-items: center; gap: 5px; }
@@ -52,8 +53,8 @@ button.ap-row:hover { background: #fafbfc; }
 .ap-dot.bad { background: var(--ap-bad); }
 .ap-tag { font-size: 12px; font-weight: 500; color: var(--ap-text-2); border: 1px solid var(--ap-border); border-radius: 6px; padding: 2px 8px; white-space: nowrap; }
 
-.ap-btn { height: 40px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--ap-border); background: var(--ap-card); color: #344054; font: inherit; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; }
-.ap-btn:hover { background: #f9fafb; }
+.ap-btn { height: 40px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--ap-border); background: var(--ap-card); color: var(--ap-text-2); font: inherit; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; }
+.ap-btn:hover { background: var(--ap-line); }
 .ap-btn.primary { background: var(--ap-accent); border-color: var(--ap-accent); color: #fff; }
 .ap-btn.primary:hover { background: var(--ap-accent-hover); }
 .ap-btn.danger { color: var(--ap-bad); }
@@ -70,7 +71,7 @@ button.ap-row:hover { background: #fafbfc; }
 
 .ap-form { display: flex; flex-direction: column; gap: 6px; }
 .ap-form label { font-size: 13px; font-weight: 600; margin-top: 6px; }
-.ap-form input[type='text'], .ap-form input[type='password'] { height: 44px; border: 1px solid #d0d5dd; border-radius: 10px; padding: 0 12px; font: inherit; font-size: 15px; background: #fff; color: var(--ap-text); }
+.ap-form input[type='text'], .ap-form input[type='password'], .ap-form input[type='number'], .ap-form input[type='time'], .ap-form input[type='url'], .ap-form select { height: 44px; border: 1px solid #d0d5dd; border-radius: 10px; padding: 0 12px; font: inherit; font-size: 15px; background: var(--ap-card); color: var(--ap-text); }
 .ap-form input:focus { outline: 2px solid var(--ap-accent); outline-offset: 0; border-color: var(--ap-accent); }
 .ap-form input.invalid { border-color: var(--ap-bad); }
 .ap-hint { font-size: 12px; color: var(--ap-muted); }
@@ -81,7 +82,7 @@ button.ap-row:hover { background: #fafbfc; }
 .ap-table th { text-align: left; color: var(--ap-text-2); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; padding: 10px 14px; }
 .ap-table td { padding: 12px 14px; border-top: 1px solid var(--ap-line); }
 .ap-table tr.clickable { cursor: pointer; }
-.ap-table tr.clickable:hover td { background: #fafbfc; }
+.ap-table tr.clickable:hover td { background: var(--ap-line); }
 .ap-table tr.selected td { background: var(--ap-accent-soft); }
 
 @media (min-width: 900px) {
@@ -90,3 +91,24 @@ button.ap-row:hover { background: #fafbfc; }
 }
 
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+/* Shared by the new screens (modules, sending, queue, results, notifications, dashboard). */
+.ap-tabs { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; }
+.ap-tab { height: 34px; padding: 0 12px; border-radius: 8px; border: 1px solid transparent; background: transparent; color: var(--ap-text-2); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
+.ap-tab:hover { background: var(--ap-line); }
+.ap-tab.active { background: var(--ap-card); border-color: var(--ap-border); color: var(--ap-text); }
+.ap-count { font-size: 12px; font-weight: 600; color: var(--ap-text-2); background: var(--ap-line); border-radius: 999px; padding: 0 8px; }
+.ap-check { width: 18px; height: 18px; accent-color: var(--ap-accent); flex: none; }
+.ap-link { border: 0; background: transparent; color: var(--ap-accent); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; padding: 4px 6px; text-decoration: none; }
+.ap-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.ap-kpi { background: var(--ap-card); border: 1px solid var(--ap-border); border-radius: 14px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; }
+.ap-kpi span { font-size: 12px; color: var(--ap-muted); font-weight: 500; }
+.ap-kpi strong { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; }
+.ap-kpi small { font-size: 12px; color: var(--ap-muted); }
+.ap-bar { height: 8px; border-radius: 4px; background: var(--ap-line); overflow: hidden; }
+.ap-bar > span { display: block; height: 100%; background: var(--ap-accent); }
+.ap-sticky { position: sticky; bottom: 0; z-index: 5; background: var(--ap-card); border-top: 1px solid var(--ap-border); padding: 12px 16px; display: flex; gap: 8px; align-items: center; }
+.ap-grid-2 { display: grid; grid-template-columns: 1fr; gap: 12px; }
+@media (min-width: 700px) { .ap-grid-2 { grid-template-columns: 1fr 1fr; } }
+.ap-pre { white-space: pre-wrap; background: var(--ap-line); border-radius: 10px; padding: 12px; font-size: 14px; margin: 0; }
+.ap-dot.info { background: #2e90fa; }

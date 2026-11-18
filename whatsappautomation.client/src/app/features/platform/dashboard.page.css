@@ -1,0 +1,6 @@
+.wide { max-width: 1100px; }
+.scroll { overflow-x: auto; }
+.name { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; }
+.mods { color: var(--ap-text-2); font-size: 13px; }
+.pad-row { padding: 14px; }
+.center { justify-content: center; align-items: center; }

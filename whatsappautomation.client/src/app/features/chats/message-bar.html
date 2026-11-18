@@ -9,7 +9,7 @@
   @if (panel() === 'templates') {
     <div class="panel" role="menu">
       @for (t of myTemplates(); track t.id) {
-        <button type="button" class="panel-item" role="menuitem" (click)="useTemplate(t.text)"><strong><i class="pi pi-bookmark" aria-hidden="true"></i> {{ t.name }}</strong><small>{{ t.text }}</small></button>
+        <button type="button" class="panel-item" role="menuitem" (click)="useTemplate(t.text, t.attachment)"><strong><i [class]="t.attachment ? 'pi pi-paperclip' : 'pi pi-bookmark'" aria-hidden="true"></i> {{ t.name }}@if (t.shared) { · Shared }</strong><small>{{ t.text }}</small></button>
       }
       @for (t of suggestions; track t.label) {
         <button type="button" class="panel-item" role="menuitem" (click)="useTemplate(t.text)"><strong><i [class]="t.icon" aria-hidden="true"></i> {{ t.label }}</strong><small>{{ t.text }}</small></button>
@@ -32,7 +32,7 @@
   </div>
 
   <div class="row">
-    <button type="button" class="round ghost" (click)="picker.click()" [disabled]="uploading()" aria-label="Attach a file" title="Attach a photo, video or document (up to 16 MB)">
+    <button type="button" class="round ghost" (click)="picker.click()" [disabled]="uploading()" aria-label="Attach a file" title="Attach a photo, video or document (up to 512 MB)">
       <i [class]="uploading() ? 'pi pi-spin pi-spinner' : 'pi pi-paperclip'" aria-hidden="true"></i>
     </button>
     <input #picker type="file" hidden (change)="attach(picker)" />

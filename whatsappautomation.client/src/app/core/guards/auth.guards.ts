@@ -22,7 +22,7 @@ export const signedInOnlyGuard: CanActivateFn = (_route, state) =>
 
 /** Where "/" leads: the platform admin to Tenants, everyone else to Chats. */
 export function homeRedirect(): string {
-  return inject(AuthService).isPlatformAdmin() ? '/platform/tenants' : '/chats';
+  return inject(AuthService).isPlatformAdmin() ? '/platform/dashboard' : '/chats';
 }
 
 /** The sign-in page itself: already signed in → Home. */

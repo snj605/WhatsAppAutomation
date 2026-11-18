@@ -1,9 +1,13 @@
 <div class="shell" [class.in-conversation]="inConversation()" [class.has-bar]="canSend()">
   <nav class="rail" aria-label="Main">
     <span class="rail-logo" aria-hidden="true"><i class="pi pi-send"></i></span>
-    @for (t of tabs(); track t.link) {
-      <a [routerLink]="t.link" routerLinkActive="active" ariaCurrentWhenActive="page" class="rail-item" [attr.title]="t.label">
-        <i [class]="t.icon" aria-hidden="true"></i><span>{{ t.label }}</span>
+    @for (t of rail(); track t.link) {
+      <a [routerLink]="t.link" routerLinkActive="active" ariaCurrentWhenActive="page" class="rail-item" [attr.title]="t.label"
+        [routerLinkActiveOptions]="{ exact: t.link === '/modules' }">
+        <span class="rail-icon"><i [class]="t.icon" aria-hidden="true"></i>
+          @if (t.badge) {<span class="badge" [attr.aria-label]="t.badge + ' new'">{{ t.badge > 99 ? '99+' : t.badge }}</span>}
+        </span>
+        <span class="rail-label">{{ t.label }}</span>
       </a>
     }
   </nav>
@@ -16,9 +20,11 @@
   </main>
 
   <nav class="tabbar" aria-label="Main">
-    @for (t of tabs(); track t.link) {
+    @for (t of tabbar(); track t.link) {
       <a [routerLink]="t.link" routerLinkActive="active" ariaCurrentWhenActive="page" class="tab">
-        <span class="tab-icon"><i [class]="t.icon" aria-hidden="true"></i></span><span>{{ t.label }}</span>
+        <span class="tab-icon"><i [class]="t.icon" aria-hidden="true"></i>
+          @if (t.badge) {<span class="badge" [attr.aria-label]="t.badge + ' new'">{{ t.badge > 99 ? '99+' : t.badge }}</span>}
+        </span><span>{{ t.label }}</span>
       </a>
     }
   </nav>

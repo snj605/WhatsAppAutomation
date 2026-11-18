@@ -1,0 +1,96 @@
+<div class="ap-page">
+  <header class="ap-header">
+    <div class="ap-header-row">
+      <div>
+        <h1 class="ap-title">Occasions</h1>
+        <p class="ap-sub">Birthdays, anniversaries and other dates. Each one can send by itself.</p>
+      </div>
+      <span class="spacer"></span>
+      @if (store.modules().length < max) {
+        <button type="button" class="ap-btn primary" (click)="open()"><i class="pi pi-plus" aria-hidden="true"></i> New occasion</button>
+      }
+    </div>
+  </header>
+
+  <div class="ap-body">
+    @if (building()) {
+      <section class="ap-card pad ap-form" aria-label="New occasion">
+        <h2 class="ap-section-title flush">New occasion</h2>
+        <div class="ideas">
+          @for (i of ideas; track i.name) {
+            <button type="button" class="ap-tag idea" (click)="useIdea(i)">{{ i.name }}</button>
+          }
+          @if (!hasBirthday()) {
+            <button type="button" class="ap-tag idea" (click)="useIdea({ name: 'Birthday', kind: 'birthday', label: null })">Birthday</button>
+          }
+        </div>
+
+        <label for="new-name">Name</label>
+        <input id="new-name" type="text" maxlength="50" placeholder="For example: Anniversary" [(ngModel)]="name" />
+
+        <label>When</label>
+        <div class="kinds">
+          <label class="ap-row kind" [class.selected]="kind === 'yearly'">
+            <input type="radio" class="ap-check" name="kind" [checked]="kind === 'yearly'" (change)="kind = 'yearly'" />
+            <span class="ap-text"><strong>Every year</strong><small>Same day and month each year (anniversary, asthi)</small></span>
+          </label>
+          <label class="ap-row kind" [class.selected]="kind === 'once'">
+            <input type="radio" class="ap-check" name="kind" [checked]="kind === 'once'" (change)="kind = 'once'" />
+            <span class="ap-text"><strong>One time</strong><small>A date with a year (an event)</small></span>
+          </label>
+          @if (!hasBirthday()) {
+            <label class="ap-row kind" [class.selected]="kind === 'birthday'">
+              <input type="radio" class="ap-check" name="kind" [checked]="kind === 'birthday'" (change)="kind = 'birthday'" />
+              <span class="ap-text"><strong>Birthdays</strong><small>Uses each contact's birthday</small></span>
+            </label>
+          }
+        </div>
+
+        @if (kind !== 'birthday') {
+          <label class="check-line">
+            <input type="checkbox" class="ap-check" [(ngModel)]="withSecondName" />
+            Each date also has a second name (for example the person remembered)
+          </label>
+          @if (withSecondName) {
+            <input type="text" maxlength="50" placeholder="Label, for example: In memory of" [(ngModel)]="label" aria-label="Second name label" />
+            <span class="ap-hint">Use it in the message as {{ '{{for_name}}' }}. In Excel it is the column "{{ name || 'Name' }} - {{ label || 'Label' }}".</span>
+          }
+        }
+
+        <div class="ap-actions end">
+          <button type="button" class="ap-btn" (click)="building.set(false)">Cancel</button>
+          <button type="button" class="ap-btn primary" [disabled]="saving()" (click)="create()">Create</button>
+        </div>
+      </section>
+    }
+
+    @if (store.loaded() && store.modules().length === 0 && !building()) {
+      <section class="ap-card ap-empty">
+        <i class="pi pi-calendar-plus" aria-hidden="true"></i>
+        <strong>No occasions yet</strong>
+        <span>Make one for birthdays, anniversaries or any date you send wishes on.</span>
+        <button type="button" class="ap-btn primary" (click)="open()"><i class="pi pi-plus" aria-hidden="true"></i> New occasion</button>
+      </section>
+    } @else {
+      <section class="ap-card">
+        @for (m of store.modules(); track m.id) {
+          <a class="ap-row link" [routerLink]="['/modules', m.id]">
+            <span class="ap-icon" aria-hidden="true"><i [class]="icon(m)"></i></span>
+            <span class="ap-text">
+              <strong>{{ m.name }}</strong>
+              <small>
+                <span class="ap-dot" [class.good]="m.autoSend"></span>
+                {{ kindText(m) }} · {{ m.autoSend ? 'Sends by itself at ' + hhmmText(m.time) : 'Sends by hand' }}
+              </small>
+            </span>
+            @if (m.todayCount > 0) {
+              <span class="ap-tag">{{ m.todayCount }} today</span>
+            }
+            <i class="pi pi-chevron-right" aria-hidden="true"></i>
+          </a>
+        }
+      </section>
+      <p class="ap-note">Up to {{ max }} occasions. Add dates on each occasion's page, or with a column of the same name in the Excel import.</p>
+    }
+  </div>
+</div>

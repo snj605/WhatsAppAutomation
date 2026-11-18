@@ -1,0 +1,10 @@
+.flush { padding: 0; }
+.ideas { display: flex; flex-wrap: wrap; gap: 6px; }
+.idea { cursor: pointer; background: var(--ap-card); font: inherit; font-size: 12px; }
+.idea:hover { border-color: var(--ap-accent); color: var(--ap-accent); }
+.kinds { border: 1px solid var(--ap-border); border-radius: 10px; overflow: hidden; }
+.kind { cursor: pointer; }
+.check-line { display: flex !important; align-items: center; gap: 8px; font-weight: 500 !important; }
+.end { justify-content: flex-end; margin-top: 8px; }
+.link { text-decoration: none; color: inherit; }
+.link:hover { background: var(--ap-line); }

@@ -21,7 +21,7 @@
       <ul class="rows">
         @for (c of shown(); track c.kind + (c.id ?? '')) {
           <li>
-            <a class="row" [routerLink]="link(c)" routerLinkActive="active" [class.kind-birthdays]="c.kind === 'birthdays'">
+            <a class="row" [routerLink]="link(c)" routerLinkActive="active">
               @switch (c.kind) {
                 @case ('group') {
                   <span class="avatar group" aria-hidden="true"><i class="pi pi-users"></i></span>
@@ -30,9 +30,6 @@
                   <span class="avatar category" aria-hidden="true" [style.background]="(c.color ?? '#94a3b8') + '26'" [style.color]="c.color ?? '#475569'">
                     <i class="pi pi-tag"></i>
                   </span>
-                }
-                @case ('birthdays') {
-                  <span class="avatar birthday" aria-hidden="true"><i class="pi pi-gift"></i></span>
                 }
                 @default {
                   <span class="avatar" aria-hidden="true" [style.background]="colors(c.name).bg" [style.color]="colors(c.name).fg">{{ initials(c.name) }}</span>
@@ -73,7 +70,7 @@
       <div class="placeholder">
         <span class="empty-icon" aria-hidden="true"><i class="pi pi-send"></i></span>
         <strong>Personal messages, sent with care</strong>
-        <p>Open a group, category or Birthdays chat on the left and type a message, or start a new one.</p>
+        <p>Open a group or category chat on the left and type a message, or start a new one.</p>
       </div>
     }
   </section>

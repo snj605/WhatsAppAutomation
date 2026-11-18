@@ -127,7 +127,7 @@
   flex-shrink: 0;
 }
 
-.stat-icon.create { background: #ecfdf5; color: #047857; }
+.stat-icon.create { background: #ecfdf5; color: var(--ui-accent); }
 .stat-icon.update { background: #eff6ff; color: #1d4ed8; }
 .stat-icon.error { background: #fef3c7; color: #b45309; }
 .stat-icon.file { background: var(--p-surface-100); color: var(--p-text-muted-color); }
@@ -151,7 +151,7 @@
   align-items: center;
   flex-wrap: wrap;
   border-color: #a7f3d0;
-  background: linear-gradient(135deg, #ecfdf5, #ffffff);
+  background: var(--ui-accent-soft);
 }
 
 .done h2 {

@@ -17,8 +17,10 @@ export interface BroadcastInput {
   allContacts?: boolean;
   /** A file uploaded with POST /api/v1/files; the text is its caption. */
   attachmentId?: string | null;
-  /** Birthday wishes: they show in today's Birthdays chat. */
-  forBirthday?: boolean;
+  /** Wishes for an occasion module (Birthday, Anniversary, ...): they go before other messages and show on that module's page. */
+  moduleId?: string | null;
+  /** A video over 100 MB can only go as a file (document); the user must agree to that. */
+  sendVideoAsDocument?: boolean;
 }
 
 export interface BroadcastAttachment {
@@ -36,7 +38,7 @@ export interface BroadcastPreview {
   byLanguage: Record<'en' | 'hi' | 'gu', number>;
   skipped: { contactId: string | null; name: string; phoneNumber: string; reason: string }[];
   samples: { language: 'en' | 'hi' | 'gu' | 'all'; contactName: string; text: string }[];
-  dailyCap: number;
+  dailyLimit: number;
   estimatedDays: number;
 }
 
@@ -87,8 +89,7 @@ export interface BroadcastDetails {
 export interface Pacing {
   connected: boolean;
   sentToday: number;
-  dailyCap: number;
-  warmUpWeek: number | null;
+  dailyLimit: number;
   inSendingHours: boolean;
   sendingHours: string;
   nextSendAt: string | null;

@@ -2,6 +2,7 @@ import { inject, Injectable, signal } from '@angular/core';
 import { HubConnection, HubConnectionBuilder, HubConnectionState, LogLevel } from '@microsoft/signalr';
 import { Subject } from 'rxjs';
 import { WhatsAppCheckSummary } from '../../features/contacts/contacts.models';
+import { AppNotification } from '../../features/notifications/notifications.api';
 import { OutgoingMessage, WhatsAppAccount } from '../../features/whatsapp/whatsapp.models';
 import { AuthService } from '../auth/auth.service';
 
@@ -24,6 +25,8 @@ export class WhatsAppLiveService {
   readonly message$ = new Subject<OutgoingMessage>();
   /** After numbers were checked on WhatsApp: the new counts. */
   readonly contacts$ = new Subject<WhatsAppCheckSummary>();
+  /** A new notification for the bell (number logged out, sending paused, occasion wishes sent, ...). */
+  readonly notification$ = new Subject<AppNotification>();
 
   async start(): Promise<void> {
     this.users++;
@@ -41,6 +44,7 @@ export class WhatsAppLiveService {
     connection.on('account', (a: WhatsAppAccount) => this.account$.next(a));
     connection.on('message', (m: OutgoingMessage) => this.message$.next(m));
     connection.on('contacts', (s: WhatsAppCheckSummary) => this.contacts$.next(s));
+    connection.on('notification', (n: AppNotification) => this.notification$.next(n));
     connection.onreconnecting(() => this.connected.set(false));
     connection.onreconnected(() => this.connected.set(true));
     connection.onclose(() => this.connected.set(false));

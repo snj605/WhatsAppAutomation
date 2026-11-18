@@ -33,11 +33,6 @@ export const routes: Routes = [
             loadComponent: () => import('./features/chats/new-chat.page').then((m) => m.NewChatPage),
           },
           {
-            path: 'birthdays',
-            title: 'Birthdays today',
-            loadComponent: () => import('./features/chats/birthdays-chat.page').then((m) => m.BirthdaysChatPage),
-          },
-          {
             path: 'group/:id',
             title: 'Group',
             data: { kind: 'group' },
@@ -95,11 +90,36 @@ export const routes: Routes = [
         loadComponent: () => import('./features/whatsapp/whatsapp.page').then((m) => m.WhatsAppPage),
       },
       {
-        path: 'birthdays',
-        title: 'Birthdays',
-        canActivate: [permissionGuard('contacts.view')],
-        loadComponent: () => import('./features/birthdays/birthdays.page').then((m) => m.BirthdaysPage),
+        path: 'modules',
+        title: 'Occasions',
+        canActivate: [permissionGuard('modules.manage')],
+        loadComponent: () => import('./features/modules/modules.page').then((m) => m.ModulesPage),
       },
+      {
+        path: 'modules/:id',
+        title: 'Occasion',
+        canActivate: [permissionGuard('modules.manage')],
+        loadComponent: () => import('./features/modules/module.page').then((m) => m.ModulePage),
+      },
+      {
+        path: 'sending',
+        title: 'Sending',
+        canActivate: [permissionGuard('messages.send')],
+        loadComponent: () => import('./features/sending/sending.page').then((m) => m.SendingPage),
+      },
+      {
+        path: 'sending/results/:id',
+        title: 'Results',
+        canActivate: [permissionGuard('messages.send')],
+        loadComponent: () => import('./features/sending/results.page').then((m) => m.ResultsPage),
+      },
+      {
+        path: 'notifications',
+        title: 'Notifications',
+        loadComponent: () => import('./features/notifications/notifications.page').then((m) => m.NotificationsPage),
+      },
+      // Older links.
+      { path: 'birthdays', redirectTo: 'modules' },
       {
         path: 'contacts',
         title: 'Contacts',
@@ -123,6 +143,12 @@ export const routes: Routes = [
         title: 'Members',
         canActivate: [permissionGuard('members.manage')],
         loadComponent: () => import('./features/members/members.page').then((m) => m.MembersPage),
+      },
+      {
+        path: 'platform/dashboard',
+        title: 'Dashboard',
+        canActivate: [permissionGuard('platform.tenants')],
+        loadComponent: () => import('./features/platform/dashboard.page').then((m) => m.DashboardPage),
       },
       {
         path: 'platform/tenants',

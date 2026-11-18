@@ -68,36 +68,6 @@ export interface WhatsAppCheckSummary {
   connected: boolean;
 }
 
-/** A contact with a birthday today or soon (GET /api/v1/birthdays). */
-export interface UpcomingBirthday {
-  contactId: string;
-  name: string;
-  phoneNumber: string;
-  language: LanguageCode;
-  /** yyyy-MM-dd of the coming birthday. */
-  date: string;
-  /** 0 = today, 1 = tomorrow, … */
-  daysUntil: number;
-  turnsAge: number | null;
-  optedOut: boolean;
-  /** Today only: not_sent, pending, sent, delivered, read, failed or skipped. Null for coming days. */
-  status: string | null;
-  sentAt: string | null;
-  deliveredAt: string | null;
-}
-
-/** Automatic birthday wishes (GET/PUT /api/v1/birthdays/settings). */
-export interface BirthdaySettings {
-  enabled: boolean;
-  /** "HH:mm", like "07:15". */
-  time: string | null;
-  templateId: string | null;
-  templateName: string | null;
-  /** When the next automatic wishes start; null when off or not set up. */
-  nextRunAt: string | null;
-  timeZone: string;
-}
-
 export interface ContactPage {
   items: Contact[];
   total: number;

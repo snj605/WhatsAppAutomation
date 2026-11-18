@@ -1,6 +1,6 @@
 @if (current(); as b) {
-  <a class="bar active" [class.paused]="b.status === 'paused'" [routerLink]="['/chats', b.id]" aria-live="polite"
-    [attr.aria-label]="'Sending ' + b.name + ': ' + sent() + ' of ' + willGet() + ' sent. Open chat.'">
+  <a class="bar active" [class.paused]="b.status === 'paused'" routerLink="/sending" aria-live="polite"
+    [attr.aria-label]="'Sending ' + b.name + ': ' + sent() + ' of ' + willGet() + ' sent. Open the queue.'">
     <span class="icon" aria-hidden="true">
       <i [class]="b.status === 'paused' ? 'pi pi-pause' : 'pi pi-send'"></i>
     </span>

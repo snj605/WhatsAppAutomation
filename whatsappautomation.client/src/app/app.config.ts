@@ -6,12 +6,12 @@ import {
 } from '@angular/core';
 import { provideHttpClient, withInterceptors, withXsrfConfiguration } from '@angular/common/http';
 import { provideRouter, withComponentInputBinding } from '@angular/router';
-import Aura from '@primeuix/themes/aura';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { providePrimeNG } from 'primeng/config';
 import { routes } from './app.routes';
 import { AuthService } from './core/auth/auth.service';
 import { PRIMENG_LICENSE_KEY } from './core/config/primeng-license';
+import { AppPreset, applyThemeMode, savedThemeMode } from './core/config/theme';
 import { authInterceptor } from './core/interceptors/auth.interceptor';
 
 /**
@@ -27,12 +27,15 @@ export const appConfig: ApplicationConfig = {
       withInterceptors([authInterceptor]),
     ),
     providePrimeNG({
-      theme: { preset: Aura, options: { darkModeSelector: false } },
+      theme: { preset: AppPreset, options: { darkModeSelector: '.app-dark' } },
       license: PRIMENG_LICENSE_KEY || undefined,
     }),
     MessageService,
     ConfirmationService,
     // Before the first page shows: get an XSRF token and restore the session if the browser has one.
-    provideAppInitializer(() => inject(AuthService).restoreSession()),
+    provideAppInitializer(() => {
+      applyThemeMode(savedThemeMode());
+      return inject(AuthService).restoreSession();
+    }),
   ],
 };

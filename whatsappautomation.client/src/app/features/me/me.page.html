@@ -57,6 +57,16 @@
     </li>
   </ul>
 
+  <div class="item theme">
+    <span class="item-icon dark" aria-hidden="true"><i class="pi pi-palette"></i></span>
+    <span class="item-text"><strong>Look</strong><small>Light, dark or as your device</small></span>
+    <span class="seg" role="radiogroup" aria-label="Look">
+      @for (t of themes; track t.id) {
+        <button type="button" role="radio" [attr.aria-checked]="theme() === t.id" [class.on]="theme() === t.id" (click)="setTheme(t.id)">{{ t.label }}</button>
+      }
+    </span>
+  </div>
+
   <button type="button" class="item sign-out" (click)="signOut()">
     <span class="item-icon red" aria-hidden="true"><i class="pi pi-sign-out"></i></span>
     <span class="item-text"><strong>Sign out</strong></span>

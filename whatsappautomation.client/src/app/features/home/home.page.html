@@ -12,25 +12,15 @@
     }
   </section>
 
-  @if (birthdaysToday().length > 0) {
+  @for (m of occasionsToday(); track m.id) {
     <section class="card birthday-reminder">
-      <span class="card-icon amber"><i class="pi pi-gift" aria-hidden="true"></i></span>
+      <span class="card-icon amber"><i [class]="moduleIcon(m)" aria-hidden="true"></i></span>
       <div class="birthday-text">
-        <strong>{{ birthdaysToday().length === 1 ? '1 birthday today' : birthdaysToday().length + ' birthdays today' }}</strong>
-        <span class="muted">
-          @for (b of birthdaysToday().slice(0, 4); track b.contactId; let last = $last) {
-            <span>{{ b.name }}{{ last ? '' : ', ' }}</span>
-          }
-          @if (birthdaysToday().length > 4) {
-            <span> and {{ birthdaysToday().length - 4 }} more</span>
-          }
-        </span>
+        <strong>{{ m.name }} · {{ m.todayCount === 1 ? '1 person today' : m.todayCount + ' people today' }}</strong>
+        <span class="muted">{{ m.autoSend && m.nextRunAt ? 'Wishes go out by themselves at ' + m.time : 'Automatic wishes are off' }}</span>
       </div>
       <span class="spacer"></span>
-      @if (canBroadcast()) {
-        <p-button label="Send wishes" icon="pi pi-send" (onClick)="sendBirthdayWishes()" />
-      }
-      <p-button label="See all" severity="secondary" [text]="true" routerLink="/birthdays" />
+      <p-button label="Open" icon="pi pi-arrow-right" [routerLink]="['/modules', m.id]" />
     </section>
   }
 

@@ -186,7 +186,8 @@ public sealed record RecipientRowDto(
     DateTimeOffset? DeliveredAt,
     DateTimeOffset? ReadAt);
 
-public sealed record RecipientsPage(IReadOnlyList<RecipientRowDto> Items, int Total);
+/// <param name="Summary">The broadcast's name, state and counts, so the results screen needs one call.</param>
+public sealed record RecipientsPage(IReadOnlyList<RecipientRowDto> Items, int Total, BroadcastSummaryDto Summary);
 
 /// <summary>
 /// The people of one broadcast with one result, a page at a time: Status is "all", "pending", "sent" (handed to
@@ -247,6 +248,7 @@ internal sealed class GetBroadcastRecipientsQueryHandler(IAppDbContext db, ICurr
             [.. page.Select(x => new RecipientRowDto(
                 x.r.Id, x.r.ContactId, x.r.Name, x.r.PhoneNumber, BroadcastStatusText.Of(x.r.Status, x.Ticks), x.r.Reason, x.r.Attempts,
                 x.SentAt, x.DeliveredAt, x.ReadAt))],
-            total);
+            total,
+            (await BroadcastReads.SummariesAsync(db, userId, [query.BroadcastId], cancellationToken)).Single());
     }
 }

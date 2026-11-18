@@ -515,6 +515,8 @@ public sealed class BroadcastsApiTests(ApiFactory factory)
 
         var failed = (await client.GetFromJsonAsync<RecipientsPage>($"/api/v1/broadcasts/{created.Id}/recipients?status=failed", Ct))!;
         Assert.Equal(1, failed.Total);
+        Assert.Equal(created.Id, failed.Summary.Id);
+        Assert.Equal(1, failed.Summary.Counts.Failed);
         var sent = (await client.GetFromJsonAsync<RecipientsPage>($"/api/v1/broadcasts/{created.Id}/recipients?status=sent", Ct))!;
         Assert.Equal("Works", Assert.Single(sent.Items).Name);
         Assert.Equal(0, await RunSenderAsync());

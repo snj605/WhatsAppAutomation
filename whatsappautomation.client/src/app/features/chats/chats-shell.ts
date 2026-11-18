@@ -9,7 +9,7 @@ import { ChatKind, chatLink, ChatListItem, ChatsApi } from './chats.api';
 type ListFilter = 'all' | 'group' | 'category' | 'other';
 
 /**
- * Chats, like WhatsApp: every group and category is a chat you can message straight away, today's birthdays are
+ * Chats, like WhatsApp: every group and category is a chat you can message straight away, 
  * one chat with a checklist, and sends to picked people are one-off chats that leave the list 5 days after they
  * finish. On a computer the open chat shows on the right; on a phone it takes the whole screen.
  */
@@ -36,7 +36,7 @@ export class ChatsShell implements OnInit {
     return {
       group: list.filter((c) => c.kind === 'group').length,
       category: list.filter((c) => c.kind === 'category').length,
-      other: list.filter((c) => c.kind === 'broadcast' || c.kind === 'birthdays').length,
+      other: list.filter((c) => c.kind === 'broadcast').length,
     };
   });
   protected readonly shown = computed(() => {
@@ -44,7 +44,7 @@ export class ChatsShell implements OnInit {
     const f = this.filter();
     return this.chats().filter(
       (c) =>
-        (f === 'all' || (f === 'other' ? c.kind === 'broadcast' || c.kind === 'birthdays' : c.kind === f)) &&
+        (f === 'all' || (f === 'other' ? c.kind === 'broadcast' : c.kind === f)) &&
         (!q || c.name.toLowerCase().includes(q)),
     );
   });
@@ -82,14 +82,13 @@ export class ChatsShell implements OnInit {
   /** The grey line under a chat's name. */
   protected subtitle(c: ChatListItem): string {
     if (c.last && (c.last.status === 'sending' || c.last.status === 'paused')) return chatSubtitle(c.last);
-    if (c.kind === 'birthdays') return c.memberCount === 1 ? '1 birthday today · tap to wish' : `${c.memberCount} birthdays today · tap to wish`;
     if (c.lastText) return c.lastText.replace(/\s+/g, ' ');
     if (c.kind === 'group' || c.kind === 'category') return `${c.memberCount} ${c.memberCount === 1 ? 'member' : 'members'} · tap to send a message`;
     return c.last ? chatSubtitle(c.last) : '';
   }
 
   protected kindLabel(kind: ChatKind): string {
-    return kind === 'group' ? 'Group' : kind === 'category' ? 'Category' : kind === 'birthdays' ? 'Birthdays' : 'Sent list';
+    return kind === 'group' ? 'Group' : kind === 'category' ? 'Category' : 'Sent list';
   }
 
   private async load(): Promise<void> {

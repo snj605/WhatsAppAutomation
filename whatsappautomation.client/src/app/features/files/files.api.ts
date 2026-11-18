@@ -8,16 +8,19 @@ export interface UploadedFile {
   fileName: string;
   contentType: string;
   sizeBytes: number;
+  /** A video over 100 MB: WhatsApp takes it only as a file (document), not as a playable video. */
+  isBigVideo: boolean;
 }
 
-export const MAX_FILE_BYTES = 16 * 1024 * 1024;
+export const MAX_FILE_BYTES = 512 * 1024 * 1024;
+export const MAX_VIDEO_BYTES = 100 * 1024 * 1024;
 
 /** Programs and scripts the server refuses; checked here too so the user hears it at once. */
 const BLOCKED = ['.exe', '.msi', '.bat', '.cmd', '.com', '.scr', '.pif', '.ps1', '.vbs', '.vbe', '.js', '.jse', '.wsf', '.jar', '.apk', '.app', '.sh', '.dll'];
 
 export function fileProblem(file: File): string | null {
   if (file.size === 0) return 'The file is empty.';
-  if (file.size > MAX_FILE_BYTES) return 'The file is larger than 16 MB.';
+  if (file.size > MAX_FILE_BYTES) return 'The file is larger than 512 MB.';
   const name = file.name.toLowerCase();
   if (BLOCKED.some((ext) => name.endsWith(ext))) return 'Programs and scripts cannot be sent. Send a document, photo or video.';
   return null;
@@ -46,5 +49,10 @@ export class FilesApi {
     const form = new FormData();
     form.append('file', file, file.name);
     return firstValueFrom(this.http.post<UploadedFile>('/api/v1/files', form));
+  }
+
+  /** A Google Drive link shared with "Anyone with the link": the server fetches the file. */
+  fromLink(url: string): Promise<UploadedFile> {
+    return firstValueFrom(this.http.post<UploadedFile>('/api/v1/files/from-link', { url }));
   }
 }

@@ -4,7 +4,7 @@
 .kpi strong { font-size: 28px; font-weight: 700; }
 .table-wrap { overflow-x: auto; }
 .name-row { display: flex; gap: 8px; padding: 14px; align-items: center; }
-.name-row input { flex: 1; min-width: 0; height: 40px; border: 1px solid #d0d5dd; border-radius: 10px; padding: 0 12px; font: inherit; }
+.name-row input { flex: 1; min-width: 0; height: 40px; border: 1px solid var(--ui-border); border-radius: 10px; padding: 0 12px; font: inherit; }
 .status { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
 .row-actions { display: flex; gap: 6px; }
 .row-actions .ap-btn { height: 32px; padding: 0 10px; font-size: 12px; }

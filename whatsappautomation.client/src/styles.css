@@ -5,38 +5,61 @@
 @import 'primeicons/primeicons.css';
 
 :root {
-  --app-sidebar: #0f172a;
-  --app-sidebar-hover: #1e293b;
-  --app-sidebar-text: #cbd5e1;
-  --app-sidebar-muted: #64748b;
-  --app-bg: #f4f6f9;
+  /* The approved look (design canvas), shared with the app. */
+  --app-sidebar: #ffffff;
+  --app-sidebar-hover: #f2f4f7;
+  --app-sidebar-text: #344054;
+  --app-sidebar-muted: #667085;
+  --app-bg: #f7f8fa;
   --app-card: #ffffff;
-  --app-border: #e6e9ef;
+  --app-border: #eaecf0;
   --app-radius: 14px;
   --app-radius-sm: 10px;
-  --app-shadow: 0 1px 2px rgb(15 23 42 / 4%), 0 4px 16px rgb(15 23 42 / 4%);
-  --app-shadow-lg: 0 10px 40px rgb(15 23 42 / 12%);
-  --app-gradient: linear-gradient(135deg, #059669 0%, #0d9488 55%, #0e7490 100%);
+  --app-shadow: none;
+  --app-shadow-lg: 0 12px 32px rgb(16 24 40 / 12%);
+  --app-gradient: #0f766e;
 
-  /* User app (chat-style screens): light, calm, one accent. */
-  --ui-bg: #f4f6f9;
+  --ui-bg: #f7f8fa;
   --ui-surface: #ffffff;
-  --ui-surface-2: #f8fafc;
-  --ui-border: #e6eaf0;
-  --ui-text: #0f172a;
-  --ui-text-2: #475569;
-  --ui-muted: #94a3b8;
-  --ui-accent: #0e9f7e;
-  --ui-accent-strong: #0b7f65;
-  --ui-accent-soft: #e7f6f1;
-  --ui-accent-ring: rgb(14 159 126 / 18%);
-  --ui-warn: #b45309;
-  --ui-warn-soft: #fff6e5;
-  --ui-danger: #dc2626;
-  --ui-radius: 16px;
-  --ui-radius-sm: 12px;
-  --ui-shadow: 0 1px 2px rgb(15 23 42 / 4%), 0 6px 20px rgb(15 23 42 / 6%);
-  --ui-shadow-lg: 0 10px 30px rgb(15 23 42 / 12%);
+  --ui-surface-2: #f9fafb;
+  --ui-border: #eaecf0;
+  --ui-text: #101828;
+  --ui-text-2: #475467;
+  --ui-muted: #667085;
+  --ui-accent: #0f766e;
+  --ui-accent-strong: #115e59;
+  --ui-accent-soft: #f0fdf9;
+  --ui-accent-ring: rgb(15 118 110 / 18%);
+  --ui-warn: #b54708;
+  --ui-warn-soft: #fffaeb;
+  --ui-danger: #d92d20;
+  --ui-radius: 14px;
+  --ui-radius-sm: 10px;
+  --ui-shadow: none;
+  --ui-shadow-lg: 0 12px 32px rgb(16 24 40 / 12%);
+}
+
+/* Dark: the same layout on dark grey surfaces. */
+.app-dark {
+  color-scheme: dark;
+  --app-sidebar: #0c111d;
+  --app-sidebar-hover: #1d2939;
+  --app-sidebar-text: #d0d5dd;
+  --app-sidebar-muted: #98a2b3;
+  --app-bg: #0c111d;
+  --app-card: #161b26;
+  --app-border: #1f242f;
+  --ui-bg: #0c111d;
+  --ui-surface: #161b26;
+  --ui-surface-2: #1f242f;
+  --ui-border: #2a303c;
+  --ui-text: #f5f5f6;
+  --ui-text-2: #cecfd2;
+  --ui-muted: #94969c;
+  --ui-accent: #2dd4b6;
+  --ui-accent-strong: #5eead0;
+  --ui-accent-soft: #0f2f2b;
+  --ui-warn-soft: #2b1d07;
 }
 
 html {
@@ -45,6 +68,7 @@ html {
 
 body {
   margin: 0;
+  font-feature-settings: 'tnum' 1;
   font-family: Inter, 'Segoe UI', Roboto, 'Noto Sans', 'Noto Sans Devanagari', 'Noto Sans Gujarati', sans-serif;
   color: var(--p-text-color);
   background: var(--app-bg);

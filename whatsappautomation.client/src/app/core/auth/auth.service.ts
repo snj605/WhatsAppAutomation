@@ -30,6 +30,8 @@ export class AuthService {
   readonly isSignedIn = computed(() => this.currentUser() !== null);
   readonly mustChangePassword = computed(() => this.currentUser()?.mustChangePassword === true);
   readonly isPlatformAdmin = computed(() => this.currentUser()?.kind === 'platform_admin');
+  /** Runs an organisation: may put templates in its shared library. */
+  readonly isTenantAdmin = computed(() => this.currentUser()?.kind === 'tenant_admin');
 
   get token(): string | null {
     return this.accessToken;

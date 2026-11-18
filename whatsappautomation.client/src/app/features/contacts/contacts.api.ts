@@ -2,8 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import {
-  Category, Contact, ContactFilter, ContactInput, ContactPage, Group, ImportResult, LanguageCode, UpcomingBirthday, WhatsAppCheckSummary,
-  BirthdaySettings,
+  Category, Contact, ContactFilter, ContactInput, ContactPage, Group, ImportResult, LanguageCode, WhatsAppCheckSummary,
 } from './contacts.models';
 
 /** Calls to the signed-in user's own contacts, categories, groups and import. */
@@ -41,10 +40,6 @@ export class ContactsApi {
 
   saveContact = (id: string | null, input: ContactInput) =>
     firstValueFrom(id ? this.http.put<Contact>(`/api/v1/contacts/${id}`, input) : this.http.post<Contact>('/api/v1/contacts', input));
-  birthdaySettings = () => firstValueFrom(this.http.get<BirthdaySettings>('/api/v1/birthdays/settings'));
-  saveBirthdaySettings = (enabled: boolean, time: string | null, templateId: string | null) =>
-    firstValueFrom(this.http.put<BirthdaySettings>('/api/v1/birthdays/settings', { enabled, time, templateId }));
-  birthdays = (days = 7) => firstValueFrom(this.http.get<UpcomingBirthday[]>('/api/v1/birthdays', { params: { days } }));
   setOptOut = (id: string, optedOut: boolean) =>
     firstValueFrom(this.http.put<Contact>(`/api/v1/contacts/${id}/opt-out`, { optedOut }));
   whatsAppCheck = () => firstValueFrom(this.http.get<WhatsAppCheckSummary>('/api/v1/contacts/whatsapp-check'));

@@ -1,0 +1,98 @@
+<div class="ap-page wide">
+  <header class="ap-header">
+    <div class="ap-header-row">
+      <div>
+        <h1 class="ap-title">Dashboard</h1>
+        <p class="ap-sub">All organisations at a glance. Counts only.</p>
+      </div>
+      <span class="spacer"></span>
+      <button type="button" class="ap-btn" (click)="load()"><i class="pi pi-refresh" aria-hidden="true"></i> Refresh</button>
+    </div>
+  </header>
+
+  <div class="ap-body">
+    @if (!data() && !error()) {
+      <p-skeleton height="6rem" />
+      <p-skeleton height="12rem" />
+    } @else if (error() && !data()) {
+      <section class="ap-card ap-empty">
+        <i class="pi pi-exclamation-circle" aria-hidden="true"></i>
+        <strong>Could not load the dashboard</strong>
+        <span>{{ error() }}</span>
+        <button type="button" class="ap-btn" (click)="load()">Try again</button>
+      </section>
+    } @else if (data(); as d) {
+      <section class="ap-kpis">
+        <div class="ap-kpi"><span>Organisations</span><strong>{{ d.tenants }}</strong><small>{{ d.activeTenants }} active</small></div>
+        <div class="ap-kpi"><span>People</span><strong>{{ d.users }}</strong></div>
+        <div class="ap-kpi"><span>Numbers connected</span><strong>{{ d.numbersConnected }} <small>/ {{ d.numbers }}</small></strong></div>
+        <div class="ap-kpi"><span>Messages today</span><strong>{{ d.messagesToday }}</strong><small>{{ d.failedToday }} failed · {{ failRate() }}%</small></div>
+      </section>
+
+      @if (d.alerts.length > 0) {
+        <h2 class="ap-section-title">Needs a look</h2>
+        <section class="ap-card">
+          @for (a of d.alerts; track $index) {
+            <div class="ap-row">
+              <span class="ap-dot bad"></span>
+              <span class="ap-text">
+                <strong>{{ a.tenantName }} · {{ a.userName }}@if (a.numberEnd) { · ••{{ a.numberEnd }}}</strong>
+                <small>{{ statusText(a.status) }}@if (a.since) { · since {{ whenText(a.since) }}}</small>
+              </span>
+            </div>
+          }
+        </section>
+      }
+
+      <h2 class="ap-section-title">Organisations</h2>
+      <section class="ap-card scroll">
+        <table class="ap-table">
+          <thead>
+            <tr><th>Name</th><th>People</th><th>Numbers</th><th>Sent today</th><th>Failed</th><th>Occasions</th></tr>
+          </thead>
+          <tbody>
+            @for (t of d.tenantRows; track t.id) {
+              <tr>
+                <td><span class="name"><span class="ap-dot" [class.good]="t.isActive"></span>{{ t.name }}</span></td>
+                <td>{{ t.users }}</td>
+                <td>{{ t.numbersConnected }} / {{ t.numbers }}</td>
+                <td>{{ t.sentToday }}</td>
+                <td>{{ t.failedToday }}</td>
+                <td class="mods">{{ t.modules.join(', ') || '—' }}</td>
+              </tr>
+            } @empty {
+              <tr><td colspan="6" class="ap-note">No organisations yet. <a routerLink="/platform/tenants" class="ap-link">Add one</a></td></tr>
+            }
+          </tbody>
+        </table>
+      </section>
+
+      <div class="ap-header-row">
+        <h2 class="ap-section-title">Activity</h2>
+        <span class="spacer"></span>
+        @if (audit() === null) {
+          <button type="button" class="ap-link" (click)="showAudit(1)">See the full audit log</button>
+        }
+      </div>
+      <section class="ap-card">
+        @for (e of audit() ?? d.recentActivity; track $index) {
+          <div class="ap-row">
+            <span class="ap-text">
+              <strong>{{ e.text }}</strong>
+              <small>{{ e.actorName }}@if (e.tenantName) { · {{ e.tenantName }}} · {{ whenText(e.at) }}</small>
+            </span>
+          </div>
+        } @empty {
+          <p class="ap-note pad-row">Nothing yet.</p>
+        }
+      </section>
+      @if (audit() !== null && pages() > 1) {
+        <div class="ap-actions center">
+          <button type="button" class="ap-btn" [disabled]="auditPage() <= 1" (click)="showAudit(auditPage() - 1)">Previous</button>
+          <span class="ap-note">Page {{ auditPage() }} of {{ pages() }}</span>
+          <button type="button" class="ap-btn" [disabled]="auditPage() >= pages()" (click)="showAudit(auditPage() + 1)">Next</button>
+        </div>
+      }
+    }
+  </div>
+</div>

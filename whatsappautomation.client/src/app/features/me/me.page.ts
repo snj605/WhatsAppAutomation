@@ -1,6 +1,7 @@
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { KIND_LABELS } from '../../core/auth/auth.models';
+import { applyThemeMode, savedThemeMode, ThemeMode } from '../../core/config/theme';
 import { AuthService } from '../../core/auth/auth.service';
 import { initialsOf } from '../chats/chat-format';
 import { WhatsAppApi } from '../whatsapp/whatsapp.api';
@@ -16,6 +17,9 @@ interface Item {
 }
 
 const ITEMS: Item[] = [
+  { label: 'Notifications', hint: 'Your number, sending and occasions', icon: 'pi pi-bell', link: '/notifications', permissions: ['messages.send'] },
+  { label: 'Occasions', hint: 'Birthdays, anniversaries and more', icon: 'pi pi-calendar', link: '/modules', permissions: ['modules.manage'] },
+  { label: 'Sending', hint: "Today's queue, messages a day, hours", icon: 'pi pi-send', link: '/sending', permissions: ['messages.send'] },
   { label: 'Message templates', hint: 'Your saved messages', icon: 'pi pi-bookmark', link: '/templates', permissions: ['templates.manage'] },
   { label: 'Import contacts', hint: 'From an Excel or CSV file', icon: 'pi pi-file-import', link: '/contacts/import', permissions: ['contacts.import'] },
   { label: 'Categories and groups', hint: 'Family, friends, elders…', icon: 'pi pi-tags', link: '/contacts/lists', permissions: ['contacts.view'] },
@@ -24,6 +28,7 @@ const ITEMS: Item[] = [
 
 const ADMIN: Item[] = [
   { label: 'Members', hint: 'Add people and choose what they may do', icon: 'pi pi-users', link: '/members', permissions: ['members.manage'] },
+  { label: 'Dashboard', hint: 'All organisations at a glance', icon: 'pi pi-chart-bar', link: '/platform/dashboard', permissions: ['platform.tenants'] },
   { label: 'Tenants', hint: 'Customers and their admins', icon: 'pi pi-building', link: '/platform/tenants', permissions: ['platform.tenants'] },
 ];
 
@@ -39,6 +44,17 @@ export class MePage implements OnInit {
   private readonly whatsapp = inject(WhatsAppApi);
 
   protected readonly account = signal<WhatsAppAccount | null>(null);
+  protected readonly theme = signal<ThemeMode>(savedThemeMode());
+  protected readonly themes: { id: ThemeMode; label: string }[] = [
+    { id: 'light', label: 'Light' },
+    { id: 'dark', label: 'Dark' },
+    { id: 'system', label: 'Device' },
+  ];
+
+  protected setTheme(mode: ThemeMode): void {
+    this.theme.set(mode);
+    applyThemeMode(mode);
+  }
   protected readonly status = computed(() => connectionStatus(this.account()?.status));
   protected readonly initials = computed(() => initialsOf(this.auth.user()?.displayName ?? ''));
   protected readonly canWhatsApp = computed(() => {

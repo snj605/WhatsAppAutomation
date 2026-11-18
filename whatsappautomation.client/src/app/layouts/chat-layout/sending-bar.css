@@ -5,8 +5,8 @@
   transition: opacity 0.25s, filter 0.25s, background 0.25s;
 }
 .idle { opacity: 0.55; filter: grayscale(1) blur(0.3px); pointer-events: none; user-select: none; }
-.active { background: linear-gradient(90deg, var(--ui-accent-soft), var(--ui-surface) 70%); box-shadow: 0 4px 14px rgb(14 159 126 / 12%); }
-.active.paused { background: linear-gradient(90deg, var(--ui-warn-soft), var(--ui-surface) 70%); box-shadow: 0 4px 14px rgb(180 83 9 / 10%); }
+.active { background: linear-gradient(90deg, var(--ui-accent-soft), var(--ui-surface) 70%); box-shadow: none; }
+.active.paused { background: linear-gradient(90deg, var(--ui-warn-soft), var(--ui-surface) 70%); box-shadow: none; }
 .icon {
   width: 34px; height: 34px; border-radius: 10px; flex: none; display: grid; place-items: center;
   background: var(--ui-surface-2); color: var(--ui-text-2);

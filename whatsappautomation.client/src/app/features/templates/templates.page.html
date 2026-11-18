@@ -1,7 +1,7 @@
 <div class="tpl">
   <header class="top">
     <a routerLink="/me" class="icon-btn" aria-label="Back"><i class="pi pi-arrow-left" aria-hidden="true"></i></a>
-    <div class="top-title"><strong>Templates</strong><small>Your saved messages</small></div>
+    <div class="top-title"><strong>Templates</strong><small>Your saved messages and your organisation's shared ones</small></div>
     @if (editing() === null) {
       <button type="button" class="add" (click)="startNew()"><i class="pi pi-plus" aria-hidden="true"></i> New</button>
     }
@@ -21,6 +21,32 @@
             <button type="button" class="tool" (click)="insert(m.value)">{{ m.hint }}</button>
           }
         </div>
+        <div class="tools">
+          <button type="button" class="tool" (click)="picker.click()" [disabled]="uploading()"><i [class]="uploading() ? 'pi pi-spin pi-spinner' : 'pi pi-paperclip'" aria-hidden="true"></i> Attach file</button>
+          <input #picker type="file" hidden (change)="attach(picker)" />
+          <button type="button" class="tool" (click)="linkOpen.set(!linkOpen())" [disabled]="uploading()"><i class="pi pi-link" aria-hidden="true"></i> Drive link</button>
+        </div>
+        @if (linkOpen()) {
+          <div class="tools">
+            <input class="input grow" placeholder="https://drive.google.com/file/d/… (Anyone with the link)" [value]="linkUrl()" (input)="linkUrl.set($any($event.target).value)"
+              (keydown.enter)="attachLink()" aria-label="Google Drive link" />
+            <button type="button" class="tool primary" (click)="attachLink()" [disabled]="!linkUrl().trim() || uploading()">Add</button>
+          </div>
+        }
+        @if (attachment(); as f) {
+          <div class="file-chip">
+            <i [class]="fileIcon(f.contentType)" aria-hidden="true"></i>
+            <span class="file-name">{{ f.fileName }}</span>
+            <small>{{ fileSize(f.sizeBytes) }}@if (f.isBigVideo) { · goes as a file }</small>
+            <button type="button" class="icon-btn small" (click)="attachment.set(null)" aria-label="Remove file"><i class="pi pi-times" aria-hidden="true"></i></button>
+          </div>
+        }
+        @if (auth.isTenantAdmin()) {
+          <label class="share-line">
+            <input type="checkbox" [checked]="shared()" (change)="shared.set($any($event.target).checked)" />
+            <span><strong>Share with my organisation</strong><small>Every member can use it; only you can change it.</small></span>
+          </label>
+        }
         <div class="form-actions">
           <button type="button" class="btn ghost" (click)="cancel()">Cancel</button>
           <button type="button" class="btn primary" (click)="save()" [disabled]="saving() || !name().trim() || !text().trim()">Save template</button>
@@ -32,12 +58,18 @@
       <article class="card item">
         <div class="item-head">
           <strong>{{ t.name }}</strong>
+          @if (t.shared) {<span class="tag">Shared</span>}
           <span class="item-actions">
-            <button type="button" class="icon-btn small" (click)="edit(t)" aria-label="Edit"><i class="pi pi-pencil" aria-hidden="true"></i></button>
-            <button type="button" class="icon-btn small danger" (click)="remove(t)" aria-label="Delete"><i class="pi pi-trash" aria-hidden="true"></i></button>
+            @if (t.canEdit) {
+              <button type="button" class="icon-btn small" (click)="edit(t)" aria-label="Edit"><i class="pi pi-pencil" aria-hidden="true"></i></button>
+              <button type="button" class="icon-btn small danger" (click)="remove(t)" aria-label="Delete"><i class="pi pi-trash" aria-hidden="true"></i></button>
+            }
           </span>
         </div>
         <p>{{ friendly(t.text) }}</p>
+        @if (t.attachment; as f) {
+          <small class="file-line"><i [class]="fileIcon(f.contentType)" aria-hidden="true"></i> {{ f.fileName }} · {{ fileSize(f.sizeBytes) }}</small>
+        }
       </article>
     } @empty {
       @if (!loading() && editing() === null) {

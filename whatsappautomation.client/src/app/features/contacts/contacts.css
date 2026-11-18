@@ -20,7 +20,7 @@
   align-items: center;
   flex-wrap: wrap;
   border: 1px dashed var(--p-primary-300);
-  background: linear-gradient(135deg, #ecfdf5, #f0fdfa);
+  background: var(--ui-accent-soft);
 }
 
 .start h2 {

@@ -1,0 +1,83 @@
+<div class="ap-page">
+  <header class="ap-header">
+    <div class="ap-header-row">
+      <a class="ap-btn icon no-print" routerLink="/sending" aria-label="Back to sending"><i class="pi pi-arrow-left" aria-hidden="true"></i></a>
+      <div>
+        <h1 class="ap-title">{{ details()?.name ?? 'Results' }}</h1>
+        @if (details(); as d) {
+          <p class="ap-sub">Started {{ whenText(d.createdAt) }} · {{ d.counts.total }} people</p>
+        }
+      </div>
+      <span class="spacer"></span>
+      <button type="button" class="ap-btn no-print" (click)="print()" title="Print or save as PDF"><i class="pi pi-print" aria-hidden="true"></i> Report</button>
+    </div>
+    <nav class="ap-tabs no-print" aria-label="Lists">
+      @for (l of lists; track l.id) {
+        <button type="button" class="ap-tab" [class.active]="list() === l.id" (click)="load(1, l.id)">
+          {{ l.label }}
+          @if (count(l.id) !== null) {<span class="ap-count">{{ count(l.id) }}</span>}
+        </button>
+      }
+    </nav>
+  </header>
+
+  <div class="ap-body">
+    @if (details(); as d) {
+      <section class="ap-kpis">
+        <div class="ap-kpi"><span>Sent</span><strong>{{ d.counts.sent }}</strong></div>
+        <div class="ap-kpi"><span>Delivered</span><strong>{{ d.counts.delivered }}</strong></div>
+        <div class="ap-kpi"><span>Read</span><strong>{{ d.counts.read }}</strong></div>
+        <div class="ap-kpi"><span>Failed</span><strong>{{ d.counts.failed }}</strong></div>
+        <div class="ap-kpi"><span>Skipped</span><strong>{{ d.counts.skipped }}</strong></div>
+        <div class="ap-kpi"><span>Waiting</span><strong>{{ d.counts.pending }}</strong></div>
+      </section>
+    }
+
+    @if (failedCount() > 0) {
+      <div class="ap-actions no-print">
+        <button type="button" class="ap-btn primary" [disabled]="retrying()" (click)="retry(false)">
+          <i class="pi pi-replay" aria-hidden="true"></i> Send again to all {{ failedCount() }} failed
+        </button>
+        @if (picked().size > 0) {
+          <button type="button" class="ap-btn" [disabled]="retrying()" (click)="retry(true)">Send again to {{ picked().size }} ticked</button>
+        }
+      </div>
+    }
+
+    <section class="ap-card">
+      @if (loading() && rows().length === 0) {
+        <p class="ap-note pad-row">Loading…</p>
+      } @else if (error()) {
+        <p class="ap-error pad-row">{{ error() }}</p>
+      } @else if (rows().length === 0) {
+        <div class="ap-empty"><i class="pi pi-inbox" aria-hidden="true"></i><span>Nobody in this list</span></div>
+      } @else {
+        @for (r of rows(); track r.id) {
+          <label class="ap-row" [class.selected]="picked().has(r.id)" [class.pickable]="canPick(r)">
+            @if (canPick(r)) {
+              <input type="checkbox" class="ap-check no-print" [checked]="picked().has(r.id)" (change)="toggle(r)" [attr.aria-label]="'Tick ' + r.name" />
+            }
+            <span class="ap-avatar" aria-hidden="true">{{ initials(r.name) }}</span>
+            <span class="ap-text">
+              <strong>{{ r.name }}</strong>
+              <small>{{ r.phoneNumber }}@if (r.reason) { · {{ r.reason }} }@if (r.attempts > 1) { · tried {{ r.attempts }} times }</small>
+            </span>
+            <span class="state">
+              <span class="ap-dot" [class]="'ap-dot ' + statusLook(r.status).tone"></span>
+              {{ statusLook(r.status).text }}
+              @if (rowTime(r); as t) {<small>{{ t }}</small>}
+            </span>
+          </label>
+        }
+      }
+    </section>
+
+    @if (pages() > 1) {
+      <div class="ap-actions center no-print">
+        <button type="button" class="ap-btn" [disabled]="page() <= 1" (click)="load(page() - 1)">Previous</button>
+        <span class="ap-note">Page {{ page() }} of {{ pages() }}</span>
+        <button type="button" class="ap-btn" [disabled]="page() >= pages()" (click)="load(page() + 1)">Next</button>
+      </div>
+    }
+  </div>
+</div>

@@ -1,0 +1,10 @@
+.pad-row { padding: 14px; }
+.pickable { cursor: pointer; }
+.state { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; font-size: 12px; font-weight: 500; color: var(--ap-text-2); white-space: nowrap; }
+.state .ap-dot { display: none; }
+.state small { color: var(--ap-muted); font-weight: 400; }
+.center { justify-content: center; align-items: center; }
+@media print {
+  .no-print { display: none !important; }
+  .ap-page { max-width: none; }
+}

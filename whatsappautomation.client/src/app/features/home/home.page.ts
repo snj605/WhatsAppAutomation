@@ -1,11 +1,10 @@
 import { DatePipe } from '@angular/common';
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 import { SkeletonModule } from 'primeng/skeleton';
 import { AuthService } from '../../core/auth/auth.service';
-import { ContactsApi } from '../contacts/contacts.api';
-import { UpcomingBirthday } from '../contacts/contacts.models';
+import { moduleIcon, ModulesStore } from '../modules/modules.api';
 import { WhatsAppApi } from '../whatsapp/whatsapp.api';
 import { OutgoingMessage, WhatsAppAccount } from '../whatsapp/whatsapp.models';
 import { connectionStatus, messageTick } from '../whatsapp/whatsapp.status';
@@ -42,20 +41,16 @@ const ACTIONS: QuickAction[] = [
 export class HomePage implements OnInit {
   protected readonly auth = inject(AuthService);
   private readonly api = inject(WhatsAppApi);
-  private readonly contactsApi = inject(ContactsApi);
-  private readonly router = inject(Router);
 
-  /** Today's birthdays, as a reminder. */
-  protected readonly birthdaysToday = signal<UpcomingBirthday[]>([]);
+  /** Occasions with people today (Birthday, Anniversary, ...), as a reminder. */
+  protected readonly modules = inject(ModulesStore);
+  protected readonly moduleIcon = moduleIcon;
+  protected readonly occasionsToday = computed(() => this.modules.modules().filter((m) => m.todayCount > 0));
   protected readonly canBroadcast = computed(() => {
     this.auth.user();
     return this.auth.can('modules.manage');
   });
 
-  /** Today's birthdays are one chat with a checklist of who got wishes. */
-  protected sendBirthdayWishes(): void {
-    void this.router.navigate(['/chats/birthdays']);
-  }
 
   protected readonly loading = signal(true);
   protected readonly account = signal<WhatsAppAccount | null>(null);
@@ -93,12 +88,7 @@ export class HomePage implements OnInit {
   protected readonly tick = messageTick;
 
   async ngOnInit(): Promise<void> {
-    if (this.auth.can('contacts.view')) {
-      this.contactsApi
-        .birthdays(0)
-        .then((list) => this.birthdaysToday.set(list))
-        .catch(() => undefined); // the reminder is optional; the Birthdays page shows errors
-    }
+    if (this.auth.can('modules.manage') && !this.modules.loaded()) void this.modules.reload();
 
     if (!this.canWhatsApp()) {
       this.loading.set(false);

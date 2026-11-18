@@ -1,0 +1,274 @@
+<div class="ap-page">
+  <header class="ap-header">
+    <div class="ap-header-row">
+      @if (module(); as m) {
+        <span class="ap-icon" aria-hidden="true"><i [class]="icon(m)"></i></span>
+        <div>
+          <h1 class="ap-title">{{ m.name }}</h1>
+          <p class="ap-sub">{{ kindText(m) }}</p>
+        </div>
+      } @else {
+        <h1 class="ap-title">Occasion</h1>
+      }
+    </div>
+    @if (module(); as m) {
+      <nav class="ap-tabs" aria-label="Sections">
+        <button type="button" class="ap-tab" [class.active]="tab() === 'days'" (click)="setTab('days')">Next 7 days</button>
+        @if (m.kind !== 'birthday') {
+          <button type="button" class="ap-tab" [class.active]="tab() === 'dates'" (click)="setTab('dates')">Dates</button>
+        }
+        <button type="button" class="ap-tab" [class.active]="tab() === 'settings'" (click)="setTab('settings')">Settings</button>
+      </nav>
+    }
+  </header>
+
+  <div class="ap-body">
+    @if (loading() && !module()) {
+      <p-skeleton height="4.5rem" />
+      <p-skeleton height="8rem" />
+    } @else if (error() && !module()) {
+      <section class="ap-card ap-empty">
+        <i class="pi pi-exclamation-circle" aria-hidden="true"></i>
+        <strong>Could not open this occasion</strong>
+        <span>{{ error() }}</span>
+        <div class="ap-actions">
+          <button type="button" class="ap-btn" (click)="load()"><i class="pi pi-refresh" aria-hidden="true"></i> Try again</button>
+          <a class="ap-btn" routerLink="/modules">All occasions</a>
+        </div>
+      </section>
+    } @else if (module(); as m) {
+      @switch (tab()) {
+        @case ('days') {
+          <!-- Automatic sending at a glance -->
+          <button type="button" class="ap-card ap-row auto" (click)="setTab('settings')">
+            <span class="ap-dot" [class.good]="ready()"></span>
+            <span class="ap-text">
+              @if (ready()) {
+                <strong>Sends by itself every day at {{ hhmmText(m.time) }}</strong>
+                <small>Template: {{ m.templateName }} · Next: {{ whenText(m.nextRunAt!) }}</small>
+              } @else {
+                <strong>Automatic sending is off</strong>
+                <small>Turn it on to send at a time you choose, with a template</small>
+              }
+            </span>
+            <i class="pi pi-chevron-right" aria-hidden="true"></i>
+          </button>
+
+          @for (day of days(); track day.daysUntil) {
+            <section class="ap-card">
+              <div class="day-head">
+                <h2 class="ap-section-title">{{ dayTitle(day) }}</h2>
+                @if (day.people.length > 0) {
+                  <span class="ap-count">{{ day.people.length }}</span>
+                }
+                <span class="spacer"></span>
+                @if (pickable(day).length > 0) {
+                  <button type="button" class="ap-link" (click)="toggleDay(day)">{{ allPicked(day) ? 'Clear' : 'Select all' }}</button>
+                }
+              </div>
+              @if (day.people.length === 0) {
+                <p class="ap-note none">Nobody today</p>
+              } @else {
+                @for (p of day.people; track p.contactId) {
+                  <label class="ap-row pick" [class.selected]="isSelected(p.contactId)" [class.off]="p.optedOut">
+                    <input type="checkbox" class="ap-check" [checked]="isSelected(p.contactId)" [disabled]="!canPick(p)" (change)="toggle(p)"
+                      [attr.aria-label]="'Pick ' + p.name" />
+                    <span class="ap-avatar" aria-hidden="true">{{ initials(p.name) }}</span>
+                    <span class="ap-text">
+                      <strong>{{ p.name }}</strong>
+                      <small>{{ detail(p) }}</small>
+                    </span>
+                    @if (state(p); as s) {
+                      <span class="state"><span class="ap-dot" [class]="'ap-dot ' + s.tone"></span>{{ s.text }}</span>
+                    }
+                  </label>
+                }
+              }
+            </section>
+          }
+
+          @if (comingCount() === 0) {
+            <p class="ap-note">Nobody else in the next 7 days.@if (m.kind !== 'birthday') { Add dates in the Dates tab, or with a "{{ m.name }}" column in the Excel import.}</p>
+          }
+          @if (error()) {
+            <p class="ap-error">Could not refresh: {{ error() }}</p>
+          }
+        }
+
+        @case ('dates') {
+          <section class="ap-card">
+            <div class="day-head">
+              <input type="search" class="search" placeholder="Search name or number" [value]="entrySearch()" (input)="searchEntries($any($event.target).value)"
+                aria-label="Search dates" />
+              <button type="button" class="ap-btn primary" (click)="openEntry(null)"><i class="pi pi-plus" aria-hidden="true"></i> Add date</button>
+            </div>
+
+            @if (entryForm(); as f) {
+              <div class="entry-form ap-form">
+                <label for="entry-person">Person</label>
+                @if (f.contactId) {
+                  <div class="picked">
+                    <strong>{{ f.contactName }}</strong>
+                    @if (!f.existing) {
+                      <button type="button" class="ap-link" (click)="entryForm.set({ ...f, contactId: null, contactName: '' })">Change</button>
+                    }
+                  </div>
+                } @else {
+                  <input id="entry-person" type="text" placeholder="Type a name or number" [value]="contactQuery()" (input)="findContacts($any($event.target).value)"
+                    autocomplete="off" />
+                  @if (contactHits().length > 0) {
+                    <div class="hits">
+                      @for (c of contactHits(); track c.id) {
+                        <button type="button" class="ap-row" (click)="pickContact(c)">
+                          <span class="ap-text"><strong>{{ nameOf(c) }}</strong><small>{{ c.phoneNumber }}</small></span>
+                        </button>
+                      }
+                    </div>
+                  }
+                }
+
+                <div class="date-row">
+                  <span>
+                    <label for="entry-day">Day</label>
+                    <select id="entry-day" [ngModel]="f.day" (ngModelChange)="patchEntry({ day: +$event })">
+                      @for (d of [].constructor(31); track $index) {
+                        <option [ngValue]="$index + 1">{{ $index + 1 }}</option>
+                      }
+                    </select>
+                  </span>
+                  <span>
+                    <label for="entry-month">Month</label>
+                    <select id="entry-month" [ngModel]="f.month" (ngModelChange)="patchEntry({ month: +$event })">
+                      @for (mo of months; track $index) {
+                        <option [ngValue]="$index + 1">{{ mo }}</option>
+                      }
+                    </select>
+                  </span>
+                  <span>
+                    <label for="entry-year">Year{{ m.kind === 'once' ? '' : ' (optional)' }}</label>
+                    <input id="entry-year" type="number" min="1900" max="2100" [ngModel]="f.year" (ngModelChange)="patchEntry({ year: $event ? +$event : null })" />
+                  </span>
+                </div>
+
+                @if (m.forNameLabel) {
+                  <label for="entry-for">{{ m.forNameLabel }}</label>
+                  <input id="entry-for" type="text" maxlength="100" [ngModel]="f.forName" (ngModelChange)="patchEntry({ forName: $event })" />
+                  <span class="ap-hint">Used in the message as {{ '{{for_name}}' }}.</span>
+                }
+
+                <div class="ap-actions end">
+                  <button type="button" class="ap-btn" (click)="entryForm.set(null)">Cancel</button>
+                  <button type="button" class="ap-btn primary" [disabled]="saving()" (click)="saveEntry()">Save</button>
+                </div>
+              </div>
+            }
+
+            @if (loadingEntries() && entries().length === 0) {
+              <p class="ap-note none">Loading…</p>
+            } @else if (entries().length === 0) {
+              <div class="ap-empty">
+                <i class="pi pi-calendar" aria-hidden="true"></i>
+                <strong>No dates yet</strong>
+                <span>Add them here, or put a "{{ m.name }}" column (day/month/year) in the Excel import.</span>
+              </div>
+            } @else {
+              @for (e of entries(); track e.contactId) {
+                <div class="ap-row">
+                  <span class="ap-avatar" aria-hidden="true">{{ initials(e.name) }}</span>
+                  <span class="ap-text">
+                    <strong>{{ e.name }}</strong>
+                    <small>{{ dateText(e) }}@if (e.forName) { · {{ m.forNameLabel }}: {{ e.forName }}} · {{ e.phoneNumber }}</small>
+                  </span>
+                  <button type="button" class="ap-btn icon" (click)="openEntry(e)" [attr.aria-label]="'Change ' + e.name"><i class="pi pi-pencil" aria-hidden="true"></i></button>
+                  <button type="button" class="ap-btn icon danger" (click)="removeEntry(e)" [attr.aria-label]="'Remove ' + e.name"><i class="pi pi-trash" aria-hidden="true"></i></button>
+                </div>
+              }
+            }
+          </section>
+          @if (pages() > 1) {
+            <div class="ap-actions center">
+              <button type="button" class="ap-btn" [disabled]="entriesPage() <= 1" (click)="loadEntries(entriesPage() - 1)">Previous</button>
+              <span class="ap-note">Page {{ entriesPage() }} of {{ pages() }} · {{ entriesTotal() }} people</span>
+              <button type="button" class="ap-btn" [disabled]="entriesPage() >= pages()" (click)="loadEntries(entriesPage() + 1)">Next</button>
+            </div>
+          }
+        }
+
+        @case ('settings') {
+          <h2 class="ap-section-title">Automatic sending</h2>
+          <section class="ap-card pad ap-form">
+            <div class="switch-row">
+              <span class="ap-text">
+                <strong>Send by itself</strong>
+                <small>Every day at the time below, to everyone with the date that day</small>
+              </span>
+              <button type="button" class="ap-switch" role="switch" [attr.aria-checked]="editAuto" (click)="editAuto = !editAuto" aria-label="Send by itself"></button>
+            </div>
+
+            <label for="mod-time">Time · starts at {{ hhmmText(editTime) }}</label>
+            <input id="mod-time" type="time" step="300" [(ngModel)]="editTime" class="time" />
+            <span class="ap-hint">Wishes go out one by one, a little apart, and always before other messages. If you turn this on after today's
+              time, it starts tomorrow; you can still send today's by hand.</span>
+
+            <label>Template</label>
+            @if (templates().length === 0) {
+              <a routerLink="/templates" class="ap-link">No templates yet · make one with {{ '{{name}}' }} in it, then choose it here</a>
+            } @else {
+              <div class="tpls">
+                @for (t of templates(); track t.id) {
+                  <label class="ap-row tpl" [class.selected]="editTemplateId === t.id">
+                    <input type="radio" class="ap-check" name="mod-template" [checked]="editTemplateId === t.id" (change)="editTemplateId = t.id" />
+                    <span class="ap-text">
+                      <strong>{{ t.name }}@if (t.shared) { · Shared}</strong>
+                      <small class="clip">@if (t.attachment) {<i class="pi pi-paperclip" aria-hidden="true"></i> }{{ sample(t.text) }}</small>
+                    </span>
+                  </label>
+                }
+              </div>
+            }
+
+            @if (chosenTemplate(); as t) {
+              <label>What people get (example)</label>
+              <p class="ap-pre">{{ sample(t.text) }}</p>
+            }
+
+            <div class="ap-actions end">
+              <button type="button" class="ap-btn primary" [disabled]="saving()" (click)="saveSending()"><i class="pi pi-check" aria-hidden="true"></i> Save</button>
+            </div>
+          </section>
+
+          <h2 class="ap-section-title">Details</h2>
+          <section class="ap-card pad ap-form">
+            <label for="mod-name">Name</label>
+            <input id="mod-name" type="text" maxlength="50" [(ngModel)]="editName" />
+            @if (m.kind !== 'birthday') {
+              <label for="mod-label">Second name (optional)</label>
+              <input id="mod-label" type="text" maxlength="50" placeholder="For example: In memory of" [(ngModel)]="editLabel" />
+              <span class="ap-hint">When set, each date can have a second name, used in the message as {{ '{{for_name}}' }}.</span>
+            }
+            <div class="ap-actions end">
+              <button type="button" class="ap-btn" [disabled]="saving()" (click)="saveDetails()">Save details</button>
+            </div>
+          </section>
+
+          <section class="ap-card pad danger-zone">
+            <span class="ap-text">
+              <strong>Delete {{ m.name }}</strong>
+              <small>Its dates go; contacts and sent messages stay.</small>
+            </span>
+            <button type="button" class="ap-btn danger" (click)="remove()"><i class="pi pi-trash" aria-hidden="true"></i> Delete</button>
+          </section>
+        }
+      }
+    }
+  </div>
+
+  @if (tab() === 'days' && selected().size > 0) {
+    <div class="ap-sticky">
+      <button type="button" class="ap-btn" (click)="clearSelection()">Clear</button>
+      <button type="button" class="ap-btn primary grow" (click)="sendSelected()">
+        <i class="pi pi-send" aria-hidden="true"></i> Send to {{ selected().size }} {{ selected().size === 1 ? 'person' : 'people' }}
+      </button>
+    </div>
+  }
+</div>

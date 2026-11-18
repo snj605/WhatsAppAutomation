@@ -115,7 +115,7 @@
         <h2>Write your message</h2>
         <div class="templates" aria-label="Ready messages">
           @for (t of myTemplates(); track t.id) {
-            <button type="button" class="template mine" (click)="useTemplate(t.text)"><i class="pi pi-bookmark" aria-hidden="true"></i>{{ t.name }}</button>
+            <button type="button" class="template mine" (click)="useTemplate(t.text, t.attachment)"><i [class]="t.attachment ? 'pi pi-paperclip' : 'pi pi-bookmark'" aria-hidden="true"></i>{{ t.name }}</button>
           }
           @for (t of templates; track t.label) {
             <button type="button" class="template" (click)="useTemplate(t.text)"><i [class]="t.icon" aria-hidden="true"></i>{{ t.label }}</button>
@@ -131,10 +131,13 @@
               <button type="button" class="tool" (click)="showMore.set(!showMore())" [attr.aria-expanded]="showMore()">
                 More <i [class]="showMore() ? 'pi pi-chevron-up' : 'pi pi-chevron-down'" aria-hidden="true"></i>
               </button>
-              <button type="button" class="tool" (click)="picker.click()" [disabled]="uploading() !== null" title="Attach a photo, video or document (up to 16 MB)">
+              <button type="button" class="tool" (click)="picker.click()" [disabled]="uploading() !== null" title="Attach a photo, video or document (up to 512 MB)">
                 <i [class]="uploading() ? 'pi pi-spin pi-spinner' : 'pi pi-paperclip'" aria-hidden="true"></i> Attach
               </button>
               <input #picker type="file" hidden (change)="attach(picker)" />
+              <button type="button" class="tool" (click)="linkOpen.set(!linkOpen())" [disabled]="uploading() !== null" title="Attach a file from a Google Drive link">
+                <i class="pi pi-link" aria-hidden="true"></i> Drive link
+              </button>
               <button type="button" class="tool" (click)="saveOpen.set(!saveOpen())" [disabled]="!text().trim()" title="Save this message as a template">
                 <i class="pi pi-bookmark" aria-hidden="true"></i> Save
               </button>
@@ -147,8 +150,15 @@
               <div class="file-chip">
                 <i [class]="fileIcon(f.contentType)" aria-hidden="true"></i>
                 <span class="file-name">{{ f.fileName }}</span>
-                <small>{{ fileSize(f.sizeBytes) }}</small>
+                <small>{{ fileSize(f.sizeBytes) }}@if (f.isBigVideo) { · goes as a file }</small>
                 <button type="button" class="file-x" (click)="removeAttachment()" aria-label="Remove file"><i class="pi pi-times" aria-hidden="true"></i></button>
+              </div>
+            }
+            @if (linkOpen()) {
+              <div class="save-row">
+                <input class="save-input" placeholder="https://drive.google.com/file/d/… (Anyone with the link)" [value]="linkUrl()"
+                  (input)="linkUrl.set($any($event.target).value)" (keydown.enter)="attachLink()" aria-label="Google Drive link" />
+                <button type="button" class="tool primary" (click)="attachLink()" [disabled]="!linkUrl().trim()">Add</button>
               </div>
             }
             @if (saveOpen()) {
@@ -212,7 +222,7 @@
             }
           }
           @if (preview(); as p) {
-            <div class="sum-row"><span>Time</span><strong>{{ p.estimatedDays > 1 ? 'About ' + p.estimatedDays + ' days (up to ' + p.dailyCap + ' a day)' : 'Today, one by one' }}</strong></div>
+            <div class="sum-row"><span>Time</span><strong>{{ p.estimatedDays > 1 ? 'About ' + p.estimatedDays + ' days (up to ' + p.dailyLimit + ' a day)' : 'Today, one by one' }}</strong></div>
           }
           <div class="sum-message">
             <span>Message</span>

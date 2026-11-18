@@ -3,7 +3,7 @@ import { RouterLink } from '@angular/router';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { problemMessage } from '../../core/http/problem';
 import { BroadcastsApi } from '../../features/broadcasts/broadcasts.api';
-import { BroadcastSummary, Pacing } from '../../features/broadcasts/broadcasts.models';
+import { Queue, QueueItem, SendingApi } from '../../features/sending/sending.api';
 
 const REFRESH_MS = 6000;
 
@@ -23,8 +23,9 @@ export class SendingBar implements OnInit {
   private readonly confirm = inject(ConfirmationService);
   private readonly toast = inject(MessageService);
 
-  protected readonly queue = signal<BroadcastSummary[]>([]);
-  protected readonly pacing = signal<Pacing | null>(null);
+  private readonly sending = inject(SendingApi);
+  protected readonly queue = signal<QueueItem[]>([]);
+  protected readonly pacing = signal<Queue | null>(null);
   protected readonly busy = signal(false);
 
   /** The broadcast shown: the oldest one still in the queue (that is the one being sent). */
@@ -103,11 +104,10 @@ export class SendingBar implements OnInit {
 
   private async load(): Promise<void> {
     try {
-      const list = await this.api.list();
-      // The list is newest first; the sender works on the oldest first.
-      const queue = list.filter((b) => b.status === 'sending' || b.status === 'paused').reverse();
-      this.queue.set(queue);
-      this.pacing.set(queue.length > 0 ? await this.api.pacing() : null);
+      // One call: the queue in sending order (occasions first, then the order the user set) with the pace.
+      const queue = await this.sending.queue();
+      this.queue.set(queue.items);
+      this.pacing.set(queue);
     } catch {
       // Keep what is shown; the next refresh tries again.
     }

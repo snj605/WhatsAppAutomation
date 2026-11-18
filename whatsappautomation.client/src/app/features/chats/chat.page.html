@@ -8,6 +8,9 @@
         <small>{{ c.total }} {{ c.total === 1 ? 'person' : 'people' }}</small>
       }
     </div>
+    @if (summary(); as s) {
+      <a class="icon-btn" [routerLink]="['/sending/results', s.id]" aria-label="Results and send again" title="Results and send again"><i class="pi pi-list-check" aria-hidden="true"></i></a>
+    }
     @if (summary()?.status === 'sending') {
       <button type="button" class="icon-btn" (click)="pause()" [disabled]="busy()" aria-label="Pause" title="Pause"><i class="pi pi-pause" aria-hidden="true"></i></button>
     }

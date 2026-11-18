@@ -1,0 +1,156 @@
+<div class="ap-page">
+  <header class="ap-header">
+    <div class="ap-header-row">
+      <div>
+        <h1 class="ap-title">Sending</h1>
+        <p class="ap-sub">What goes out today, in order, and how your number sends.</p>
+      </div>
+    </div>
+    <nav class="ap-tabs" aria-label="Sections">
+      <button type="button" class="ap-tab" [class.active]="tab() === 'queue'" (click)="setTab('queue')">Today's queue</button>
+      <button type="button" class="ap-tab" [class.active]="tab() === 'settings'" (click)="setTab('settings')">Settings</button>
+    </nav>
+  </header>
+
+  <div class="ap-body">
+    @if (tab() === 'queue') {
+      @if (loading()) {
+        <p-skeleton height="6rem" />
+        <p-skeleton height="5rem" />
+      } @else if (error() && !queue()) {
+        <section class="ap-card ap-empty">
+          <i class="pi pi-exclamation-circle" aria-hidden="true"></i>
+          <strong>Could not load the queue</strong>
+          <span>{{ error() }}</span>
+          <button type="button" class="ap-btn" (click)="loadQueue(true)"><i class="pi pi-refresh" aria-hidden="true"></i> Try again</button>
+        </section>
+      } @else if (queue(); as q) {
+        <section class="ap-kpis">
+          <div class="ap-kpi">
+            <span>Sent today</span>
+            <strong>{{ q.sentToday }} <small>/ {{ q.dailyLimit }}</small></strong>
+            <div class="ap-bar" aria-hidden="true"><span [style.width.%]="usedPercent()"></span></div>
+          </div>
+          <div class="ap-kpi">
+            <span>Left today</span>
+            <strong>{{ q.leftToday }}</strong>
+            <small>Then it continues tomorrow</small>
+          </div>
+          <div class="ap-kpi">
+            <span>Sending hours</span>
+            <strong class="mid">{{ q.sendingHours }}</strong>
+            <small><span class="ap-dot" [class.good]="q.inSendingHours"></span> {{ q.inSendingHours ? 'Open now' : 'Closed now' }}</small>
+          </div>
+          <div class="ap-kpi">
+            <span>WhatsApp</span>
+            <strong class="mid">{{ q.connected ? 'Connected' : 'Not connected' }}</strong>
+            <small>@if (q.nextSendAt) { Next message {{ clockText(q.nextSendAt) }} } @else if (q.waiting) { {{ q.waiting }} } @else { Nothing waiting }</small>
+          </div>
+        </section>
+
+        @if (!q.connected) {
+          <a class="ap-card ap-row warn" routerLink="/whatsapp">
+            <span class="ap-dot bad"></span>
+            <span class="ap-text"><strong>WhatsApp is not connected</strong><small>Nothing goes out until you link it again. Tap to connect.</small></span>
+            <i class="pi pi-chevron-right" aria-hidden="true"></i>
+          </a>
+        }
+
+        <h2 class="ap-section-title">In order</h2>
+        @if (q.items.length === 0) {
+          <section class="ap-card ap-empty">
+            <i class="pi pi-check-circle" aria-hidden="true"></i>
+            <strong>Nothing waiting</strong>
+            <span>New messages and occasion wishes show here in the order they go out.</span>
+            <a class="ap-btn primary" routerLink="/chats/new"><i class="pi pi-send" aria-hidden="true"></i> New message</a>
+          </section>
+        } @else {
+          <section class="ap-card">
+            @for (item of q.items; track item.id; let i = $index) {
+              <div class="ap-row item" [class.paused]="item.status === 'paused'">
+                <span class="order">{{ i + 1 }}</span>
+                <span class="ap-text">
+                  <strong>
+                    {{ item.name }}
+                    @if (item.kind === 'occasion') {<span class="ap-tag">Occasion · first</span>}
+                  </strong>
+                  <small>
+                    <span class="ap-dot" [class.good]="item.status === 'sending'" [class.warn]="item.status === 'paused'"></span>
+                    {{ item.counts.sent }} of {{ item.counts.total - item.counts.skipped }} sent
+                    @if (item.counts.failed > 0) { · {{ item.counts.failed }} failed }
+                    · {{ timing(item) }}
+                  </small>
+                  <div class="ap-bar thin" aria-hidden="true"><span [style.width.%]="progress(item)"></span></div>
+                </span>
+                <span class="ctl">
+                  @if (item.kind === 'broadcast') {
+                    <button type="button" class="ap-btn icon" [disabled]="!item.canMoveUp || busy() === item.id" (click)="move(item, 'up')" aria-label="Move up" title="Move up">▲</button>
+                    <button type="button" class="ap-btn icon" [disabled]="!item.canMoveDown || busy() === item.id" (click)="move(item, 'down')" aria-label="Move down" title="Move down">▼</button>
+                  }
+                  @if (item.status === 'sending') {
+                    <button type="button" class="ap-btn icon" [disabled]="busy() === item.id" (click)="change(item, 'pause')" aria-label="Pause" title="Pause"><i class="pi pi-pause" aria-hidden="true"></i></button>
+                  } @else {
+                    <button type="button" class="ap-btn icon" [disabled]="busy() === item.id" (click)="change(item, 'resume')" aria-label="Continue" title="Continue"><i class="pi pi-play" aria-hidden="true"></i></button>
+                  }
+                  <button type="button" class="ap-btn icon danger" [disabled]="busy() === item.id" (click)="stop(item)" aria-label="Stop" title="Stop"><i class="pi pi-stop" aria-hidden="true"></i></button>
+                  <a class="ap-btn" [routerLink]="['/sending/results', item.id]">Results</a>
+                </span>
+              </div>
+            }
+          </section>
+          <p class="ap-note">Occasion wishes always go first. Use ▲ ▼ to choose which message goes next. Times are estimates from your settings.</p>
+        }
+      }
+    } @else {
+      <section class="ap-card pad ap-form">
+        <label for="s-limit">Messages a day</label>
+        <input id="s-limit" type="number" min="300" max="500" step="10" [(ngModel)]="form.dailyLimit" />
+        <span class="ap-hint">300 to 500, from the first day.</span>
+
+        <div class="ap-grid-2">
+          <span class="ap-form">
+            <label for="s-chunk">Messages in one go</label>
+            <input id="s-chunk" type="number" min="1" max="500" [(ngModel)]="form.chunkSize" />
+          </span>
+          <span class="ap-form">
+            <label for="s-rest">Rest after each go (minutes)</label>
+            <input id="s-rest" type="number" min="0" max="600" [(ngModel)]="form.chunkRestMinutes" />
+          </span>
+          <span class="ap-form">
+            <label for="s-min">Shortest pause between messages (seconds)</label>
+            <input id="s-min" type="number" min="5" max="600" [(ngModel)]="form.minGapSeconds" />
+          </span>
+          <span class="ap-form">
+            <label for="s-max">Longest pause (seconds)</label>
+            <input id="s-max" type="number" min="5" max="600" [(ngModel)]="form.maxGapSeconds" />
+          </span>
+        </div>
+        <span class="ap-hint">Each pause is a random time between the two, like a person sending.</span>
+
+        <label>Sending hours</label>
+        <label class="check-line"><input type="checkbox" class="ap-check" [(ngModel)]="form.anyTime" /> Any time of day</label>
+        @if (!form.anyTime) {
+          <div class="ap-grid-2">
+            <span class="ap-form"><label for="s-from">From</label><input id="s-from" type="time" [(ngModel)]="form.sendFrom" /></span>
+            <span class="ap-form"><label for="s-until">Until</label><input id="s-until" type="time" [(ngModel)]="form.sendUntil" /></span>
+          </div>
+        }
+
+        <div class="fits">
+          <strong>About {{ fitsPerDay() }} messages fit in a day</strong>
+          <small>With these settings @if (fitsPerDay() < form.dailyLimit) {— fewer than your limit, so choose shorter pauses, longer hours or a shorter rest to reach it}.</small>
+        </div>
+        @if (problem(); as p) {
+          <p class="ap-error">{{ p }}</p>
+        }
+        @if (settings(); as s) {
+          <span class="ap-hint">Times are in {{ s.timeZone }}.</span>
+        }
+
+        <div class="ap-actions end">
+          <button type="button" class="ap-btn primary" [disabled]="saving() || !!problem()" (click)="save()"><i class="pi pi-check" aria-hidden="true"></i> Save</button>
+        </div>
+      </section>
+    }
+  </div>
+</div>

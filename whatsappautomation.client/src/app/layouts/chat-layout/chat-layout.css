@@ -6,7 +6,7 @@
 .tabbar {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; display: flex; gap: 4px;
   padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
-  background: rgb(255 255 255 / 92%); backdrop-filter: blur(12px); border-top: 1px solid var(--ui-border);
+  background: var(--ui-surface); backdrop-filter: blur(12px); border-top: 1px solid var(--ui-border);
 }
 .tab {
   flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 4px 0;
@@ -19,7 +19,7 @@
 .in-conversation .tabbar { display: none; }
 .in-conversation .content { padding-bottom: 0; }
 
-@media (min-width: 900px) {
+@media (min-width: 700px) {
   .tabbar { display: none; }
   .content, .in-conversation .content { padding-bottom: 0; }
   .rail {
@@ -29,7 +29,7 @@
   }
   .rail-logo {
     width: 44px; height: 44px; border-radius: 14px; display: grid; place-items: center; margin-bottom: 18px;
-    background: linear-gradient(135deg, #10b981, #0d9488); color: #fff; box-shadow: 0 6px 16px rgb(13 148 136 / 30%);
+    background: var(--ui-accent); color: #fff;
   }
   .rail-item {
     width: 68px; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 0;
@@ -44,3 +44,16 @@
 /* Full-height screens (chat, new message) subtract the sending bar's height. */
 .shell { --sending-bar-h: 0px; }
 .shell.has-bar { --sending-bar-h: 56px; }
+
+/* Unread or today's count on a tab. */
+.tab-icon, .rail-icon { position: relative; }
+.rail-icon { display: grid; place-items: center; }
+.badge {
+  position: absolute; top: -6px; right: -10px; min-width: 18px; height: 18px; padding: 0 5px; box-sizing: border-box;
+  border-radius: 9px; background: #d92d20; color: #fff; font-size: 11px; font-weight: 700; line-height: 18px; text-align: center;
+}
+.tab-icon .badge { top: -2px; right: 6px; }
+.rail-label { max-width: 72px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (min-width: 700px) {
+  .rail { overflow-y: auto; scrollbar-width: none; }
+}

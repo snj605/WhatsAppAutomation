@@ -1,6 +1,7 @@
 import { Component, ElementRef, inject, input, OnInit, output, signal, viewChild } from '@angular/core';
 import { MessageService } from 'primeng/api';
 import { problemMessage } from '../../core/http/problem';
+import { BigVideoConsent } from '../files/big-video';
 import { fileIcon, fileProblem, FilesApi, fileSize, UploadedFile } from '../files/files.api';
 import { MessageTemplate, TemplatesApi } from '../templates/templates.api';
 import { ComposedMessage } from './send-flow';
@@ -18,6 +19,7 @@ import { MORE_INSERTS, NAME_PLACEHOLDER, SEND_TEMPLATES } from './send-templates
 export class MessageBar implements OnInit {
   private readonly templatesApi = inject(TemplatesApi);
   private readonly filesApi = inject(FilesApi);
+  private readonly bigVideo = inject(BigVideoConsent);
   private readonly toast = inject(MessageService);
   private readonly box = viewChild<ElementRef<HTMLTextAreaElement>>('box');
 
@@ -69,8 +71,9 @@ export class MessageBar implements OnInit {
     });
   }
 
-  protected useTemplate(text: string): void {
+  protected useTemplate(text: string, file: UploadedFile | null = null): void {
     this.text.set(text);
+    if (file) this.attachment.set(file);
     this.panel.set('none');
     setTimeout(() => this.box()?.nativeElement.focus());
   }
@@ -87,7 +90,8 @@ export class MessageBar implements OnInit {
 
     this.uploading.set(true);
     try {
-      this.attachment.set(await this.filesApi.upload(file));
+      const uploaded = await this.filesApi.upload(file);
+      if (await this.bigVideo.ask(uploaded)) this.attachment.set(uploaded);
     } catch (e) {
       this.toast.add({ severity: 'error', summary: 'Not attached', detail: problemMessage(e), life: 6000 });
     } finally {
@@ -98,7 +102,8 @@ export class MessageBar implements OnInit {
   protected submit(): void {
     const text = this.text().trim();
     if (!text || this.disabled() || this.busy()) return;
-    this.send.emit({ text, attachmentId: this.attachment()?.id ?? null });
+    const file = this.attachment();
+    this.send.emit({ text, attachmentId: file?.id ?? null, sendVideoAsDocument: file?.isBigVideo === true });
   }
 
   /** Called by the chat after a successful send. */

@@ -2,13 +2,14 @@ import { Component, computed, effect, ElementRef, inject, OnInit, signal, viewCh
 import { Router, RouterLink } from '@angular/router';
 import { MessageService } from 'primeng/api';
 import { problemMessage } from '../../core/http/problem';
-import { ComposerPreset } from '../birthdays/birthday-wishes';
 import { BroadcastsApi } from '../broadcasts/broadcasts.api';
 import { BroadcastInput, BroadcastPreview } from '../broadcasts/broadcasts.models';
 import { ContactsApi } from '../contacts/contacts.api';
 import { Category, Contact, displayName, Group } from '../contacts/contacts.models';
 import { initialsOf } from './chat-format';
+import { BigVideoConsent } from '../files/big-video';
 import { fileIcon, fileProblem, FilesApi, fileSize, UploadedFile } from '../files/files.api';
+import { ComposerPreset } from '../modules/composer-preset';
 import { MessageTemplate, TemplatesApi } from '../templates/templates.api';
 import { MORE_INSERTS, NAME_PLACEHOLDER, SEND_TEMPLATES } from './send-templates';
 import { WhatsAppGate } from '../whatsapp/whatsapp-gate';
@@ -43,6 +44,7 @@ export class NewChatPage implements OnInit {
   private readonly toast = inject(MessageService);
   private readonly templatesApi = inject(TemplatesApi);
   private readonly filesApi = inject(FilesApi);
+  private readonly bigVideo = inject(BigVideoConsent);
   private readonly gate = inject(WhatsAppGate);
 
   /** The file sent with the message (the message is its caption). */
@@ -82,7 +84,8 @@ export class NewChatPage implements OnInit {
   protected readonly showMore = signal(false);
   protected readonly sampleIndex = signal(0);
   private readonly presetName = signal<string | null>(null);
-  private readonly forBirthday = signal(false);
+  /** Opened from an occasion module: the wishes belong to it. */
+  private readonly moduleId = signal<string | null>(null);
 
   // Preview and sending
   protected readonly preview = signal<BroadcastPreview | null>(null);
@@ -176,7 +179,8 @@ export class NewChatPage implements OnInit {
     const preset = (history.state as { preset?: ComposerPreset } | null)?.preset;
     if (preset) {
       this.presetName.set(preset.name);
-      this.forBirthday.set(preset.forBirthday === true);
+      this.moduleId.set(preset.moduleId ?? null);
+      if (preset.attachment) this.attachment.set(preset.attachment);
       this.text.set(preset.text);
       this.picked.set(new Map(preset.people.map((p) => [p.id, p])));
       this.audience.set('people');
@@ -258,8 +262,9 @@ export class NewChatPage implements OnInit {
 
   // ---------- Step 2 ----------
 
-  protected useTemplate(text: string): void {
+  protected useTemplate(text: string, file: UploadedFile | null = null): void {
     this.text.set(text);
+    if (file) this.attachment.set(file);
     this.focusBoxAtEnd();
   }
 
@@ -298,7 +303,8 @@ export class NewChatPage implements OnInit {
 
     this.uploading.set(file.name);
     try {
-      this.attachment.set(await this.filesApi.upload(file));
+      const uploaded = await this.filesApi.upload(file);
+      if (await this.bigVideo.ask(uploaded)) this.attachment.set(uploaded);
     } catch (e) {
       this.toast.add({ severity: 'error', summary: 'Not attached', detail: problemMessage(e), life: 6000 });
     } finally {
@@ -308,6 +314,26 @@ export class NewChatPage implements OnInit {
 
   protected removeAttachment(): void {
     this.attachment.set(null);
+  }
+
+  /** A Google Drive link ("Anyone with the link"): the server fetches the file. */
+  protected readonly linkOpen = signal(false);
+  protected readonly linkUrl = signal('');
+
+  protected async attachLink(): Promise<void> {
+    const url = this.linkUrl().trim();
+    if (!url) return;
+    this.uploading.set('Drive file');
+    try {
+      const fetched = await this.filesApi.fromLink(url);
+      if (await this.bigVideo.ask(fetched)) this.attachment.set(fetched);
+      this.linkOpen.set(false);
+      this.linkUrl.set('');
+    } catch (e) {
+      this.toast.add({ severity: 'error', summary: 'Could not get the file', detail: problemMessage(e), life: 7000 });
+    } finally {
+      this.uploading.set(null);
+    }
   }
 
   /** Saves the current message as one of the user's templates. */
@@ -389,7 +415,8 @@ export class NewChatPage implements OnInit {
       textGu: null,
       allContacts: audience === 'all',
       attachmentId: this.attachment()?.id ?? null,
-      forBirthday: audience === 'people' && this.forBirthday(),
+      moduleId: audience === 'people' ? this.moduleId() : null,
+      sendVideoAsDocument: this.attachment()?.isBigVideo === true,
       categoryIds: audience === 'categories' ? [...this.categoryIds()] : [],
       groupIds: audience === 'groups' ? [...this.groupIds()] : [],
       contactIds: audience === 'people' ? [...this.picked().keys()] : [],
