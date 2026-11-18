@@ -231,3 +231,26 @@ double windowHours(String from, String until) {
   final int diff = (toMin(until) - toMin(from) + 1440) % 1440;
   return (diff == 0 ? 1440 : diff) / 60;
 }
+
+/// Same as UserSending.FitsPerDay on the server: whole chunks with their rest, then what fits in the time left.
+int fitsPerDay({
+  required int limit,
+  required int chunk,
+  required int restMinutes,
+  required int minGap,
+  required int maxGap,
+  required double hours,
+}) {
+  final double perMessage = (minGap + maxGap) / 2;
+  if (perMessage <= 0 || chunk <= 0) {
+    return 0;
+  }
+
+  final double perChunk = chunk * perMessage + restMinutes * 60;
+  final double seconds = hours * 3600;
+  final int full = (seconds / perChunk).floor();
+  final double left = seconds - full * perChunk;
+  final int leftCount = (left / perMessage).floor();
+  final int count = full * chunk + (leftCount < chunk ? leftCount : chunk);
+  return count < 0 ? 0 : (count > limit ? limit : count);
+}

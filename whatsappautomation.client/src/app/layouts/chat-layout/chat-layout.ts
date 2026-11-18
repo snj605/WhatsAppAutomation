@@ -1,4 +1,4 @@
-import { Component, computed, DestroyRef, effect, inject, signal } from '@angular/core';
+import { Component, computed, DestroyRef, effect, inject, signal, untracked } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { MessageService } from 'primeng/api';
@@ -110,20 +110,23 @@ export class ChatLayout {
     let started = false;
     effect(() => {
       const user = this.auth.user();
-      if (!user) {
-        this.modules.clear();
-        this.notifications.clear();
-        return;
-      }
-
-      if (this.can('modules.manage')) void this.modules.reload();
-      if (this.can('messages.send')) {
-        void this.notifications.reload();
-        if (!started) {
-          started = true;
-          void this.live.start();
+      // Runs again only when the signed-in user changes, not when the menu or the bell refresh.
+      untracked(() => {
+        if (!user) {
+          this.modules.clear();
+          this.notifications.clear();
+          return;
         }
-      }
+
+        if (this.can('modules.manage')) void this.modules.reload();
+        if (this.can('messages.send')) {
+          void this.notifications.reload();
+          if (!started) {
+            started = true;
+            void this.live.start();
+          }
+        }
+      });
     });
     destroyRef.onDestroy(() => {
       if (started) void this.live.stop();

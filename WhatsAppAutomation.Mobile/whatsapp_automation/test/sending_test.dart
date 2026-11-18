@@ -10,6 +10,12 @@ void main() {
     expect(windowHours('00:00', '00:00'), 24);
   });
 
+  test('fits per day matches the server and the website', () {
+    expect(fitsPerDay(limit: 300, chunk: 50, restMinutes: 15, minGap: 30, maxGap: 90, hours: 12), 300);
+    expect(fitsPerDay(limit: 500, chunk: 100, restMinutes: 5, minGap: 10, maxGap: 20, hours: 15), 500);
+    expect(fitsPerDay(limit: 500, chunk: 50, restMinutes: 15, minGap: 30, maxGap: 90, hours: 1), 50);
+  });
+
   test('every message state has the same words as the website', () {
     expect(statusLook('read').$1, 'Read');
     expect(statusLook('failed').$1, 'Failed');

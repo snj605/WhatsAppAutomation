@@ -421,19 +421,15 @@ class _SendingSettingsFormState extends ConsumerState<SendingSettingsForm> {
     return null;
   }
 
-  /// About how many fit in a day with what is on the form (same estimate as the website).
-  int _fits() {
-    final double hours = _anyTime ? 24 : windowHours(_hhmm(_from), _hhmm(_until));
-    final double gap = (_n(_min) + _n(_max)) / 2;
-    final int chunk = _n(_chunk) < 1 ? 1 : _n(_chunk);
-    final double perChunk = chunk * gap + _n(_rest) * 60;
-    if (perChunk <= 0) {
-      return 0;
-    }
-
-    final int byTime = (hours * 3600 / perChunk * chunk).floor();
-    return byTime < _n(_limit) ? byTime : _n(_limit);
-  }
+  /// How many fit in a day with what is on the form: the same calculation as the server and the website.
+  int _fits() => fitsPerDay(
+        limit: _n(_limit),
+        chunk: _n(_chunk),
+        restMinutes: _n(_rest),
+        minGap: _n(_min),
+        maxGap: _n(_max),
+        hours: _anyTime ? 24 : windowHours(_hhmm(_from), _hhmm(_until)),
+      );
 
   Future<void> _save() async {
     final String? problem = _problem();

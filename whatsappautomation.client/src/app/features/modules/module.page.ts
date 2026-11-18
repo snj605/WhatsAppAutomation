@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject, input, signal } from '@angular/core';
+import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { ConfirmationService, MessageService } from 'primeng/api';
@@ -51,6 +51,7 @@ export class ModulePage {
   protected readonly initials = initials;
   protected readonly statusLook = statusLook;
   protected readonly months = MONTHS;
+  protected readonly dayNumbers = Array.from({ length: 31 }, (_, i) => i + 1);
   protected readonly icon = moduleIcon;
   protected readonly nameOf = displayName;
 
@@ -101,12 +102,17 @@ export class ModulePage {
   private searchTimer: ReturnType<typeof setTimeout> | undefined;
 
   constructor() {
-    // A new id (another module from the menu) loads that module.
+    // Only a new id (another occasion from the menu) loads again; nothing read while loading may re-run this,
+    // or saving the settings (which refreshes the menu) would jump back to the first tab.
     effect(() => {
       const id = this.id();
-      this.tab.set('days');
-      this.selected.set(new Set());
-      void this.load(id);
+      untracked(() => {
+        this.tab.set('days');
+        this.selected.set(new Set());
+        this.entries.set([]);
+        this.entryForm.set(null);
+        void this.load(id);
+      });
     });
   }
 

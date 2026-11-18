@@ -131,8 +131,8 @@
                   <span>
                     <label for="entry-day">Day</label>
                     <select id="entry-day" [ngModel]="f.day" (ngModelChange)="patchEntry({ day: +$event })">
-                      @for (d of [].constructor(31); track $index) {
-                        <option [ngValue]="$index + 1">{{ $index + 1 }}</option>
+                      @for (d of dayNumbers; track d) {
+                        <option [ngValue]="d">{{ d }}</option>
                       }
                     </select>
                   </span>

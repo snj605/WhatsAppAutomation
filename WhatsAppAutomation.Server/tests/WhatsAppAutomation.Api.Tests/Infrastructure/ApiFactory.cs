@@ -191,6 +191,21 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         await action(scope.ServiceProvider.GetRequiredService<AppDbContext>());
     }
 
+    /// <summary>An empty extra database on the same server, for tests that build their own schema (migrations).</summary>
+    public async Task<string> CreateScratchDatabaseAsync()
+    {
+        var name = $"waa_scratch_{Guid.NewGuid():N}";
+        await ExecuteAdminAsync($"CREATE DATABASE {name}");
+        return new NpgsqlConnectionStringBuilder(_adminConnectionString) { Database = name }.ConnectionString;
+    }
+
+    public async Task DropScratchDatabaseAsync(string connectionString)
+    {
+        NpgsqlConnection.ClearAllPools();
+        var name = new NpgsqlConnectionStringBuilder(connectionString).Database;
+        await ExecuteAdminAsync($"DROP DATABASE IF EXISTS {name} WITH (FORCE)");
+    }
+
     private async Task ExecuteAdminAsync(string sql)
     {
         await using var connection = new NpgsqlConnection(_adminConnectionString);

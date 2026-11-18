@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject, input, signal } from '@angular/core';
+import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { problemMessage } from '../../core/http/problem';
@@ -55,8 +55,10 @@ export class ResultsPage {
   constructor() {
     effect(() => {
       const id = this.id();
-      this.details.set(null);
-      void this.load(1, 'all', id);
+      untracked(() => {
+        this.details.set(null);
+        void this.load(1, 'all', id);
+      });
     });
   }
 

@@ -29,18 +29,25 @@ class HomePage extends ConsumerStatefulWidget {
   ConsumerState<HomePage> createState() => _HomePageState();
 }
 
-const List<(IconData, String)> _tabs = <(IconData, String)>[
-  (FLucideIcons.messageCircle, 'Chats'),
-  (FLucideIcons.users, 'Contacts'),
-  (FLucideIcons.calendar, 'Occasions'),
-  (FLucideIcons.send, 'Sending'),
-  (FLucideIcons.user, 'Me'),
+/// Every tab: its id, icon, label and the permission it needs (null: everyone). Same rule as the website's menu.
+const List<(String, IconData, String, String?)> _allTabs = <(String, IconData, String, String?)>[
+  ('chats', FLucideIcons.messageCircle, 'Chats', null),
+  ('contacts', FLucideIcons.users, 'Contacts', null),
+  ('occasions', FLucideIcons.calendar, 'Occasions', 'modules.manage'),
+  ('sending', FLucideIcons.send, 'Sending', 'messages.send'),
+  ('me', FLucideIcons.user, 'Me', null),
 ];
+
+List<(String, IconData, String, String?)> _tabsFor(SessionState session) => <(String, IconData, String, String?)>[
+      for (final (String, IconData, String, String?) t in _allTabs)
+        if (t.$4 == null || (session is SignedIn && session.can(t.$4!))) t,
+    ];
 
 /// The tabs as a column on the left, for tablets and landscape.
 class _SideBar extends StatelessWidget {
-  const _SideBar({required this.index, required this.onChange});
+  const _SideBar({required this.tabs, required this.index, required this.onChange});
 
+  final List<(String, IconData, String, String?)> tabs;
   final int index;
   final ValueChanged<int> onChange;
 
@@ -58,13 +65,13 @@ class _SideBar extends StatelessWidget {
         child: Column(
           children: <Widget>[
             const SizedBox(height: 12),
-            for (int i = 0; i < _tabs.length; i++)
+            for (int i = 0; i < tabs.length; i++)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 child: Semantics(
                   button: true,
                   selected: i == index,
-                  label: _tabs[i].$2,
+                  label: tabs[i].$3,
                   child: GestureDetector(
                     behavior: HitTestBehavior.opaque,
                     onTap: () => onChange(i),
@@ -76,10 +83,10 @@ class _SideBar extends StatelessWidget {
                       ),
                       child: Column(
                         children: <Widget>[
-                          Icon(_tabs[i].$1, size: 24, color: i == index ? theme.colors.primary : theme.colors.mutedForeground),
+                          Icon(tabs[i].$2, size: 24, color: i == index ? theme.colors.primary : theme.colors.mutedForeground),
                           const SizedBox(height: 6),
                           Text(
-                            _tabs[i].$2,
+                            tabs[i].$3,
                             style: theme.typography.body.xs.copyWith(
                               color: i == index ? theme.colors.primary : theme.colors.mutedForeground,
                               fontWeight: i == index ? FontWeight.w700 : FontWeight.w500,
@@ -102,7 +109,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   final GlobalKey<ChatsTabState> _chats = GlobalKey<ChatsTabState>();
   final GlobalKey<ContactsTabState> _contacts = GlobalKey<ContactsTabState>();
   final GlobalKey<SendingTabState> _sending = GlobalKey<SendingTabState>();
-  int _tab = 0;
+  String _tab = 'chats';
 
   @override
   void initState() {
@@ -138,36 +145,36 @@ class _HomePageState extends ConsumerState<HomePage> {
     }
   }
 
-  void _select(int index) {
-    setState(() => _tab = index);
+  void _select(String id) {
+    setState(() => _tab = id);
     // Fresh data when coming back to a tab.
-    switch (index) {
-      case 0:
+    switch (id) {
+      case 'chats':
         _chats.currentState?.reload();
-      case 2:
+      case 'occasions':
         ref.read(modulesProvider.notifier).reload();
-      case 3:
+      case 'sending':
         _sending.currentState?.reload();
     }
   }
 
-  List<Widget> _actions(SessionState session) {
+  List<Widget> _actions(SessionState session, String tab) {
     final bool canSend = session is SignedIn && session.can('messages.send');
     final bool canModules = session is SignedIn && session.can('modules.manage');
     final bool canManageContacts = session is SignedIn && session.can('contacts.manage');
-    return switch (_tab) {
-      0 when canSend => <Widget>[
+    return switch (tab) {
+      'chats' when canSend => <Widget>[
           FHeaderAction(
             icon: const Icon(FLucideIcons.squarePen),
             onPress: () => _chats.currentState?.newMessage(),
           ),
         ],
-      1 => <Widget>[
+      'contacts' => <Widget>[
           FHeaderAction(icon: const Icon(FLucideIcons.tags), onPress: () => _contacts.currentState?.openLists()),
           if (canManageContacts)
             FHeaderAction(icon: const Icon(FLucideIcons.userPlus), onPress: () => _contacts.currentState?.add()),
         ],
-      2 when canModules => <Widget>[
+      'occasions' when canModules => <Widget>[
           FHeaderAction(icon: const Icon(FLucideIcons.plus), onPress: () => openModuleBuilder(context, ref)),
         ],
       _ => const <Widget>[],
@@ -176,8 +183,11 @@ class _HomePageState extends ConsumerState<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    const List<String> titles = <String>['Chats', 'Contacts', 'Occasions', 'Sending', 'Me'];
     final SessionState session = ref.watch(sessionProvider);
+    final List<(String, IconData, String, String?)> tabs = _tabsFor(session);
+    // A tab the user may no longer see (switch turned off) falls back to Chats.
+    final int index = tabs.indexWhere(((String, IconData, String, String?) t) => t.$1 == _tab).clamp(0, tabs.length - 1);
+    final String current = tabs[index].$1;
     final int unread = ref.watch(notificationsProvider).unread;
     // A new unread notification shows as a toast at once (the bell keeps the list).
     ref.listen<NotificationsState>(notificationsProvider, (NotificationsState? previous, NotificationsState next) {
@@ -211,25 +221,31 @@ class _HomePageState extends ConsumerState<HomePage> {
     // Tablets and phones in landscape get a side bar and a centred page instead of the bottom bar.
     final bool wide = MediaQuery.sizeOf(context).width >= 720;
     final Widget pages = IndexedStack(
-      index: _tab,
+      index: index,
       children: <Widget>[
-        ChatsTab(key: _chats),
-        ContactsTab(key: _contacts),
-        const ModulesTab(),
-        SendingTab(key: _sending),
-        const MePage(),
+        for (final (String id, IconData _, String _, String? _) in tabs)
+          switch (id) {
+            'chats' => ChatsTab(key: _chats),
+            'contacts' => ContactsTab(key: _contacts),
+            'occasions' => const ModulesTab(),
+            'sending' => SendingTab(key: _sending),
+            _ => const MePage(),
+          },
       ],
     );
     return FScaffold(
       childPad: false,
-      header: FHeader(title: Text(titles[_tab]), suffixes: <Widget>[..._actions(session), if (session is SignedIn && session.can('messages.send')) bell]),
+      header: FHeader(
+        title: Text(tabs[index].$3),
+        suffixes: <Widget>[..._actions(session, current), if (session is SignedIn && session.can('messages.send')) bell],
+      ),
       footer: wide
           ? null
           : FBottomNavigationBar(
-              index: _tab,
-              onChange: _select,
+              index: index,
+              onChange: (int i) => _select(tabs[i].$1),
               children: <FBottomNavigationBarItem>[
-                for (final (IconData icon, String label) in _tabs)
+                for (final (String _, IconData icon, String label, String? _) in tabs)
                   FBottomNavigationBarItem(icon: Icon(icon), label: Text(label)),
               ],
             ),
@@ -241,7 +257,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                 ? Row(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: <Widget>[
-                      _SideBar(index: _tab, onChange: _select),
+                      _SideBar(tabs: tabs, index: index, onChange: (int i) => _select(tabs[i].$1)),
                       Expanded(
                         child: Align(
                           alignment: Alignment.topCenter,

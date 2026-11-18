@@ -48,15 +48,17 @@ export class SendingPage implements OnInit {
     return q && q.dailyLimit > 0 ? Math.min(100, Math.round((q.sentToday / q.dailyLimit) * 100)) : 0;
   });
 
-  /** About how many fit in a day with what is on the form (the server gives the exact number after saving). */
+  /** How many fit in a day with what is on the form: the same calculation as the server's FitsPerDay. */
   protected fitsPerDay(): number {
     const f = this.form;
-    const hours = f.anyTime ? 24 : windowHours(f.sendFrom, f.sendUntil);
-    const gap = (Number(f.minGapSeconds) + Number(f.maxGapSeconds)) / 2;
-    const chunk = Math.max(1, Number(f.chunkSize));
-    const perChunkSeconds = chunk * gap + Number(f.chunkRestMinutes) * 60;
-    const byTime = Math.floor(((hours * 3600) / perChunkSeconds) * chunk);
-    return Math.max(0, Math.min(Number(f.dailyLimit), byTime));
+    return fitsPerDay(
+      Number(f.dailyLimit),
+      Number(f.chunkSize),
+      Number(f.chunkRestMinutes),
+      Number(f.minGapSeconds),
+      Number(f.maxGapSeconds),
+      f.anyTime ? 24 : windowHours(f.sendFrom, f.sendUntil),
+    );
   }
 
   constructor() {
@@ -213,6 +215,18 @@ export class SendingPage implements OnInit {
   private showError(summary: string, e: unknown): void {
     this.toast.add({ severity: 'error', summary, detail: problemMessage(e), life: 6000 });
   }
+}
+
+/** Same as UserSending.FitsPerDay on the server: whole chunks with their rest, then what fits in the time left. */
+export function fitsPerDay(limit: number, chunk: number, restMinutes: number, minGap: number, maxGap: number, hours: number): number {
+  const perMessage = (minGap + maxGap) / 2;
+  if (!(perMessage > 0) || !(chunk > 0)) return 0;
+  const perChunk = chunk * perMessage + restMinutes * 60;
+  const seconds = hours * 3600;
+  const full = Math.floor(seconds / perChunk);
+  const left = seconds - full * perChunk;
+  const count = full * chunk + Math.min(chunk, Math.floor(left / perMessage));
+  return Math.min(limit, Math.max(0, count));
 }
 
 /** Hours between two "HH:mm" times; past midnight counts (21:00 to 06:00 = 9 hours). */
