@@ -72,10 +72,23 @@ internal static class BroadcastCreation
         }
 
         var defaultLanguage = await Preferences.DefaultLanguageAsync(db, userId, cancellationToken);
-        if (input.AttachmentId is { } fileId &&
-            !await db.StoredFiles.AnyAsync(f => f.Id == fileId && f.UserId == userId && f.Data != null, cancellationToken))
+        var asDocument = false;
+        if (input.AttachmentId is { } fileId)
         {
-            return WhatsAppAutomation.Application.Features.Files.FileErrors.NotFound;
+            var tenantId = await db.UserTenantAsync(userId, cancellationToken);
+            var file = await WhatsAppAutomation.Application.Features.Files.FileRules.UsableAsync(db, userId, tenantId, fileId, cancellationToken);
+            if (file is null)
+            {
+                return WhatsAppAutomation.Application.Features.Files.FileErrors.NotFound;
+            }
+
+            // WhatsApp shows videos up to 100 MB as videos; a larger one only goes as a document, if the user agreed.
+            if (file.IsBigVideo && !input.SendVideoAsDocument)
+            {
+                return BroadcastErrors.VideoNeedsDocument;
+            }
+
+            asDocument = file.IsBigVideo;
         }
 
         IReadOnlyDictionary<Guid, string>? forNames = null;
@@ -103,7 +116,7 @@ internal static class BroadcastCreation
             : new Broadcast(userId, input.Name, input.TextEn, input.TextHi, input.TextGu, now);
         if (input.AttachmentId is { } attachmentId)
         {
-            broadcast.Attach(attachmentId);
+            broadcast.Attach(attachmentId, asDocument);
         }
 
         var (target, targetId) = BroadcastTargets.Of(input);

@@ -271,7 +271,7 @@ export class AccountSession {
     }
 
     const data = await this.#loadFile(file.id);
-    const kind = mediaKind(file.mimeType);
+    const kind = file.asDocument ? 'document' : mediaKind(file.mimeType);
     const content: AnyMediaMessageContent =
       kind === 'image'
         ? { image: data, mimetype: file.mimeType }

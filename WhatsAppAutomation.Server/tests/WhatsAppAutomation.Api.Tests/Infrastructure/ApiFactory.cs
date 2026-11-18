@@ -84,6 +84,7 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         builder.UseSetting("RateLimits:AuthPermitsPerMinute", "100000");
         builder.UseSetting("RateLimits:SendPermitsPerMinute", "100000");
         builder.UseSetting("Gateway:Secret", GatewaySecret);
+        builder.UseSetting("Files:Path", Path.Combine(Path.GetTempPath(), "whatsapp-tests-files", Guid.NewGuid().ToString("N")));
 
         // The tests run the paced sender step by step, with no waiting and no sending hours.
         builder.UseSetting("Broadcasting:Enabled", "false");

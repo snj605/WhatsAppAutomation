@@ -20,6 +20,7 @@ public sealed class ModuleAutoSender(
     IAppDbContext db,
     IIdentityService identity,
     IPermissionService permissions,
+    Notifications.NotificationSender notifications,
     IOptions<BroadcastOptions> options,
     TimeProvider clock,
     ILogger<ModuleAutoSender> logger)
@@ -45,8 +46,7 @@ public sealed class ModuleAutoSender(
             }
 
             m.MarkAutoSent(today);
-            var template = await db.MessageTemplates.AsNoTracking()
-                .SingleOrDefaultAsync(t => t.Id == m.TemplateId && t.UserId == m.UserId, cancellationToken);
+            var template = await Templates.TemplateAccess.UsableAsync(db, m.UserId, m.TemplateId!.Value, cancellationToken);
             if (template is null)
             {
                 await db.SaveChangesAsync(cancellationToken);
@@ -66,7 +66,9 @@ public sealed class ModuleAutoSender(
             }
 
             var name = $"{m.Name} · {today.ToString("d MMM", CultureInfo.InvariantCulture)}";
-            var input = new BroadcastInput(name, null, null, null, null, null, ids, template.Text, ModuleId: m.Id);
+            // The template's file goes too; choosing a big video for a template already agreed to send it as a document.
+            var input = new BroadcastInput(
+                name, null, null, null, null, null, ids, template.Text, AttachmentId: template.AttachmentId, ModuleId: m.Id, SendVideoAsDocument: true);
             var created = await BroadcastCreation.CreateAsync(db, m.UserId, input, o, now, cancellationToken);
             if (created.Error is { } error)
             {
@@ -77,6 +79,8 @@ public sealed class ModuleAutoSender(
             }
 
             started++;
+            await notifications.SendAsync(m.UserId, "occasion", $"{m.Name}: {ids.Count} wishes started",
+                "They go out one by one, before any broadcast.", cancellationToken);
         }
 
         return started;

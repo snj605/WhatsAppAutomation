@@ -23,7 +23,8 @@ internal sealed class CreateModuleCommandValidator : AbstractValidator<CreateMod
     }
 }
 
-internal sealed class CreateModuleCommandHandler(IAppDbContext db, ICurrentUser currentUser, IOptions<BroadcastOptions> options, TimeProvider clock)
+internal sealed class CreateModuleCommandHandler(
+    IAppDbContext db, ICurrentUser currentUser, Platform.AuditLog audit, IOptions<BroadcastOptions> options, TimeProvider clock)
     : ICommandHandler<CreateModuleCommand, ModuleDto>
 {
     public async Task<Result<ModuleDto>> Handle(CreateModuleCommand command, CancellationToken cancellationToken)
@@ -57,6 +58,7 @@ internal sealed class CreateModuleCommandHandler(IAppDbContext db, ICurrentUser 
             existing.Count == 0 ? 1 : existing.Max(m => m.SortOrder) + 1, now);
         db.OccasionModules.Add(module);
         await db.SaveChangesAsync(cancellationToken);
+        await audit.WriteAsync("module.created", $"Occasion \"{module.Name}\" created", null, cancellationToken);
         return (await ModuleReads.ListAsync(db, userId, options.Value, now, cancellationToken, module.Id)).Single();
     }
 }
@@ -109,7 +111,7 @@ internal sealed class UpdateModuleCommandHandler(IAppDbContext db, ICurrentUser 
 /// </summary>
 public sealed record DeleteModuleCommand(Guid ModuleId) : ICommand;
 
-internal sealed class DeleteModuleCommandHandler(IAppDbContext db, ICurrentUser currentUser, TimeProvider clock)
+internal sealed class DeleteModuleCommandHandler(IAppDbContext db, ICurrentUser currentUser, Platform.AuditLog audit, TimeProvider clock)
     : ICommandHandler<DeleteModuleCommand>
 {
     public async Task<Result> Handle(DeleteModuleCommand command, CancellationToken cancellationToken)
@@ -137,6 +139,7 @@ internal sealed class DeleteModuleCommandHandler(IAppDbContext db, ICurrentUser 
 
         db.OccasionModules.Remove(module);
         await db.SaveChangesAsync(cancellationToken);
+        await audit.WriteAsync("module.deleted", $"Occasion \"{module.Name}\" deleted", null, cancellationToken);
         return Result.Success();
     }
 }
@@ -171,7 +174,7 @@ internal sealed class SetModuleSendingCommandHandler(IAppDbContext db, ICurrentU
         }
 
         if (command.TemplateId is { } templateId &&
-            !await db.MessageTemplates.AnyAsync(t => t.Id == templateId && t.UserId == userId, cancellationToken))
+            await Templates.TemplateAccess.UsableAsync(db, userId, templateId, cancellationToken) is null)
         {
             return ModuleErrors.TemplateNotFound;
         }

@@ -20,8 +20,10 @@ public sealed class BroadcastDispatcher(
     IAppDbContext db,
     IWhatsAppGateway gateway,
     IIdentityService identity,
+    IFileStore fileStore,
     ISendTurn sendTurn,
     IWhatsAppNotifier notifier,
+    Notifications.NotificationSender notifications,
     BroadcastPacing pacing,
     IOptions<BroadcastOptions> options,
     TimeProvider clock,
@@ -38,7 +40,7 @@ public sealed class BroadcastDispatcher(
         if (now - pacing.LastFileCleanup >= TimeSpan.FromMinutes(1))
         {
             pacing.LastFileCleanup = now;
-            await WhatsAppAutomation.Application.Features.Files.FileCleanup.RunAsync(db, now, cancellationToken);
+            await WhatsAppAutomation.Application.Features.Files.FileCleanup.RunAsync(db, fileStore, now, cancellationToken);
         }
 
         var userIds = await db.Broadcasts.Where(b => b.Status == BroadcastStatus.Sending).Select(b => b.UserId).Distinct()
@@ -164,7 +166,7 @@ public sealed class BroadcastDispatcher(
         // The broadcast's file, if any: the gateway uploads it to WhatsApp once and reuses it for everyone.
         var file = await db.Broadcasts.AsNoTracking()
             .Where(b => b.Id == recipient.BroadcastId && b.AttachmentId != null)
-            .Join(db.StoredFiles, b => b.AttachmentId, f => (Guid?)f.Id, (b, f) => new GatewayFile(f.Id, f.FileName, f.ContentType))
+            .Join(db.StoredFiles, b => b.AttachmentId, f => (Guid?)f.Id, (b, f) => new GatewayFile(f.Id, f.FileName, f.ContentType, b.SendAsDocument))
             .SingleOrDefaultAsync(cancellationToken);
 
         var message = new OutgoingMessage(account.Id, userId, recipient.PhoneNumber, recipient.Text!, now);
@@ -327,6 +329,7 @@ public sealed class BroadcastDispatcher(
         {
             await db.SaveChangesAsync(cancellationToken);
             logger.LogWarning("Paused {Count} broadcasts: {Reason}", sending.Count, reason);
+            await notifications.SendAsync(userId, "paused", sending.Count == 1 ? "Sending paused" : $"{sending.Count} sends paused", reason, cancellationToken);
         }
     }
 

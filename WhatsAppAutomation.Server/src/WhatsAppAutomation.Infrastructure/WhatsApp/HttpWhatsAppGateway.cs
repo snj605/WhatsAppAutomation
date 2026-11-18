@@ -27,7 +27,7 @@ internal sealed class HttpWhatsAppGateway(HttpClient http, IOptions<GatewayOptio
     {
         object payload = file is null
             ? new { to = toPhoneNumber, text, reference }
-            : new { to = toPhoneNumber, text, reference, file = new { id = file.Id, name = file.FileName, mimeType = file.ContentType } };
+            : new { to = toPhoneNumber, text, reference, file = new { id = file.Id, name = file.FileName, mimeType = file.ContentType, asDocument = file.AsDocument } };
         var (response, error) = await SendAsync($"accounts/{accountId}/messages", payload, cancellationToken);
         if (response is null)
         {

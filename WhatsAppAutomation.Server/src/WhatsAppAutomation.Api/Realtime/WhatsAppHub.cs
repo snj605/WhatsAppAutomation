@@ -41,5 +41,9 @@ internal sealed class SignalRWhatsAppNotifier(IHubContext<WhatsAppHub> hub) : IW
     public Task ContactsCheckedAsync(Guid userId, WhatsAppCheckSummaryDto summary, CancellationToken cancellationToken) =>
         User(userId).SendAsync("contacts", summary, cancellationToken);
 
+    public Task NotificationAsync(
+        Guid userId, Application.Features.Notifications.NotificationDto notification, CancellationToken cancellationToken) =>
+        User(userId).SendAsync("notification", notification, cancellationToken);
+
     private IClientProxy User(Guid userId) => hub.Clients.User(userId.ToString());
 }

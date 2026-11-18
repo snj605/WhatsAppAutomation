@@ -23,7 +23,8 @@ public sealed record HandleGatewayEventCommand(
     DateTimeOffset? At = null) : ICommand;
 
 internal sealed class HandleGatewayEventCommandHandler(
-    IAppDbContext db, IWhatsAppNotifier notifier, IWhatsAppGateway gateway, TimeProvider clock) : ICommandHandler<HandleGatewayEventCommand>
+    IAppDbContext db, IWhatsAppNotifier notifier, IWhatsAppGateway gateway, Notifications.NotificationSender notifications, TimeProvider clock)
+    : ICommandHandler<HandleGatewayEventCommand>
 {
     private static readonly Error UnknownEvent = Error.Validation("Unknown or incomplete gateway event.");
 
@@ -46,6 +47,7 @@ internal sealed class HandleGatewayEventCommandHandler(
                 return Result.Success();
 
             case "connection" when TryParseStatus(e.Status, out var status):
+                var before = account.Status;
                 var phone = WhatsAppAutomation.Domain.ValueObjects.PhoneNumber.Normalize(e.PhoneNumber);
                 if (status == WhatsAppConnectionStatus.Connected && phone is not null &&
                     await db.WhatsAppAccounts.AnyAsync(a => a.Id != account.Id && a.PhoneNumber == phone, cancellationToken))
@@ -61,6 +63,10 @@ internal sealed class HandleGatewayEventCommandHandler(
 
                 await db.SaveChangesAsync(cancellationToken);
                 await notifier.AccountChangedAsync(account.UserId, WhatsAppAccountDto.From(account), cancellationToken);
+                if (account.Status != before || account.StatusReason == WhatsAppAccount.NumberInUseReason)
+                {
+                    await NotifyAsync(account, cancellationToken);
+                }
                 return Result.Success();
 
             case "message_status" when e.Reference is { } reference && TryParseMessageStatus(e.Status, out var tick):
@@ -83,6 +89,20 @@ internal sealed class HandleGatewayEventCommandHandler(
                 return UnknownEvent;
         }
     }
+
+    /// <summary>The changes a user must act on get a notification (sending waits until they do).</summary>
+    private Task NotifyAsync(WhatsAppAccount account, CancellationToken cancellationToken) => account switch
+    {
+        { StatusReason: WhatsAppAccount.NumberInUseReason } => notifications.SendAsync(account.UserId, "whatsapp",
+            "Number already used", "This WhatsApp number is linked by another user on the platform. Link a different number.", cancellationToken),
+        { Status: WhatsAppConnectionStatus.LoggedOut } => notifications.SendAsync(account.UserId, "whatsapp",
+            "WhatsApp logged out", "Link your number again so sending can continue.", cancellationToken),
+        { Status: WhatsAppConnectionStatus.Restricted } => notifications.SendAsync(account.UserId, "whatsapp",
+            "WhatsApp restricted your number", "Nothing is sent from it. Check WhatsApp on the phone.", cancellationToken),
+        { Status: WhatsAppConnectionStatus.Disconnected } => notifications.SendAsync(account.UserId, "whatsapp",
+            "WhatsApp stopped here", "This login was opened somewhere else. Link again to continue.", cancellationToken),
+        _ => Task.CompletedTask,
+    };
 
     private static bool TryParseStatus(string? value, out WhatsAppConnectionStatus status)
     {

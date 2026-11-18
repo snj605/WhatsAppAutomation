@@ -48,4 +48,35 @@ public sealed class TemplatesApiTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.OK,
             (await allowed.PostAsJsonAsync("/api/v1/templates", new SaveTemplateRequest("Hi", "Hi {{name}}"), Ct)).StatusCode);
     }
+
+    [Fact]
+    public async Task A_tenant_admin_shares_templates_with_the_tenant_and_members_use_but_cannot_change_them()
+    {
+        var adminName = await factory.CreateUserAsync(UserKind.TenantAdmin);
+        var admin = await factory.CreateClientForAsync(adminName);
+        var tenantId = await factory.TenantIdAsync(adminName);
+        var member = await factory.CreateClientForAsync(
+            await factory.CreateUserAsync(tenantId: tenantId, switches: [Permissions.Templates.Manage]));
+        var outsider = await factory.CreateClientForAsync(await factory.CreateUserAsync(UserKind.TenantAdmin));
+
+        var shared = (await (await admin.PostAsJsonAsync(
+            "/api/v1/templates", new SaveTemplateRequest("Diwali", "Happy Diwali {{name}}", Shared: true), Ct)).Content.ReadFromJsonAsync<TemplateDto>(Ct))!;
+        Assert.True(shared.Shared);
+
+        var seen = Assert.Single((await member.GetFromJsonAsync<List<TemplateDto>>("/api/v1/templates", Ct))!);
+        Assert.Equal((shared.Id, true, false), (seen.Id, seen.Shared, seen.CanEdit));
+        Assert.Equal(HttpStatusCode.NotFound, (await member.DeleteAsync($"/api/v1/templates/{shared.Id}", Ct)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await member.PostAsJsonAsync(
+            "/api/v1/templates", new SaveTemplateRequest("Mine", "x", Shared: true), Ct)).StatusCode);
+        Assert.Empty((await outsider.GetFromJsonAsync<List<TemplateDto>>("/api/v1/templates", Ct))!);
+    }
+
+    [Fact]
+    public void Only_Google_Drive_file_links_are_accepted()
+    {
+        Assert.Equal("1AbCdEfGhIjKlMnOp", WhatsAppAutomation.Infrastructure.Files.DriveFileFetcher.FileIdOf("https://drive.google.com/file/d/1AbCdEfGhIjKlMnOp/view?usp=sharing"));
+        Assert.Equal("1AbCdEfGhIjKlMnOp", WhatsAppAutomation.Infrastructure.Files.DriveFileFetcher.FileIdOf("https://drive.google.com/open?id=1AbCdEfGhIjKlMnOp"));
+        Assert.Null(WhatsAppAutomation.Infrastructure.Files.DriveFileFetcher.FileIdOf("https://example.com/file/d/1AbCdEfGhIjKlMnOp"));
+        Assert.Null(WhatsAppAutomation.Infrastructure.Files.DriveFileFetcher.FileIdOf("http://drive.google.com/file/d/1AbCdEfGhIjKlMnOp"));
+    }
 }

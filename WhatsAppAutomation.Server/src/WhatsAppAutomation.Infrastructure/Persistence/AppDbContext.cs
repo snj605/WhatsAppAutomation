@@ -45,6 +45,13 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
 
     public DbSet<ContactOccasion> ContactOccasions => Set<ContactOccasion>();
 
+    public DbSet<AuditEntry> AuditEntries => Set<AuditEntry>();
+
+    public DbSet<Notification> Notifications => Set<Notification>();
+
+    public Task<Guid?> UserTenantAsync(Guid userId, CancellationToken cancellationToken) =>
+        Users.AsNoTracking().Where(u => u.Id == userId).Select(u => u.TenantId).SingleOrDefaultAsync(cancellationToken);
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);

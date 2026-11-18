@@ -16,4 +16,7 @@ public interface IWhatsAppNotifier
 
     /// <summary>Some contacts got a WhatsApp check result: apps refresh their contact lists.</summary>
     Task ContactsCheckedAsync(Guid userId, WhatsAppCheckSummaryDto summary, CancellationToken cancellationToken);
+
+    /// <summary>A new notification for the user: apps show it and update the unread count.</summary>
+    Task NotificationAsync(Guid userId, Features.Notifications.NotificationDto notification, CancellationToken cancellationToken);
 }

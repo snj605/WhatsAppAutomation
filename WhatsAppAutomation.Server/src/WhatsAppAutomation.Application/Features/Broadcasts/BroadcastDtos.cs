@@ -22,7 +22,8 @@ public sealed record BroadcastInput(
     string? Text = null,
     bool AllContacts = false,
     Guid? AttachmentId = null,
-    Guid? ModuleId = null)
+    Guid? ModuleId = null,
+    bool SendVideoAsDocument = false)
 {
     /// <summary>One contact picked by hand: a single message, which every member may send.</summary>
     public bool IsSingleMessage =>

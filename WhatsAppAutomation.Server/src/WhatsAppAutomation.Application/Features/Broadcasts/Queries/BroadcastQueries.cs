@@ -111,7 +111,7 @@ internal sealed class GetBroadcastQueryHandler(IAppDbContext db, ICurrentUser cu
         var summary = (await BroadcastReads.SummariesAsync(db, userId, [broadcast.Id], cancellationToken)).Single();
         var attachment = broadcast.AttachmentId is { } fileId
             ? await db.StoredFiles.AsNoTracking().Where(f => f.Id == fileId)
-                .Select(f => new AttachmentDto(f.Id, f.FileName, f.ContentType, f.SizeBytes, f.Data != null))
+                .Select(f => new AttachmentDto(f.Id, f.FileName, f.ContentType, f.SizeBytes, f.OnDisk || f.Data != null))
                 .SingleOrDefaultAsync(cancellationToken)
             : null;
         return new BroadcastDetailsDto(summary, broadcast.TextEn, broadcast.TextHi, broadcast.TextGu, recipients, broadcast.Text, attachment);

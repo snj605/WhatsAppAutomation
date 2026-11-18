@@ -73,6 +73,9 @@ public interface IIdentityService
     /// <summary>Active users of this kind in the tenant (null: platform admins), optionally not counting one user.</summary>
     Task<int> CountActiveAsync(UserKind kind, Guid? tenantId, Guid? excludingUserId, CancellationToken cancellationToken);
 
+    /// <summary>Every tenant user (not platform admins): id, tenant and name, for the platform dashboard.</summary>
+    Task<IReadOnlyList<(Guid UserId, Guid? TenantId, string DisplayName)>> UsersByTenantAsync(CancellationToken cancellationToken);
+
     /// <summary>How many users each tenant has, and how many of them are tenant admins.</summary>
     Task<IReadOnlyDictionary<Guid, (int Users, int Admins)>> CountByTenantAsync(CancellationToken cancellationToken);
 

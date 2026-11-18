@@ -22,6 +22,18 @@ namespace WhatsAppAutomation.Api.Controllers;
 [HasPermission(Permissions.Platform.Tenants)]
 public sealed class TenantsController(ISender mediator) : ControllerBase
 {
+    /// <summary>Counts for the dashboard: tenants, numbers, messages today, numbers that need a look, recent activity.</summary>
+    [HttpGet("~/api/v1/platform/dashboard")]
+    [ProducesResponseType<Application.Features.Platform.DashboardDto>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetDashboard(CancellationToken cancellationToken) =>
+        this.ToActionResult(await mediator.Send(new Application.Features.Platform.GetDashboardQuery(), cancellationToken), Ok);
+
+    /// <summary>Who did what, newest first.</summary>
+    [HttpGet("~/api/v1/platform/audit")]
+    [ProducesResponseType<Application.Features.Platform.AuditPage>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetAudit([FromQuery] int page = 1, [FromQuery] int pageSize = 50, CancellationToken cancellationToken = default) =>
+        this.ToActionResult(await mediator.Send(new Application.Features.Platform.GetAuditQuery(page, pageSize), cancellationToken), Ok);
+
     [HttpGet]
     [ProducesResponseType<IReadOnlyList<TenantResponse>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetTenants(CancellationToken cancellationToken)

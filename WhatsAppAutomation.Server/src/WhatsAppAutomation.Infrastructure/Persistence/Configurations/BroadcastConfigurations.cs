@@ -31,7 +31,9 @@ internal sealed class MessageTemplateConfiguration : IEntityTypeConfiguration<Me
         builder.Property(t => t.Name).HasMaxLength(MessageTemplate.NameMaxLength).IsRequired();
         builder.Property(t => t.Text).HasMaxLength(MessageTemplate.TextMaxLength).IsRequired();
         builder.HasIndex(t => t.UserId);
+        builder.HasIndex(t => new { t.TenantId, t.IsShared });
         builder.HasOne<AppUser>().WithMany().HasForeignKey(t => t.UserId).OnDelete(DeleteBehavior.Cascade);
+        builder.HasOne<StoredFile>().WithMany().HasForeignKey(t => t.AttachmentId).OnDelete(DeleteBehavior.SetNull);
     }
 }
 

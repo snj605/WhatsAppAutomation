@@ -49,3 +49,6 @@ deploy/.env
 
 # Local backups made while editing (never commit)
 /_backup_*/
+
+# Stored files (uploads and Drive copies) kept by the API on this machine
+App_Data/

@@ -43,7 +43,7 @@ internal sealed class CreateMemberCommandValidator : AbstractValidator<CreateMem
 }
 
 internal sealed class CreateMemberCommandHandler(
-    MemberAccess access, IIdentityService identity, IAppDbContext db, TimeProvider clock) : ICommandHandler<CreateMemberCommand, Guid>
+    MemberAccess access, IIdentityService identity, IAppDbContext db, Platform.AuditLog audit, TimeProvider clock) : ICommandHandler<CreateMemberCommand, Guid>
 {
     public async Task<Result<Guid>> Handle(CreateMemberCommand command, CancellationToken cancellationToken)
     {
@@ -92,6 +92,12 @@ internal sealed class CreateMemberCommandHandler(
             await Modules.DefaultModules.AddBirthdayAsync(db, created.Value, clock.GetUtcNow(), cancellationToken);
         }
 
+        if (created.IsSuccess)
+        {
+            await audit.WriteAsync("member.created",
+                $"{caller.DisplayName} added {command.DisplayName.Trim()} ({(kind == UserKind.TenantAdmin ? "admin" : "member")})", tenantId, cancellationToken);
+        }
+
         return created;
     }
 }
@@ -108,7 +114,8 @@ internal sealed class UpdateMemberCommandValidator : AbstractValidator<UpdateMem
     }
 }
 
-internal sealed class UpdateMemberCommandHandler(MemberAccess access, IIdentityService identity, IPermissionService permissions)
+internal sealed class UpdateMemberCommandHandler(
+    MemberAccess access, IIdentityService identity, IPermissionService permissions, Platform.AuditLog audit)
     : ICommandHandler<UpdateMemberCommand>
 {
     public async Task<Result> Handle(UpdateMemberCommand command, CancellationToken cancellationToken)
@@ -130,6 +137,8 @@ internal sealed class UpdateMemberCommandHandler(MemberAccess access, IIdentityS
 
         await identity.UpdateUserAsync(target.Id, command.DisplayName.Trim(), kind, command.Switches, cancellationToken);
         permissions.InvalidateAll();
+        var what = kind == UserKind.TenantAdmin ? "admin" : command.Switches.Count == 0 ? "no switches" : string.Join(", ", command.Switches);
+        await audit.WriteAsync("member.changed", $"{caller.DisplayName} set {target.DisplayName}: {what}", target.TenantId, cancellationToken);
         return Result.Success();
     }
 }
@@ -138,7 +147,7 @@ internal sealed class UpdateMemberCommandHandler(MemberAccess access, IIdentityS
 public sealed record SetMemberActiveCommand(Guid UserId, bool IsActive) : ICommand;
 
 internal sealed class SetMemberActiveCommandHandler(
-    MemberAccess access, IIdentityService identity, SessionStore sessions, IPermissionService permissions, TimeProvider clock)
+    MemberAccess access, IIdentityService identity, SessionStore sessions, IPermissionService permissions, Platform.AuditLog audit, TimeProvider clock)
     : ICommandHandler<SetMemberActiveCommand>
 {
     public async Task<Result> Handle(SetMemberActiveCommand command, CancellationToken cancellationToken)
@@ -163,6 +172,8 @@ internal sealed class SetMemberActiveCommandHandler(
         }
 
         permissions.InvalidateAll();
+        await audit.WriteAsync(command.IsActive ? "member.turned_on" : "member.turned_off",
+            $"{target.DisplayName} turned {(command.IsActive ? "on" : "off")}", target.TenantId, cancellationToken);
         return Result.Success();
     }
 }
@@ -180,7 +191,7 @@ internal sealed class ResetMemberPasswordCommandValidator : AbstractValidator<Re
 }
 
 internal sealed class ResetMemberPasswordCommandHandler(
-    MemberAccess access, IIdentityService identity, SessionStore sessions, IPermissionService permissions, TimeProvider clock)
+    MemberAccess access, IIdentityService identity, SessionStore sessions, IPermissionService permissions, Platform.AuditLog audit, TimeProvider clock)
     : ICommandHandler<ResetMemberPasswordCommand>
 {
     public async Task<Result> Handle(ResetMemberPasswordCommand command, CancellationToken cancellationToken)
@@ -206,6 +217,7 @@ internal sealed class ResetMemberPasswordCommandHandler(
 
         await sessions.RevokeUserAsync(target.Id, clock.GetUtcNow(), cancellationToken);
         permissions.InvalidateAll();
+        await audit.WriteAsync("member.password_reset", $"New password set for {target.DisplayName}", target.TenantId, cancellationToken);
         return Result.Success();
     }
 }
@@ -217,7 +229,7 @@ internal sealed class ResetMemberPasswordCommandHandler(
 public sealed record DeleteMemberCommand(Guid UserId) : ICommand;
 
 internal sealed class DeleteMemberCommandHandler(
-    MemberAccess access, IIdentityService identity, UserRemoval removal, IPermissionService permissions)
+    MemberAccess access, IIdentityService identity, UserRemoval removal, IPermissionService permissions, Platform.AuditLog audit)
     : ICommandHandler<DeleteMemberCommand>
 {
     public async Task<Result> Handle(DeleteMemberCommand command, CancellationToken cancellationToken)
@@ -238,6 +250,7 @@ internal sealed class DeleteMemberCommandHandler(
         await removal.UnlinkNumbersAsync([target.Id], cancellationToken);
         await identity.DeleteUserAsync(target.Id, cancellationToken);
         permissions.InvalidateAll();
+        await audit.WriteAsync("member.deleted", $"{target.DisplayName} deleted", target.TenantId, cancellationToken);
         return Result.Success();
     }
 }

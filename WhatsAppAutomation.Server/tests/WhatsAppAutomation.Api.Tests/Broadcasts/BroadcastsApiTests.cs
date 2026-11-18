@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using WhatsAppAutomation.Api.Contracts;
 using WhatsAppAutomation.Api.Tests.Infrastructure;
@@ -350,11 +351,15 @@ public sealed class BroadcastsApiTests(ApiFactory factory)
         Assert.Equal("Diwali offer.pdf", details.Attachment!.FileName);
 
         // The bytes are freed once nothing needs them (the cleanup runs at most once a minute, so call it directly).
-        await factory.WithDbAsync(async db =>
+        await using (var scope = factory.Services.CreateAsyncScope())
         {
-            await WhatsAppAutomation.Application.Features.Files.FileCleanup.RunAsync(db, DateTimeOffset.UtcNow, Ct);
-            Assert.Null(db.StoredFiles.Single(f => f.Id == file.Id).Data);
-        });
+            var db = scope.ServiceProvider.GetRequiredService<WhatsAppAutomation.Infrastructure.Persistence.AppDbContext>();
+            var store = scope.ServiceProvider.GetRequiredService<WhatsAppAutomation.Application.Common.Interfaces.IFileStore>();
+            await WhatsAppAutomation.Application.Features.Files.FileCleanup.RunAsync(db, store, DateTimeOffset.UtcNow, Ct);
+            var stored = await db.StoredFiles.AsNoTracking().SingleAsync(f => f.Id == file.Id, Ct);
+            Assert.False(stored.IsKept);
+            Assert.Null(store.OpenRead(file.Id));
+        }
     }
 
     [Fact]
@@ -521,6 +526,28 @@ public sealed class BroadcastsApiTests(ApiFactory factory)
         var summary = await SummaryAsync(client, created.Id);
         Assert.Equal((2, 0), (summary.Counts.Sent, summary.Counts.Failed));
         Assert.Equal(HttpStatusCode.Conflict, (await client.PostAsJsonAsync($"/api/v1/broadcasts/{created.Id}/retry", new RetryBroadcastRequest(null), Ct)).StatusCode);
+    }
+
+    [Fact]
+    public async Task A_video_above_100_MB_goes_only_as_a_document_and_only_when_the_user_agrees()
+    {
+        var (client, userId) = await ConnectedOwnerAsync();
+        await ContactAsync(client, "+919825012121", null, "en", nameEn: "Vid");
+        var fileId = Guid.NewGuid();
+        await factory.WithDbAsync(async db =>
+        {
+            db.StoredFiles.Add(new StoredFile(fileId, userId, "long.mp4", "video/mp4", 180L * 1024 * 1024, "00", DateTimeOffset.UtcNow));
+            await db.SaveChangesAsync(Ct);
+        });
+
+        var refused = await client.PostAsJsonAsync("/api/v1/broadcasts",
+            new BroadcastInput("Video", null, null, null, null, null, null, "Hi", AllContacts: true, AttachmentId: fileId), Ct);
+        Assert.Equal(HttpStatusCode.Conflict, refused.StatusCode);
+
+        var agreed = await CreateAsync(client,
+            new BroadcastInput("Video", null, null, null, null, null, null, "Hi", AllContacts: true, AttachmentId: fileId, SendVideoAsDocument: true));
+        await factory.WithDbAsync(async db => Assert.True((await db.Broadcasts.SingleAsync(b => b.Id == agreed.Id, Ct)).SendAsDocument));
+        await CancelAsync(client, agreed.Id);
     }
 
     /// <summary>The sender works on every user at once: tests leave nothing waiting for the next test.</summary>

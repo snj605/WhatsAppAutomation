@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using WhatsAppAutomation.Api.Authorization;
 using WhatsAppAutomation.Api.Extensions;
 using WhatsAppAutomation.Application.Common.Models;
@@ -18,7 +19,10 @@ public sealed class FilesController(ISender mediator) : ControllerBase
 {
     private const long Overhead = 64 * 1024;
 
-    /// <summary>Any document, photo, video or audio up to 16 MB (programs and scripts are refused).</summary>
+    /// <summary>
+    /// Any document, photo, video or audio up to 512 MB (programs and scripts are refused). It is streamed to the
+    /// file store. Videos above 100 MB can only go as documents (isBigVideo).
+    /// </summary>
     [HttpPost]
     [HasPermission(Permissions.Messages.Send)]
     [RequestSizeLimit(StoredFile.MaxBytes + Overhead)]
@@ -37,11 +41,20 @@ public sealed class FilesController(ISender mediator) : ControllerBase
             return this.ToProblem(FileErrors.TooLarge);
         }
 
-        await using var buffer = new MemoryStream((int)file.Length);
-        await file.CopyToAsync(buffer, cancellationToken);
-        var result = await mediator.Send(new UploadFileCommand(file.FileName, file.ContentType, buffer.ToArray()), cancellationToken);
+        await using var content = file.OpenReadStream();
+        var result = await mediator.Send(new UploadFileCommand(file.FileName, file.ContentType, content), cancellationToken);
         return this.ToActionResult(result, Ok);
     }
+
+    /// <summary>Takes a copy of a file shared by link (Google Drive, "Anyone with the link").</summary>
+    [HttpPost("from-link")]
+    [HasPermission(Permissions.Messages.Send)]
+    [EnableRateLimiting(Configurations.RateLimitPolicies.Send)]
+    [ProducesResponseType<FileDto>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> FromLink(FileFromLinkRequest request, CancellationToken cancellationToken) =>
+        this.ToActionResult(await mediator.Send(new ImportFileFromLinkCommand(request.Url), cancellationToken), Ok);
+
 }
 
 /// <summary>
@@ -64,6 +77,8 @@ public sealed class InternalFilesController(ISender mediator) : ControllerBase
             return this.ToProblem(error);
         }
 
-        return File(result.Value.Data, result.Value.ContentType);
+        return File(result.Value.Data, result.Value.ContentType, enableRangeProcessing: false);
     }
 }
+
+public sealed record FileFromLinkRequest(string Url);

@@ -154,6 +154,13 @@ internal sealed class IdentityService(UserManager<AppUser> users, AppDbContext d
         db.Users.CountAsync(
             u => u.Kind == kind && u.IsActive && u.TenantId == tenantId && u.Id != excludingUserId, cancellationToken);
 
+    public async Task<IReadOnlyList<(Guid UserId, Guid? TenantId, string DisplayName)>> UsersByTenantAsync(CancellationToken cancellationToken)
+    {
+        var rows = await db.Users.AsNoTracking().Where(u => u.Kind != UserKind.PlatformAdmin)
+            .Select(u => new { u.Id, u.TenantId, u.DisplayName }).ToListAsync(cancellationToken);
+        return [.. rows.Select(r => (r.Id, r.TenantId, r.DisplayName))];
+    }
+
     public async Task<IReadOnlyDictionary<Guid, (int Users, int Admins)>> CountByTenantAsync(CancellationToken cancellationToken)
     {
         var rows = await db.Users.AsNoTracking()

@@ -5,6 +5,8 @@ export interface MessageFile {
   id: string;
   name: string;
   mimeType: string;
+  /** Send as a document (a file to download) even if it is a photo or video: for videos above WhatsApp's video size. */
+  asDocument?: boolean;
 }
 
 export type MediaKind = 'image' | 'video' | 'document';
@@ -35,12 +37,13 @@ export function withCaption(prepared: proto.IMessage, caption: string): proto.IM
 export function parseFile(value: unknown): MessageFile | null {
   if (value === undefined || value === null) return null;
   if (typeof value !== 'object') throw new TypeError('file must be an object.');
-  const { id, name, mimeType } = value as Record<string, unknown>;
+  const { id, name, mimeType, asDocument } = value as Record<string, unknown>;
   const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
   if (typeof id !== 'string' || !uuid.test(id)) throw new TypeError('file.id must be a UUID.');
   if (typeof name !== 'string' || name.length === 0 || name.length > 255) throw new TypeError('file.name is required.');
   if (typeof mimeType !== 'string' || !mimeType.includes('/') || mimeType.length > 127) throw new TypeError('file.mimeType is required.');
-  return { id, name, mimeType };
+  if (asDocument !== undefined && typeof asDocument !== 'boolean') throw new TypeError('file.asDocument must be true or false.');
+  return { id, name, mimeType, asDocument: asDocument === true };
 }
 
 /** How long an upload to WhatsApp is reused before uploading the file again (WhatsApp links do not last forever). */

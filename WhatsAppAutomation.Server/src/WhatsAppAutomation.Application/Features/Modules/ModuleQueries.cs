@@ -45,7 +45,7 @@ internal static class ModuleReads
             .ToListAsync(cancellationToken);
         var templateIds = modules.Where(m => m.TemplateId != null).Select(m => m.TemplateId!.Value).ToList();
         var templates = await db.MessageTemplates.AsNoTracking()
-            .Where(t => templateIds.Contains(t.Id) && t.UserId == userId)
+            .Where(t => templateIds.Contains(t.Id))
             .ToDictionaryAsync(t => t.Id, t => t.Name, cancellationToken);
         var today = Today(options, now);
 

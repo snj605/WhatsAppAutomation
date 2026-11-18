@@ -30,7 +30,8 @@ test('withCaption works for documents and videos', () => {
 
 test('parseFile accepts a valid reference and rejects bad ones', () => {
   const id = '3f2504e0-4f89-11d3-9a0c-0305e82c3301';
-  assert.deepEqual(parseFile({ id, name: 'a.pdf', mimeType: 'application/pdf' }), { id, name: 'a.pdf', mimeType: 'application/pdf' });
+  assert.deepEqual(parseFile({ id, name: 'a.pdf', mimeType: 'application/pdf' }), { id, name: 'a.pdf', mimeType: 'application/pdf', asDocument: false });
+  assert.equal(parseFile({ id, name: 'v.mp4', mimeType: 'video/mp4', asDocument: true })?.asDocument, true);
   assert.equal(parseFile(undefined), null);
   assert.equal(parseFile(null), null);
   assert.throws(() => parseFile({ id: 'nope', name: 'a', mimeType: 'a/b' }));

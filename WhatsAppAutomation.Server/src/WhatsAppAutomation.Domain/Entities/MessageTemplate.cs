@@ -1,8 +1,9 @@
 namespace WhatsAppAutomation.Domain.Entities;
 
 /// <summary>
-/// A message a user saved to send again quickly, for example "Diwali wishes". Each user has their own; nobody else
-/// sees them. The text may use the same placeholders as a broadcast ({{name}}, {{name_gu}}, …).
+/// A message saved to send again quickly, for example "Diwali wishes". Each user has their own; a tenant admin can
+/// also share one with everyone in the tenant (the tenant's library). The text may use the same placeholders as a
+/// broadcast ({{name}}, {{name_gu}}, {{for_name}}, …). A file can be attached (uploaded or taken from a Drive link).
 /// </summary>
 public sealed class MessageTemplate
 {
@@ -28,6 +29,22 @@ public sealed class MessageTemplate
     public string Name { get; private set; } = string.Empty;
 
     public string Text { get; private set; } = string.Empty;
+
+    /// <summary>The creator's tenant (null for templates saved before tenants existed).</summary>
+    public Guid? TenantId { get; private set; }
+
+    /// <summary>In the tenant's library: everyone in the tenant may use it; only its admins change it.</summary>
+    public bool IsShared { get; private set; }
+
+    public Guid? AttachmentId { get; private set; }
+
+    public void Share(Guid? tenantId, bool shared)
+    {
+        TenantId = tenantId;
+        IsShared = shared && tenantId is not null;
+    }
+
+    public void SetAttachment(Guid? fileId) => AttachmentId = fileId;
 
     public DateTimeOffset CreatedAt { get; private set; }
 

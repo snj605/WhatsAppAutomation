@@ -78,6 +78,10 @@ public sealed class RecordingNotifier : IWhatsAppNotifier
     public Task ContactsCheckedAsync(Guid userId, WhatsAppCheckSummaryDto summary, CancellationToken cancellationToken) =>
         Add(userId, "contacts", summary);
 
+    public Task NotificationAsync(
+        Guid userId, WhatsAppAutomation.Application.Features.Notifications.NotificationDto notification, CancellationToken cancellationToken) =>
+        Add(userId, "notification", notification);
+
     private Task Add(Guid userId, string kind, object payload)
     {
         Sent.Enqueue((userId, kind, payload));

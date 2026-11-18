@@ -26,7 +26,7 @@ internal sealed class CreateTenantCommandValidator : AbstractValidator<CreateTen
     }
 }
 
-internal sealed class CreateTenantCommandHandler(IAppDbContext db, IIdentityService identity, TimeProvider clock)
+internal sealed class CreateTenantCommandHandler(IAppDbContext db, IIdentityService identity, Platform.AuditLog audit, TimeProvider clock)
     : ICommandHandler<CreateTenantCommand, Guid>
 {
     public async Task<Result<Guid>> Handle(CreateTenantCommand command, CancellationToken cancellationToken)
@@ -65,6 +65,7 @@ internal sealed class CreateTenantCommandHandler(IAppDbContext db, IIdentityServ
         }
 
         await Modules.DefaultModules.AddBirthdayAsync(db, admin.Value, clock.GetUtcNow(), cancellationToken);
+        await audit.WriteAsync("tenant.created", $"Tenant \"{name}\" created with admin {command.AdminDisplayName.Trim()}", tenant.Id, cancellationToken);
         return tenant.Id;
     }
 
@@ -79,7 +80,7 @@ internal sealed class RenameTenantCommandValidator : AbstractValidator<RenameTen
     public RenameTenantCommandValidator() => RuleFor(c => c.Name).NotEmpty().MaximumLength(Tenant.NameMaxLength);
 }
 
-internal sealed class RenameTenantCommandHandler(IAppDbContext db) : ICommandHandler<RenameTenantCommand>
+internal sealed class RenameTenantCommandHandler(IAppDbContext db, Platform.AuditLog audit) : ICommandHandler<RenameTenantCommand>
 {
     public async Task<Result> Handle(RenameTenantCommand command, CancellationToken cancellationToken)
     {
@@ -94,8 +95,10 @@ internal sealed class RenameTenantCommandHandler(IAppDbContext db) : ICommandHan
             return TenantErrors.NameTaken;
         }
 
+        var old = tenant.Name;
         tenant.Rename(command.Name);
         await db.SaveChangesAsync(cancellationToken);
+        await audit.WriteAsync("tenant.renamed", $"Tenant \"{old}\" renamed to \"{tenant.Name}\"", tenant.Id, cancellationToken);
         return Result.Success();
     }
 }
@@ -107,7 +110,7 @@ internal sealed class RenameTenantCommandHandler(IAppDbContext db) : ICommandHan
 public sealed record SetTenantActiveCommand(Guid TenantId, bool IsActive) : ICommand;
 
 internal sealed class SetTenantActiveCommandHandler(
-    IAppDbContext db, IIdentityService identity, SessionStore sessions, IPermissionService permissions, TimeProvider clock)
+    IAppDbContext db, IIdentityService identity, SessionStore sessions, IPermissionService permissions, Platform.AuditLog audit, TimeProvider clock)
     : ICommandHandler<SetTenantActiveCommand>
 {
     public async Task<Result> Handle(SetTenantActiveCommand command, CancellationToken cancellationToken)
@@ -131,6 +134,8 @@ internal sealed class SetTenantActiveCommandHandler(
         }
 
         permissions.InvalidateAll();
+        await audit.WriteAsync(command.IsActive ? "tenant.turned_on" : "tenant.turned_off",
+            $"Tenant \"{tenant.Name}\" turned {(command.IsActive ? "on" : "off")}", tenant.Id, cancellationToken);
         return Result.Success();
     }
 }
@@ -142,7 +147,7 @@ internal sealed class SetTenantActiveCommandHandler(
 public sealed record DeleteTenantCommand(Guid TenantId) : ICommand;
 
 internal sealed class DeleteTenantCommandHandler(
-    IAppDbContext db, IIdentityService identity, UserRemoval removal, IPermissionService permissions)
+    IAppDbContext db, IIdentityService identity, UserRemoval removal, IPermissionService permissions, Platform.AuditLog audit)
     : ICommandHandler<DeleteTenantCommand>
 {
     public async Task<Result> Handle(DeleteTenantCommand command, CancellationToken cancellationToken)
@@ -164,6 +169,7 @@ internal sealed class DeleteTenantCommandHandler(
         // The users go with the tenant (cascade), and everything of theirs with them.
         await db.Tenants.Where(t => t.Id == tenant.Id).ExecuteDeleteAsync(cancellationToken);
         permissions.InvalidateAll();
+        await audit.WriteAsync("tenant.deleted", $"Tenant \"{tenant.Name}\" deleted with {users.Count} people", null, cancellationToken);
         return Result.Success();
     }
 }

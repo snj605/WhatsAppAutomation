@@ -97,7 +97,14 @@ public sealed class Broadcast
     /// <summary>A file sent with the message (the message is its caption). Null when there is none.</summary>
     public Guid? AttachmentId { get; private set; }
 
-    public void Attach(Guid fileId) => AttachmentId = fileId;
+    /// <summary>The file goes as a document (a file to download), for a video above WhatsApp's video size.</summary>
+    public bool SendAsDocument { get; private set; }
+
+    public void Attach(Guid fileId, bool asDocument = false)
+    {
+        AttachmentId = fileId;
+        SendAsDocument = asDocument;
+    }
 
     public string? TextEn { get; private set; }
 

@@ -6,6 +6,12 @@ public static class BroadcastErrors
 {
     public static readonly Error NotSignedIn = new("broadcasts.not_signed_in", "Sign in first.", ErrorKind.Unauthorized);
 
+    public static readonly Error VideoNeedsDocument = new(
+        "broadcasts.video_as_document",
+        "This video is larger than 100 MB, so WhatsApp cannot show it as a video. It can go as a document: people get a file " +
+        "to download and play. Agree to send it as a document, or choose a smaller video.",
+        ErrorKind.Conflict);
+
     public static readonly Error ModuleNotFound =
         new("broadcasts.module_not_found", "This occasion does not exist any more.", ErrorKind.NotFound);
 

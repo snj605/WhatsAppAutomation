@@ -55,7 +55,7 @@ internal static class ChatReads
         var files = fileIds.Count == 0
             ? new Dictionary<Guid, AttachmentDto>()
             : await db.StoredFiles.AsNoTracking().Where(f => fileIds.Contains(f.Id))
-                .Select(f => new AttachmentDto(f.Id, f.FileName, f.ContentType, f.SizeBytes, f.Data != null))
+                .Select(f => new AttachmentDto(f.Id, f.FileName, f.ContentType, f.SizeBytes, f.OnDisk || f.Data != null))
                 .ToDictionaryAsync(f => f.Id, cancellationToken);
         return ordered.Select((b, i) => new ChatMessageDto(
             summaries[i], TextOf(b), b.AttachmentId is { } id && files.TryGetValue(id, out var f) ? f : null)).ToList();

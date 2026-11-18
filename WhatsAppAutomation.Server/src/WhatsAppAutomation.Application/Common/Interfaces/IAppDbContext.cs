@@ -37,7 +37,14 @@ public interface IAppDbContext
 
     DbSet<ContactOccasion> ContactOccasions { get; }
 
+    DbSet<AuditEntry> AuditEntries { get; }
+
+    DbSet<Notification> Notifications { get; }
+
     DatabaseFacade Database { get; }
+
+    /// <summary>The tenant of a user, or null for the platform admin (or an unknown user).</summary>
+    Task<Guid?> UserTenantAsync(Guid userId, CancellationToken cancellationToken);
 
     /// <summary>Change tracking for one entity, e.g. to read it again from the database.</summary>
     EntityEntry<TEntity> Entry<TEntity>(TEntity entity)

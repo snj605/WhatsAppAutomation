@@ -133,3 +133,35 @@ internal sealed class ContactOccasionConfiguration : IEntityTypeConfiguration<Co
         builder.HasOne<Contact>().WithMany().HasForeignKey(o => o.ContactId).OnDelete(DeleteBehavior.Cascade);
     }
 }
+
+internal sealed class AuditEntryConfiguration : IEntityTypeConfiguration<AuditEntry>
+{
+    public void Configure(EntityTypeBuilder<AuditEntry> builder)
+    {
+        builder.ToTable("audit_entries");
+        builder.HasKey(a => a.Id);
+        builder.Property(a => a.Id).ValueGeneratedNever();
+        builder.Property(a => a.ActorName).HasMaxLength(AuditEntry.NameMaxLength).IsRequired();
+        builder.Property(a => a.Action).HasMaxLength(AuditEntry.ActionMaxLength).IsRequired();
+        builder.Property(a => a.Text).HasMaxLength(AuditEntry.TextMaxLength).IsRequired();
+        builder.HasIndex(a => a.At);
+        builder.HasIndex(a => new { a.TenantId, a.At });
+
+        // History stays when a user or tenant is deleted, so no foreign keys.
+    }
+}
+
+internal sealed class NotificationConfiguration : IEntityTypeConfiguration<Notification>
+{
+    public void Configure(EntityTypeBuilder<Notification> builder)
+    {
+        builder.ToTable("notifications");
+        builder.HasKey(n => n.Id);
+        builder.Property(n => n.Id).ValueGeneratedNever();
+        builder.Property(n => n.Kind).HasMaxLength(Notification.KindMaxLength).IsRequired();
+        builder.Property(n => n.Title).HasMaxLength(Notification.TitleMaxLength).IsRequired();
+        builder.Property(n => n.Body).HasMaxLength(Notification.BodyMaxLength);
+        builder.HasIndex(n => new { n.UserId, n.CreatedAt });
+        builder.HasOne<AppUser>().WithMany().HasForeignKey(n => n.UserId).OnDelete(DeleteBehavior.Cascade);
+    }
+}

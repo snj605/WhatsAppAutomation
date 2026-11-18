@@ -28,6 +28,8 @@ public static class DependencyInjection
         services.AddScoped<SessionStore>();
         services.AddScoped<Features.Members.MemberAccess>();
         services.AddScoped<Features.Members.UserRemoval>();
+        services.AddScoped<Features.Platform.AuditLog>();
+        services.AddScoped<Features.Notifications.NotificationSender>();
 
         services.AddSingleton<BroadcastPacing>();
         services.AddScoped<BroadcastDispatcher>();

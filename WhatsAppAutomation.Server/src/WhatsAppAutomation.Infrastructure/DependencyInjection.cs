@@ -85,6 +85,14 @@ public static class DependencyInjection
             });
 
         services.AddSingleton<IContactSpreadsheet, ContactSpreadsheet>();
+        services.AddOptions<Files.FileStoreOptions>().Bind(configuration.GetSection(Files.FileStoreOptions.SectionName));
+        services.AddSingleton<IFileStore, Files.LocalFileStore>();
+        services.AddHttpClient<ILinkedFileFetcher, Files.DriveFileFetcher>(http =>
+        {
+            // Big videos take a while on a slow line; the size limit is checked while copying.
+            http.Timeout = TimeSpan.FromMinutes(30);
+            http.DefaultRequestHeaders.UserAgent.ParseAdd("WhatsAppAutomation/1.0");
+        });
         services.AddScoped<ISendTurn, PostgresSendTurn>();
         services.AddOptions<BroadcastOptions>()
             .Bind(configuration.GetSection(BroadcastOptions.SectionName))

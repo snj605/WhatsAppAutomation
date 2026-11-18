@@ -6,7 +6,8 @@ namespace WhatsAppAutomation.Application.Common.Interfaces;
 /// A file to send with a message (the text is its caption). The gateway fetches the bytes once from
 /// /internal/files/{Id}, uploads them to WhatsApp once, and reuses that upload for every recipient.
 /// </summary>
-public sealed record GatewayFile(Guid Id, string FileName, string ContentType);
+/// <param name="AsDocument">Send as a document (a file to download), for videos above WhatsApp's video size.</param>
+public sealed record GatewayFile(Guid Id, string FileName, string ContentType, bool AsDocument = false);
 
 public enum LinkMethod
 {
