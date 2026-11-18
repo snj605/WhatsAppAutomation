@@ -115,9 +115,14 @@ public sealed class ContactField
                     ? n.ToString(CultureInfo.InvariantCulture)
                     : null;
             case ContactFieldType.Date:
-                string[] formats = ["yyyy-MM-dd", "d-M-yyyy", "d/M/yyyy", "d.M.yyyy", "dd-MM-yyyy", "dd/MM/yyyy"];
-                return DateOnly.TryParseExact(text, formats, CultureInfo.InvariantCulture, DateTimeStyles.None, out var d) && d.Year is >= 1900 and <= 2200
-                    ? d.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
+                // Stored as yyyy-MM-dd; typed day first (06-05-2002, 06-05-02). A date field needs the year.
+                if (DateOnly.TryParseExact(text, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var iso))
+                {
+                    return iso.Year is >= 1800 and <= 2200 ? text : null;
+                }
+
+                return ValueObjects.TypedDate.Parse(text, DateTime.UtcNow.Year) is (var day, var month, int year)
+                    ? new DateOnly(year, month, day).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
                     : null;
             case ContactFieldType.Choice:
                 return Options.FirstOrDefault(o => string.Equals(o, text, StringComparison.OrdinalIgnoreCase));

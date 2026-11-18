@@ -16,4 +16,8 @@ public sealed record ModuleEntryRequest(int Day, int Month, int? Year, string? F
 /// <param name="Options">The choices of a choice field (at least two).</param>
 public sealed record CreateContactFieldRequest(string Name, string Type, IReadOnlyList<string>? Options);
 
+/// <param name="NameEn">For example Shri.</param>
+/// <param name="NameGu">For example શ્રી.</param>
+public sealed record SaveSalutationRequest(string NameEn, string NameGu);
+
 public sealed record UpdateContactFieldRequest(string Name, IReadOnlyList<string>? Options);

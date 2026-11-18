@@ -136,7 +136,18 @@ public sealed class Contact
     /// <summary>Optional: a contact can be without a category.</summary>
     public Guid? CategoryId { get; private set; }
 
+    /// <summary>The salutation's English text (kept for older reads); the master-data entry is <see cref="SalutationId"/>.</summary>
     public string? Salutation { get; private set; }
+
+    /// <summary>The user's salutation entry; <see cref="Salutation"/> mirrors its English text.</summary>
+    public Guid? SalutationId { get; private set; }
+
+    /// <summary>Points to one of the user's salutations, or none.</summary>
+    public void SetSalutation(Salutation? salutation)
+    {
+        SalutationId = salutation?.Id;
+        Salutation = salutation?.NameEn;
+    }
 
     /// <summary>
     /// The birthday kept on the contact: day and month, the year optional. The Birthday occasion's dates are the ones
@@ -236,7 +247,10 @@ public sealed class Contact
         NameGu = Clean(details.NameGu);
         Language = details.Language;
         CategoryId = details.CategoryId;
-        Salutation = Clean(details.Salutation);
+        if (details.Salutation is { } chosen)
+        {
+            SetSalutation(chosen);
+        }
         if (details.Birthday is { } birthday)
         {
             // Only an import row with a birthday sets it here; the contact form sets dates through occasions.
@@ -280,7 +294,7 @@ public sealed record ContactDetails(
     string? NameGu,
     ContactLanguage Language,
     Guid? CategoryId,
-    string? Salutation,
+    Salutation? Salutation,
     Birthday? Birthday,
     string? Notes);
 

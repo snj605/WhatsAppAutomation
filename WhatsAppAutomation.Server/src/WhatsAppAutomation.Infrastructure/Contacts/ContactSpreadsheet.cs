@@ -24,100 +24,140 @@ internal sealed class ContactSpreadsheet : IContactSpreadsheet
 
     public byte[] CreateWorkbook(ContactsWorkbook data)
     {
-        var (categoryNames, extraColumns, withBirthday) = (data.CategoryNames, data.ExtraColumns, data.WithBirthday);
         using var workbook = new XLWorkbook();
-        var columns = ImportColumns.All.Where(c => withBirthday || c.Key != ImportColumns.Birthday).ToList();
+        var columns = data.Columns;
 
         var help = workbook.AddWorksheet("Instructions");
         help.Cell(1, 1).Value = "Your contacts: change them here and import the file again";
         help.Cell(1, 1).Style.Font.SetBold().Font.SetFontSize(14);
-        help.Cell(2, 1).Value = $"The Contacts sheet has your {data.Rows.Count} saved contacts, with a column for each of your occasions and contact fields. "
-            + "Change any cell, or add new people in new rows. Columns marked * are required.";
-        help.Cell(3, 1).Value = "Import: rows are matched by phone number, so saved contacts are updated and new numbers are added. An empty cell keeps what is saved; "
-            + "groups listed are added (the contact stays in its other groups). Removing a row does not delete the contact.";
-        help.Cell(4, 1).Value = "The real name in the contact's language is required: messages use it. The import shows a preview first; rows with mistakes are listed and not saved. Up to 5000 rows per file.";
-        help.Cell(6, 1).Value = "Column";
-        help.Cell(6, 2).Value = "What to enter";
-        help.Range(6, 1, 6, 2).Style.Font.SetBold().Fill.SetBackgroundColor(XLColor.FromHtml("#d1fae5"));
-        var line = 7;
-        foreach (var (_, header, text) in columns)
-        {
-            help.Cell(line, 1).Value = header;
-            help.Cell(line, 2).Value = text;
-            line++;
-        }
-
-        foreach (var (header, text) in extraColumns)
-        {
-            help.Cell(line, 1).Value = header;
-            help.Cell(line, 2).Value = text;
-            line++;
-        }
-
-        help.Column(1).Width = 20;
-        help.Column(2).Width = 100;
-
-        var sheet = workbook.AddWorksheet(ContactsSheet);
+        help.Cell(2, 1).Value = $"The Contacts sheet has your {data.Rows.Count} saved contacts, with a column for each of your groups, occasions and contact fields. "
+            + "Change any cell, or add new people in new rows. Only the phone number is required (and the name in the contact's language).";
+        help.Cell(3, 1).Value = "Pick from the lists: categories, salutations, groups and choices come from what you set up in the app, so a typing mistake cannot get in. "
+            + "Add new ones in the app, then download this file again.";
+        help.Cell(4, 1).Value = "Import: rows are matched by phone number, so saved contacts are updated and new numbers are added. An empty cell keeps what is saved. "
+            + "Yes in a group column adds the person; to take someone out of a group, or to delete a contact, use the app.";
+        help.Cell(5, 1).Value = "What you fill in must be complete: an occasion's second name needs its date. The import shows a preview first; rows with mistakes are listed and not saved. Up to 5000 rows per file.";
+        help.Cell(7, 1).Value = "Column";
+        help.Cell(7, 2).Value = "What to enter";
+        help.Range(7, 1, 7, 2).Style.Font.SetBold().Fill.SetBackgroundColor(XLColor.FromHtml("#d1fae5"));
         for (var i = 0; i < columns.Count; i++)
         {
-            var (key, header, _) = columns[i];
-            var cell = sheet.Cell(1, i + 1);
-            cell.Value = header;
-            cell.Style.Font.SetBold().Font.SetFontColor(XLColor.White)
-                .Fill.SetBackgroundColor(XLColor.FromHtml(ImportColumns.Required.Contains(key) ? "#047857" : "#334155"));
-
-            // Text format, so Excel keeps "+91…" and does not turn "15-08" into a date.
-            sheet.Column(i + 1).Style.NumberFormat.Format = "@";
-            sheet.Column(i + 1).Width = key is ImportColumns.Notes ? 40 : 20;
+            help.Cell(8 + i, 1).Value = columns[i].Header;
+            help.Cell(8 + i, 2).Value = columns[i].Help;
         }
 
-        for (var i = 0; i < extraColumns.Count; i++)
+        help.Column(1).Width = 26;
+        help.Column(2).Width = 110;
+
+        var sheet = workbook.AddWorksheet(ContactsSheet);
+        var lastRow = Math.Max(2000, data.Rows.Count + 1000);
+        for (var i = 0; i < columns.Count; i++)
         {
-            var cell = sheet.Cell(1, columns.Count + i + 1);
-            cell.Value = extraColumns[i].Header;
-            cell.Style.Font.SetBold().Font.SetFontColor(XLColor.White).Fill.SetBackgroundColor(XLColor.FromHtml("#0F766E"));
-            sheet.Column(columns.Count + i + 1).Style.NumberFormat.Format = "@";
-            sheet.Column(columns.Count + i + 1).Width = 22;
+            var column = columns[i];
+            var cell = sheet.Cell(1, i + 1);
+            cell.Value = column.Header;
+            cell.Style.Font.SetBold().Font.SetFontColor(XLColor.White)
+                .Fill.SetBackgroundColor(XLColor.FromHtml(column.Required ? "#047857" : column.List is not null ? "#1d4ed8" : "#334155"));
+            cell.CreateComment().AddText(column.Help);
+
+            // Text format, so Excel keeps "+91…" and does not turn "06-05" into a date its own way.
+            sheet.Column(i + 1).Style.NumberFormat.Format = column.Number ? "General" : "@";
+            sheet.Column(i + 1).Width = column.Key == ImportColumns.Notes ? 40 : Math.Clamp(column.Header.Length + 4, 14, 30);
         }
 
-        // The real contacts, one per row, as text (so "+91…" and "15-08" stay as typed).
-        var keys = columns.Select(c => c.Key).Concat(extraColumns.Select(c => ImportColumns.KeyOf(c.Header))).ToList();
+        // The real contacts, one per row.
         for (var r = 0; r < data.Rows.Count; r++)
         {
-            for (var k = 0; k < keys.Count; k++)
+            for (var k = 0; k < columns.Count; k++)
             {
-                if (data.Rows[r].TryGetValue(keys[k], out var value) && value.Length > 0)
+                if (data.Rows[r].TryGetValue(columns[k].Key, out var value) && value.Length > 0)
                 {
-                    sheet.Cell(r + 2, k + 1).SetValue(value);
+                    var target = sheet.Cell(r + 2, k + 1);
+                    if (columns[k].Number && decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out var number))
+                    {
+                        target.SetValue(number);
+                    }
+                    else
+                    {
+                        target.SetValue(value);
+                    }
                 }
             }
         }
 
+        // Pick-lists on a hidden sheet, one list per column of that sheet.
         var lists = workbook.AddWorksheet("Lists");
-        lists.Cell(1, 1).Value = "Languages";
-        lists.Cell(2, 1).Value = "en";
-        lists.Cell(3, 1).Value = "hi";
-        lists.Cell(4, 1).Value = "gu";
-        lists.Cell(1, 2).Value = "Categories";
-        var categories = categoryNames.Count > 0 ? categoryNames : ["Elders", "Youngers", "Others"];
-        for (var i = 0; i < categories.Count; i++)
+        var listRanges = new Dictionary<string, (IXLRange? Range, string Empty)>();
+        for (var l = 0; l < data.Lists.Count; l++)
         {
-            lists.Cell(i + 2, 2).SetValue(categories[i]);
+            var list = data.Lists[l];
+            lists.Cell(1, l + 1).Value = list.Name;
+            for (var v = 0; v < list.Values.Count; v++)
+            {
+                lists.Cell(v + 2, l + 1).SetValue(list.Values[v]);
+            }
+
+            listRanges[list.Name] = (list.Values.Count > 0 ? lists.Range(2, l + 1, list.Values.Count + 1, l + 1) : null, list.EmptyMessage);
         }
 
-        lists.Hide();
+        lists.Protect();
+        lists.Visibility = XLWorksheetVisibility.VeryHidden;
 
-        var languageColumn = columns.FindIndex(c => c.Key == ImportColumns.Language) + 1;
-        var lastRow = Math.Max(2000, data.Rows.Count + 1000);
-        var languageRule = sheet.Range(2, languageColumn, lastRow, languageColumn).CreateDataValidation();
-        languageRule.List(lists.Range(2, 1, 4, 1));
-        languageRule.IgnoreBlanks = true;
+        for (var i = 0; i < columns.Count; i++)
+        {
+            var column = columns[i];
+            var range = sheet.Range(2, i + 1, lastRow, i + 1);
+            if (column.List is { } listName && listRanges.TryGetValue(listName, out var source))
+            {
+                var rule = range.CreateDataValidation();
+                rule.IgnoreBlanks = true;
+                rule.ErrorStyle = XLErrorStyle.Stop;
+                if (source.Range is { } values)
+                {
+                    rule.List(values, true);
+                    rule.ErrorTitle = "Pick from the list";
+                    rule.ErrorMessage = $"{column.Header}: pick one of the values in the list.";
+                }
+                else
+                {
+                    // Nothing set up yet: nothing can be typed in this column.
+                    rule.TextLength.EqualTo(0);
+                    rule.ErrorTitle = "Nothing to pick yet";
+                    rule.ErrorMessage = source.Empty;
+                }
+            }
+            else if (column.Number)
+            {
+                var rule = range.CreateDataValidation();
+                rule.IgnoreBlanks = true;
+                rule.Decimal.Between(-1e12, 1e12);
+                rule.ErrorTitle = "A number";
+                rule.ErrorMessage = $"{column.Header}: type a number.";
+            }
+            else if (column.MaxLength is { } max)
+            {
+                var rule = range.CreateDataValidation();
+                rule.IgnoreBlanks = true;
+                rule.TextLength.EqualOrLessThan(max);
+                rule.ErrorTitle = "Too long";
+                rule.ErrorMessage = $"{column.Header}: at most {max} characters.";
+            }
+        }
 
-        // Not strict: a new category name is allowed and creates that category.
-        var categoryColumn = columns.FindIndex(c => c.Key == ImportColumns.Category) + 1;
-        var categoryRule = sheet.Range(2, categoryColumn, lastRow, categoryColumn).CreateDataValidation();
-        categoryRule.List(lists.Range(2, 2, categories.Count + 1, 2));
-        categoryRule.ShowErrorMessage = false;
+        // The header row is locked, so columns cannot be renamed, moved or deleted; rows can be added, sorted and filtered.
+        sheet.Columns(1, columns.Count).Style.Protection.SetLocked(false);
+        sheet.Row(1).Style.Protection.SetLocked(true);
+        sheet.Protect()
+            .AllowElement(XLSheetProtectionElements.FormatColumns)
+            .AllowElement(XLSheetProtectionElements.FormatRows)
+            .AllowElement(XLSheetProtectionElements.FormatCells)
+            .AllowElement(XLSheetProtectionElements.InsertRows)
+            .AllowElement(XLSheetProtectionElements.DeleteRows)
+            .AllowElement(XLSheetProtectionElements.Sort)
+            .AllowElement(XLSheetProtectionElements.AutoFilter)
+            .AllowElement(XLSheetProtectionElements.SelectLockedCells)
+            .AllowElement(XLSheetProtectionElements.SelectUnlockedCells);
+        sheet.Range(1, 1, Math.Max(2, data.Rows.Count + 1), columns.Count).SetAutoFilter();
 
         sheet.SheetView.FreezeRows(1);
         sheet.SetTabActive();

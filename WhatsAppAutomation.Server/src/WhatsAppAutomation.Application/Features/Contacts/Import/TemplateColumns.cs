@@ -30,3 +30,22 @@ internal static class FieldColumns
         _ => $"Your field \"{f.Name}\". In messages: {{{{{f.Key}}}}}.",
     };
 }
+
+/// <summary>One column per group in the Excel file: "Group: Family", with Yes to put the person in it.</summary>
+public sealed record GroupColumn(ContactGroup Group, string Header, string Key);
+
+public static class GroupColumns
+{
+    public const string Yes = "Yes";
+
+    public static IReadOnlyList<GroupColumn> For(IEnumerable<ContactGroup> groups) =>
+        [.. groups.OrderBy(g => g.Name, StringComparer.OrdinalIgnoreCase).Select(g =>
+        {
+            var header = $"Group: {g.Name}";
+            return new GroupColumn(g, header, ImportColumns.KeyOf(header));
+        })];
+
+    /// <summary>Yes as picked from the list; a few other ways people mark it are read the same.</summary>
+    public static bool IsYes(string text) =>
+        text.Trim().ToLowerInvariant() is "yes" or "y" or "✓" or "✔" or "1" or "true" or "હા";
+}

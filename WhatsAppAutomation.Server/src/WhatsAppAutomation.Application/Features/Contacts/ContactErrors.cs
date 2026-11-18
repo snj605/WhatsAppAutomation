@@ -6,6 +6,9 @@ public static class ContactErrors
 {
     public static readonly Error NotSignedIn = new("contacts.not_signed_in", "Sign in first.", ErrorKind.Unauthorized);
 
+    public static readonly Error UnknownSalutation =
+        new("contacts.unknown_salutation", "Pick a salutation from your list (Occasions → Salutations).", ErrorKind.Validation);
+
     public static readonly Error ContactNotFound = new("contacts.not_found", "This contact does not exist.", ErrorKind.NotFound);
 
     public static readonly Error CategoryNotFound = new("categories.not_found", "This category does not exist.", ErrorKind.NotFound);

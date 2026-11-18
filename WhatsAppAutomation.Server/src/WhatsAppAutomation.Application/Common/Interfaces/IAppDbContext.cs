@@ -39,6 +39,8 @@ public interface IAppDbContext
 
     DbSet<ContactField> ContactFields { get; }
 
+    DbSet<Salutation> Salutations { get; }
+
     DbSet<ContactFieldValue> ContactFieldValues { get; }
 
     DbSet<AuditEntry> AuditEntries { get; }

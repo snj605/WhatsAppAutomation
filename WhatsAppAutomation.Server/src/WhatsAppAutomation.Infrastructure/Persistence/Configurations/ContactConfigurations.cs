@@ -47,6 +47,8 @@ internal sealed class ContactConfiguration : IEntityTypeConfiguration<Contact>
         builder.Property(c => c.NameHi).HasMaxLength(Contact.NameMaxLength);
         builder.Property(c => c.NameGu).HasMaxLength(Contact.NameMaxLength);
         builder.Property(c => c.Salutation).HasMaxLength(Contact.SalutationMaxLength);
+        builder.HasIndex(c => c.SalutationId);
+        builder.HasOne<Salutation>().WithMany().HasForeignKey(c => c.SalutationId).OnDelete(DeleteBehavior.SetNull);
         builder.Property(c => c.Notes).HasMaxLength(Contact.NotesMaxLength);
         builder.Property(c => c.Language).HasMaxLength(2)
             .HasConversion(l => ContactLanguages.ToCode(l), s => ContactLanguages.Parse(s)!.Value);
@@ -148,6 +150,22 @@ internal sealed class ContactFieldConfiguration : IEntityTypeConfiguration<Conta
         builder.HasIndex(f => new { f.UserId, f.Key }).IsUnique();
         builder.HasIndex(f => new { f.UserId, f.SortOrder });
         builder.HasOne<AppUser>().WithMany().HasForeignKey(f => f.UserId).OnDelete(DeleteBehavior.Cascade);
+    }
+}
+
+internal sealed class SalutationConfiguration : IEntityTypeConfiguration<Salutation>
+{
+    public void Configure(EntityTypeBuilder<Salutation> builder)
+    {
+        builder.ToTable("salutations");
+        builder.HasKey(s => s.Id);
+        builder.Property(s => s.Id).ValueGeneratedNever();
+        builder.Property(s => s.NameEn).HasMaxLength(Salutation.TextMaxLength).IsRequired();
+        builder.Property(s => s.NameGu).HasMaxLength(Salutation.TextMaxLength).IsRequired();
+        builder.Ignore(s => s.Label);
+        builder.HasIndex(s => new { s.UserId, s.NameEn }).IsUnique();
+        builder.HasIndex(s => new { s.UserId, s.SortOrder });
+        builder.HasOne<AppUser>().WithMany().HasForeignKey(s => s.UserId).OnDelete(DeleteBehavior.Cascade);
     }
 }
 

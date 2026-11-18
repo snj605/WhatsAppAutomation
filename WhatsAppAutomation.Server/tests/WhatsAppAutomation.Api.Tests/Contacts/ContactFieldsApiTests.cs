@@ -8,6 +8,7 @@ using WhatsAppAutomation.Application.Features.ContactFields;
 using WhatsAppAutomation.Application.Features.Contacts;
 using WhatsAppAutomation.Application.Features.Contacts.Import;
 using WhatsAppAutomation.Application.Features.Modules;
+using WhatsAppAutomation.Application.Features.Salutations;
 using WhatsAppAutomation.Domain.Authorization;
 
 namespace WhatsAppAutomation.Api.Tests.Contacts;
@@ -227,7 +228,7 @@ public sealed class ContactFieldsApiTests(ApiFactory factory)
             string Cell(int row, string header) => sheet.Cell(row, headers.IndexOf(header) + 1).GetString();
             Assert.Equal(2, sheet.LastRowUsed()!.RowNumber());
             Assert.Equal(phone, Cell(2, "Phone*"));
-            Assert.Equal("gu", Cell(2, "Language"));
+            Assert.Equal("Gujarati", Cell(2, "Language"));
             Assert.Equal("15-08-1960", Cell(2, "Birthday"));
             Assert.Equal("05-03", Cell(2, "Asthi"));
             Assert.Equal("Shantaben", Cell(2, "Asthi - In memory of"));
@@ -260,6 +261,78 @@ public sealed class ContactFieldsApiTests(ApiFactory factory)
         Assert.Contains(new ContactOccasionDto(asthi.Id, 5, 3, null, "Shantaben"), ramesh.Occasions);
         var suresh = (await PageAsync(client, "?search=Suresh")).Items.Single();
         Assert.Equal(new ContactOccasionDto(asthi.Id, 1, 1, null, null), Assert.Single(suresh.Occasions));
+    }
+
+    [Fact]
+    public async Task The_excel_offers_only_the_users_master_data_and_the_import_refuses_anything_else()
+    {
+        var client = await ClientAsync();
+        (await client.PostAsJsonAsync("/api/v1/categories", new SaveCategoryRequest("Elders", "#10b981"), Ct)).EnsureSuccessStatusCode();
+        var family = (await (await client.PostAsJsonAsync("/api/v1/groups", new SaveGroupRequest("Family"), Ct))
+            .Content.ReadFromJsonAsync<GroupDto>(Ct))!;
+        var shri = (await (await client.PostAsJsonAsync("/api/v1/salutations", new SaveSalutationRequest("Shri", "શ્રી"), Ct))
+            .Content.ReadFromJsonAsync<SalutationDto>(Ct))!;
+        Assert.Equal("Shri / શ્રી", shri.Label);
+        var shop = await FieldAsync(client, "Shop", "choice", ["Retail", "Wholesale"]);
+        var asthi = await ModuleAsync(client, "Asthi", "yearly", "In memory of");
+        var phone = ApiFactory.UniquePhone();
+        var saved = await SaveAsync(client, null, Input(phone, "Ramesh") with { SalutationId = shri.Id, GroupIds = [family.Id] });
+
+        var bytes = await (await client.GetAsync("/api/v1/contacts/import/template", Ct)).Content.ReadAsByteArrayAsync(Ct);
+        using (var workbook = new ClosedXML.Excel.XLWorkbook(new MemoryStream(bytes)))
+        {
+            var sheet = workbook.Worksheet("Contacts");
+            var headers = sheet.Row(1).CellsUsed().Select(c => c.GetString()).ToList();
+            int Col(string header) => headers.IndexOf(header) + 1;
+            Assert.Contains("Group: Family", headers);
+            Assert.DoesNotContain("Groups", headers);
+            Assert.Equal("Shri / શ્રી", sheet.Cell(2, Col("Salutation")).GetString());
+            Assert.Equal("Yes", sheet.Cell(2, Col("Group: Family")).GetString());
+
+            // Pick-lists from the master data, on a hidden sheet; the header row is locked.
+            Assert.Equal(ClosedXML.Excel.XLWorksheetVisibility.VeryHidden, workbook.Worksheet("Lists").Visibility);
+            Assert.True(sheet.IsProtected);
+            Assert.True(sheet.Cell(1, 1).Style.Protection.Locked);
+            Assert.False(sheet.Cell(5, 1).Style.Protection.Locked);
+            foreach (var header in new[] { "Category", "Language", "Salutation", "Group: Family", "Shop" })
+            {
+                var rule = sheet.Cell(3, Col(header)).GetDataValidation();
+                Assert.Equal(ClosedXML.Excel.XLAllowedValues.List, rule.AllowedValues);
+                Assert.Equal(ClosedXML.Excel.XLErrorStyle.Stop, rule.ErrorStyle);
+            }
+        }
+
+        // A file with values pasted past the lists: every one is refused with its reason, nothing is made.
+        var csv = $"""
+            Phone*,Name (English),Category,Salutation,Group: Family,Groups,Shop,Asthi,Asthi - In memory of,Language
+            {phone},Ramesh,Nobody,,,,,,,English
+            {ApiFactory.UniquePhone()},A,,Shrimati,,,,,,English
+            {ApiFactory.UniquePhone()},B,,,Maybe,,,,,English
+            {ApiFactory.UniquePhone()},C,,,,Cousins,,,,English
+            {ApiFactory.UniquePhone()},D,,,,,Online,,,English
+            {ApiFactory.UniquePhone()},E,,,,,,,Shantaben,English
+            {ApiFactory.UniquePhone()},F,Elders,shri,Yes,,wholesale,06-05-02,Shantaben,English
+            """;
+        var result = await ImportAsync(client, csv);
+        Assert.Equal((1, 0, 6), (result.Created, result.Updated, result.Failed));
+        Assert.Empty(result.NewCategories);
+        Assert.Empty(result.NewGroups);
+        string ErrorOf(int row) => Assert.Single(result.Rows.Single(r => r.Row == row).Errors);
+        Assert.StartsWith("Category:", ErrorOf(2), StringComparison.Ordinal);
+        Assert.StartsWith("Salutation:", ErrorOf(3), StringComparison.Ordinal);
+        Assert.StartsWith("Group: Family:", ErrorOf(4), StringComparison.Ordinal);
+        Assert.StartsWith("Groups:", ErrorOf(5), StringComparison.Ordinal);
+        Assert.Contains("Shop", ErrorOf(6), StringComparison.Ordinal);
+        Assert.StartsWith("Asthi:", ErrorOf(7), StringComparison.Ordinal);
+
+        // The good row: every value from the lists, the 2-digit year read as 2002 (never in the future).
+        var f = (await PageAsync(client, "?search=F")).Items.Single(c => c.NameEn == "F");
+        Assert.Equal(shri.Id, f.SalutationId);
+        Assert.Equal("Family", Assert.Single(f.Groups).Name);
+        Assert.Equal("Wholesale", f.Fields[shop.Id]);
+        Assert.Equal(new ContactOccasionDto(asthi.Id, 6, 5, 2002, "Shantaben"), Assert.Single(f.Occasions));
+        var unchanged = (await client.GetFromJsonAsync<ContactDto>($"/api/v1/contacts/{saved.Id}", Ct))!;
+        Assert.Equal(shri.Id, unchanged.SalutationId);
     }
 
     private async Task<HttpClient> ClientAsync() => await factory.CreateClientForAsync(await factory.CreateUserAsync(UserKind.TenantAdmin));

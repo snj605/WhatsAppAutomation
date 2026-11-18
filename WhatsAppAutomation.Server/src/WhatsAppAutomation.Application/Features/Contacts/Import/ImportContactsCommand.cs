@@ -1,4 +1,3 @@
-using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using WhatsAppAutomation.Application.Common.Interfaces;
 using WhatsAppAutomation.Application.Common.Messaging;
@@ -31,8 +30,9 @@ public sealed record ImportResultDto(
 /// <summary>
 /// Imports contacts from an .xlsx or .csv file. With Apply false nothing is saved: the result is the preview.
 /// Rows are matched to existing contacts by phone number. On an update, empty optional cells keep the
-/// saved value, and listed groups are added (the contact stays in its other groups). Rows with errors are
-/// never saved. Missing categories and groups are created.
+/// saved value, and groups marked Yes are added (leaving a group is done in the app, never from a file). Only the
+/// user's own master data is accepted: a category, group, salutation, occasion or choice that is not in their lists
+/// is a mistake in that row, and rows with mistakes are never saved. Nothing is created from the file.
 /// </summary>
 public sealed record ImportContactsCommand(Stream File, string FileName, bool Apply) : ICommand<ImportResultDto>;
 
@@ -41,8 +41,6 @@ internal sealed class ImportContactsCommandHandler(
     : ICommandHandler<ImportContactsCommand, ImportResultDto>
 {
     public const int MaxRows = 5000;
-
-    private static readonly string[] DefaultColors = ["#10b981", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#14b8a6", "#64748b"];
 
     public async Task<Result<ImportResultDto>> Handle(ImportContactsCommand command, CancellationToken cancellationToken)
     {
@@ -63,12 +61,15 @@ internal sealed class ImportContactsCommandHandler(
         }
 
         var defaultLanguage = await Preferences.DefaultLanguageAsync(db, userId, cancellationToken);
+        var thisYear = clock.GetUtcNow().Year;
+        var salutations = await db.Salutations.Where(s => s.UserId == userId).ToListAsync(cancellationToken);
         var categories = await db.Categories.Where(c => c.UserId == userId).ToListAsync(cancellationToken);
         var groups = await db.ContactGroups.Where(g => g.UserId == userId).ToListAsync(cancellationToken);
         var categoryByName = categories.ToDictionary(c => c.Name, StringComparer.OrdinalIgnoreCase);
         var groupByName = groups.ToDictionary(g => g.Name, StringComparer.OrdinalIgnoreCase);
         var existing = await db.Contacts.Include(c => c.Groups).Where(c => c.UserId == userId)
             .ToDictionaryAsync(c => c.PhoneNumber, cancellationToken);
+        var groupColumns = GroupColumns.For(groups);
 
         var moduleColumns = await Modules.ModuleColumns.ForUserAsync(db, userId, cancellationToken);
         var fieldColumns = await FieldColumns.ForUserAsync(db, userId, moduleColumns, cancellationToken);
@@ -79,14 +80,15 @@ internal sealed class ImportContactsCommandHandler(
         var seenPhones = new Dictionary<string, int>();
         foreach (var row in read.Rows)
         {
-            var p = Parse(row, defaultLanguage);
+            var p = Parse(row, defaultLanguage, thisYear);
+            CheckMasterData(row, p, categoryByName, groupByName, groupColumns, salutations);
             if (!p.LanguageGiven && p.Phone is { } known && existing.TryGetValue(known, out var current))
             {
                 // An empty Language cell keeps a saved contact's language, like the other optional cells.
                 p.Language = current.Language;
             }
 
-            ParseOccasions(row, moduleColumns, p);
+            ParseOccasions(row, moduleColumns, p, thisYear);
             ParseFields(row, fieldColumns, p);
             if (birthdayModuleId is { } birthdayModule && p.Birthday is { } birthday)
             {
@@ -114,10 +116,9 @@ internal sealed class ImportContactsCommandHandler(
             parsed.Add(p);
         }
 
-        var newCategories = parsed.Where(p => p.Errors.Count == 0 && p.Category is not null && !categoryByName.ContainsKey(p.Category))
-            .Select(p => p.Category!).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-        var newGroups = parsed.Where(p => p.Errors.Count == 0).SelectMany(p => p.Groups)
-            .Where(g => !groupByName.ContainsKey(g)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        // Master data is never made from a file (kept in the result for older screens: always empty).
+        List<string> newCategories = [];
+        List<string> newGroups = [];
 
         var rows = parsed.Select(p => new ImportRowDto(
             p.RowNumber,
@@ -137,20 +138,6 @@ internal sealed class ImportContactsCommandHandler(
         }
 
         var now = clock.GetUtcNow();
-        var colorIndex = categories.Count;
-        foreach (var name in newCategories)
-        {
-            var category = new Category(userId, name, DefaultColors[colorIndex++ % DefaultColors.Length], now);
-            db.Categories.Add(category);
-            categoryByName[name] = category;
-        }
-
-        foreach (var name in newGroups)
-        {
-            var group = new ContactGroup(userId, name, now);
-            db.ContactGroups.Add(group);
-            groupByName[name] = group;
-        }
 
         foreach (var p in parsed.Where(p => p.Errors.Count == 0))
         {
@@ -168,7 +155,7 @@ internal sealed class ImportContactsCommandHandler(
                         p.NameGu ?? contact.NameGu,
                         p.Language,
                         categoryId,
-                        p.Salutation ?? contact.Salutation,
+                        p.SalutationRef,
                         p.Birthday ?? (contact.BirthDay is { } d && contact.BirthMonth is { } m ? new Birthday(d, m, contact.BirthYear) : null),
                         p.Notes ?? contact.Notes),
                     now);
@@ -177,7 +164,7 @@ internal sealed class ImportContactsCommandHandler(
             {
                 contact = new Contact(userId, p.Phone!, now);
                 contact.Update(
-                    new ContactDetails(p.Phone!, p.SavedName, p.NameEn, p.NameHi, p.NameGu, p.Language, categoryId, p.Salutation, p.Birthday, p.Notes),
+                    new ContactDetails(p.Phone!, p.SavedName, p.NameEn, p.NameHi, p.NameGu, p.Language, categoryId, p.SalutationRef, p.Birthday, p.Notes),
                     now);
                 db.Contacts.Add(contact);
             }
@@ -255,7 +242,58 @@ internal sealed class ImportContactsCommandHandler(
         return new ImportResultDto(true, created, updated, failed, newCategories, newGroups, rows);
     }
 
-    private static ParsedRow Parse(SpreadsheetRow row, ContactLanguage defaultLanguage)
+    /// <summary>
+    /// Category, groups and salutation must be in the user's own lists. The Excel file offers only those in its
+    /// drop-downs; a value pasted past them, or from an older file, is caught here.
+    /// </summary>
+    private static void CheckMasterData(
+        SpreadsheetRow row, ParsedRow p, Dictionary<string, Category> categories, Dictionary<string, ContactGroup> groups,
+        IReadOnlyList<GroupColumn> groupColumns, List<Salutation> salutations)
+    {
+        string? Cell(string key) => row.Cells.TryGetValue(key, out var v) && !string.IsNullOrWhiteSpace(v) ? v.Trim() : null;
+
+        if (p.Category is { } category && !categories.ContainsKey(category))
+        {
+            p.Errors.Add($"Category: \"{category}\" is not in your list. Pick one from the list, or add it in the app first.");
+        }
+
+        if (Cell(ImportColumns.Salutation) is { } salutationText)
+        {
+            p.SalutationRef = Salutations.SalutationReads.Find(salutations, salutationText);
+            if (p.SalutationRef is null)
+            {
+                p.Errors.Add($"Salutation: \"{salutationText}\" is not in your list. Pick one from the list, or add it in the app first.");
+            }
+        }
+
+        foreach (var column in groupColumns)
+        {
+            if (Cell(column.Key) is not { } mark)
+            {
+                continue; // empty: nothing changes (leaving a group is done in the app)
+            }
+
+            if (GroupColumns.IsYes(mark))
+            {
+                if (!p.Groups.Contains(column.Group.Name, StringComparer.OrdinalIgnoreCase))
+                {
+                    p.Groups.Add(column.Group.Name);
+                }
+            }
+            else
+            {
+                p.Errors.Add($"{column.Header}: pick Yes, or leave it empty.");
+            }
+        }
+
+        foreach (var name in p.Groups.Where(g => !groups.ContainsKey(g)).ToList())
+        {
+            p.Errors.Add($"Groups: \"{name}\" is not one of your groups. Add it in the app first.");
+            p.Groups.Remove(name);
+        }
+    }
+
+    private static ParsedRow Parse(SpreadsheetRow row, ContactLanguage defaultLanguage, int thisYear)
     {
         string? Cell(string key) => row.Cells.TryGetValue(key, out var v) && !string.IsNullOrWhiteSpace(v) ? v.Trim() : null;
 
@@ -277,7 +315,6 @@ internal sealed class ImportContactsCommandHandler(
         p.NameEn = Limit(Cell(ImportColumns.NameEn), Contact.NameMaxLength, "Name (English)", p.Errors);
         p.NameHi = Limit(Cell(ImportColumns.NameHi), Contact.NameMaxLength, "Name (Hindi)", p.Errors);
         p.NameGu = Limit(Cell(ImportColumns.NameGu), Contact.NameMaxLength, "Name (Gujarati)", p.Errors);
-        p.Salutation = Limit(Cell(ImportColumns.Salutation), Contact.SalutationMaxLength, "Salutation", p.Errors);
         p.Notes = Limit(Cell(ImportColumns.Notes), Contact.NotesMaxLength, "Notes", p.Errors);
         p.Category = Limit(Cell(ImportColumns.Category), Category.NameMaxLength, "Category", p.Errors);
 
@@ -298,10 +335,10 @@ internal sealed class ImportContactsCommandHandler(
 
         if (Cell(ImportColumns.Birthday) is { } birthdayText)
         {
-            p.Birthday = ParseBirthday(birthdayText);
+            p.Birthday = ParseBirthday(birthdayText, thisYear);
             if (p.Birthday is null)
             {
-                p.Errors.Add("Birthday: use DD-MM or DD-MM-YYYY with a real date.");
+                p.Errors.Add("Birthday: type the date as DD-MM, DD-MM-YY or DD-MM-YYYY, for example 06-05 or 06-05-2002.");
             }
         }
 
@@ -324,7 +361,7 @@ internal sealed class ImportContactsCommandHandler(
     }
 
     /// <summary>The user's occasion columns: a date per module, and its second name.</summary>
-    private static void ParseOccasions(SpreadsheetRow row, List<Modules.ModuleColumn> columns, ParsedRow p)
+    private static void ParseOccasions(SpreadsheetRow row, List<Modules.ModuleColumn> columns, ParsedRow p, int thisYear)
     {
         string? Cell(string? key) => key is not null && row.Cells.TryGetValue(key, out var v) && !string.IsNullOrWhiteSpace(v) ? v.Trim() : null;
 
@@ -333,15 +370,21 @@ internal sealed class ImportContactsCommandHandler(
             var forName = Limit(Cell(column.ForNameKey), ContactOccasion.ForNameMaxLength, column.ForNameHeader ?? column.Name, p.Errors);
             if (Cell(column.DateKey) is not { } text)
             {
+                // Given data must be complete: a second name without its date is a mistake, not half saved.
+                if (forName is not null)
+                {
+                    p.Errors.Add($"{column.Name}: type the date too, or leave {column.ForNameHeader} empty.");
+                }
+
                 continue;
             }
 
-            var date = ParseBirthday(text);
+            var date = ParseBirthday(text, thisYear);
             if (date is null || (column.Kind == ModuleKind.Once && date.Year is null))
             {
                 p.Errors.Add(column.Kind == ModuleKind.Once
-                    ? $"{column.Name}: use DD-MM-YYYY with a real date."
-                    : $"{column.Name}: use DD-MM or DD-MM-YYYY with a real date.");
+                    ? $"{column.Name}: happens one time, so type the year too: DD-MM-YYYY or DD-MM-YY, for example 06-05-2002."
+                    : $"{column.Name}: type the date as DD-MM, DD-MM-YY or DD-MM-YYYY, for example 06-05 or 06-05-2002.");
                 continue;
             }
 
@@ -381,30 +424,9 @@ internal sealed class ImportContactsCommandHandler(
         return value;
     }
 
-    /// <summary>DD-MM or DD-MM-YYYY; "/" and "." also work as separators.</summary>
-    internal static Birthday? ParseBirthday(string text)
-    {
-        var parts = text.Split(['-', '/', '.'], StringSplitOptions.TrimEntries);
-        if (parts.Length is < 2 or > 3 ||
-            !int.TryParse(parts[0], NumberStyles.None, CultureInfo.InvariantCulture, out var day) ||
-            !int.TryParse(parts[1], NumberStyles.None, CultureInfo.InvariantCulture, out var month))
-        {
-            return null;
-        }
-
-        int? year = null;
-        if (parts.Length == 3)
-        {
-            if (parts[2].Length != 4 || !int.TryParse(parts[2], NumberStyles.None, CultureInfo.InvariantCulture, out var y))
-            {
-                return null;
-            }
-
-            year = y;
-        }
-
-        return Birthday.Create(day, month, year);
-    }
+    /// <summary>DD-MM, DD-MM-YY or DD-MM-YYYY (see <see cref="TypedDate"/>); "/" and "." also work as separators.</summary>
+    internal static Birthday? ParseBirthday(string text, int thisYear) =>
+        TypedDate.Parse(text, thisYear) is var (day, month, year) ? Birthday.Create(day, month, year) : null;
 
     private sealed class ParsedRow
     {
@@ -433,7 +455,8 @@ internal sealed class ImportContactsCommandHandler(
         /// <summary>False when the Language cell was empty (the default language, or a saved contact's own).</summary>
         public bool LanguageGiven { get; set; }
 
-        public string? Salutation { get; set; }
+        /// <summary>The salutation from the user's list; null when the cell is empty (the saved one stays).</summary>
+        public Salutation? SalutationRef { get; set; }
 
         public Birthday? Birthday { get; set; }
 

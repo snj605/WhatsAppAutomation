@@ -7,19 +7,33 @@ public sealed class SingleMessageRenderTests
 {
     private static readonly DateTimeOffset T0 = new(2026, 11, 13, 10, 0, 0, TimeSpan.Zero);
 
-    private static Contact Person(string? saved = "Daddy", string? en = "Rameshbhai", string? hi = null, string? gu = "રમેશભાઈ", string? salutation = "Pujya")
+    private static readonly Salutation Pujya = new(Guid.NewGuid(), "Pujya", "પૂજ્ય", 1, T0);
+
+    private static readonly Dictionary<Guid, Salutation> Salutations = new() { [Pujya.Id] = Pujya };
+
+    private static Contact Person(
+        string? saved = "Daddy", string? en = "Rameshbhai", string? hi = null, string? gu = "રમેશભાઈ", bool salutation = true,
+        ContactLanguage language = ContactLanguage.Gu)
     {
         var c = new Contact(Guid.NewGuid(), "+919876543210", T0);
-        c.Update(new ContactDetails("+919876543210", saved, en, hi, gu, ContactLanguage.Gu, null, salutation, null, null), T0);
+        c.Update(new ContactDetails("+919876543210", saved, en, hi, gu, language, null, salutation ? Pujya : null, null, null), T0);
         return c;
     }
 
     [Fact]
     public void Language_names_and_salutation_are_filled_in()
     {
-        var (text, missing) = BroadcastPlanner.RenderFor("{{salutation}} {{name_gu}}, happy Diwali", Person(), new Random(1));
+        var (text, missing) = BroadcastPlanner.RenderFor("{{salutation}} {{name_gu}}, happy Diwali", Person(), new Random(1), salutations: Salutations);
         Assert.Null(missing);
-        Assert.Equal("Pujya રમેશભાઈ, happy Diwali", text);
+        Assert.Equal("પૂજ્ય રમેશભાઈ, happy Diwali", text);
+    }
+
+    [Fact]
+    public void The_salutation_is_in_the_contacts_language()
+    {
+        var english = Person(language: ContactLanguage.En);
+        Assert.Equal("Pujya Rameshbhai", BroadcastPlanner.RenderFor("{{salutation}} {{name}}", english, new Random(1), salutations: Salutations).Text);
+        Assert.Equal("Pujya", english.Salutation); // the English text is kept beside the link
     }
 
     [Fact]
@@ -43,5 +57,5 @@ public sealed class SingleMessageRenderTests
 
     [Fact]
     public void An_empty_salutation_leaves_no_double_space() =>
-        Assert.Equal("Rameshbhai, hello", BroadcastPlanner.RenderFor("{{salutation}} {{name_en}}, hello", Person(salutation: null), new Random(1)).Text);
+        Assert.Equal("Rameshbhai, hello", BroadcastPlanner.RenderFor("{{salutation}} {{name_en}}, hello", Person(salutation: false), new Random(1)).Text);
 }

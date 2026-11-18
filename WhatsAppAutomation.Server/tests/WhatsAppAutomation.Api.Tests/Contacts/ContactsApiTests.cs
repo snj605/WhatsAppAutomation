@@ -5,6 +5,7 @@ using System.Text;
 using WhatsAppAutomation.Api.Contracts;
 using WhatsAppAutomation.Api.Tests.Infrastructure;
 using WhatsAppAutomation.Application.Features.Contacts;
+using WhatsAppAutomation.Application.Features.Salutations;
 using WhatsAppAutomation.Application.Features.Modules;
 using WhatsAppAutomation.Application.Features.Contacts.Import;
 using WhatsAppAutomation.Application.Features.Contacts.Queries;
@@ -118,15 +119,21 @@ public sealed class ContactsApiTests(ApiFactory factory)
         var client = await OwnerAsync();
         var birthday = await BirthdayModuleAsync(client);
         var elders = await CreateCategoryAsync(client, "Elders", "#10b981");
+        await CreateCategoryAsync(client, "Youngers", "#3b82f6");
+        await CreateCategoryAsync(client, "Others", "#64748b");
+        await CreateGroupAsync(client, "Family");
+        await CreateGroupAsync(client, "Surat");
+        await client.PostAsJsonAsync("/api/v1/salutations", new SaveSalutationRequest("Pujya", "પૂજ્ય"), Ct);
         await client.PostAsJsonAsync("/api/v1/contacts", Input("+919876543210", elders.Id, "en", nameEn: "Ramesh", savedName: "Daddy"), Ct);
 
+        // Groups: an older file's comma list, or Yes in a group's own column.
         const string csv = """
-            Phone*,Saved name,Name (English),Name (Hindi),Name (Gujarati),Category*,Language,Salutation,Birthday,Groups,Notes
-            +91 98765 43210,,,,રમેશભાઈ,Elders,gu,Pujya,15-08-1960,"Family, Surat",
-            +919812345678,Rahul,Rahul,राहुल,,Youngers,hi,,02-10,Family,
-            12345,Bad,Bad,,,Others,en,,,,
-            +919812345678,Again,Again,,,Youngers,en,,,,
-            +447700900123,Mr Smith,,,,Others,en,,,,
+            Phone*,Saved name,Name (English),Name (Hindi),Name (Gujarati),Category,Language,Salutation,Birthday,Groups,Group: Family,Notes
+            +91 98765 43210,,,,રમેશભાઈ,Elders,gu,Pujya / પૂજ્ય,15-08-60,"Family, Surat",,
+            +919812345678,Rahul,Rahul,राहुल,,Youngers,hi,,02-10,,Yes,
+            12345,Bad,Bad,,,Others,en,,,,,
+            +919812345678,Again,Again,,,Youngers,en,,,,,
+            +447700900123,Mr Smith,,,,Others,en,,,,,
             """;
 
         var preview = await ImportAsync(client, csv, "contacts.csv", apply: false);
@@ -134,8 +141,8 @@ public sealed class ContactsApiTests(ApiFactory factory)
         Assert.Equal(1, preview.Created);
         Assert.Equal(1, preview.Updated);
         Assert.Equal(3, preview.Failed);
-        Assert.Equal(["Youngers"], preview.NewCategories);
-        Assert.Equal(["Family", "Surat"], preview.NewGroups);
+        Assert.Empty(preview.NewCategories);
+        Assert.Empty(preview.NewGroups);
         Assert.Contains(preview.Rows.Single(r => r.Row == 4).Errors, e => e.StartsWith("Phone:", StringComparison.Ordinal));
         Assert.Contains(preview.Rows.Single(r => r.Row == 5).Errors, e => e.Contains("row 3", StringComparison.Ordinal));
         Assert.Contains(preview.Rows.Single(r => r.Row == 6).Errors, e => e.StartsWith("Name (English)", StringComparison.Ordinal));
@@ -150,11 +157,13 @@ public sealed class ContactsApiTests(ApiFactory factory)
         Assert.Equal("Ramesh", daddy.NameEn);
         Assert.Equal("રમેશભાઈ", daddy.NameGu);
         Assert.Equal("gu", daddy.Language);
+        Assert.Equal("Pujya", daddy.Salutation);
         Assert.Equal(new ContactOccasionDto(birthday, 15, 8, 1960, null), Assert.Single(daddy.Occasions));
         Assert.Equal(["Family", "Surat"], daddy.Groups.Select(g => g.Name));
         var rahul = contacts.Single(c => c.PhoneNumber == "+919812345678");
         Assert.Equal(new ContactOccasionDto(birthday, 2, 10, null, null), Assert.Single(rahul.Occasions));
         Assert.Equal("राहुल", rahul.NameHi);
+        Assert.Equal("Family", Assert.Single(rahul.Groups).Name);
     }
 
     [Fact]

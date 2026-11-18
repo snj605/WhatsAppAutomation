@@ -21,7 +21,6 @@ internal sealed class SaveContactCommandValidator : AbstractValidator<SaveContac
         RuleFor(c => c.Input.NameEn).MaximumLength(Contact.NameMaxLength);
         RuleFor(c => c.Input.NameHi).MaximumLength(Contact.NameMaxLength);
         RuleFor(c => c.Input.NameGu).MaximumLength(Contact.NameMaxLength);
-        RuleFor(c => c.Input.Salutation).MaximumLength(Contact.SalutationMaxLength);
         RuleFor(c => c.Input.Notes).MaximumLength(Contact.NotesMaxLength);
         RuleFor(c => c.Input.Language).Must(l => ContactLanguages.Parse(l) is not null)
             .WithMessage("Language must be en, hi or gu.");
@@ -92,6 +91,19 @@ internal sealed class SaveContactCommandHandler(IAppDbContext db, ICurrentUser c
         }
 
         contact.Update(d, now);
+
+        // The salutation is picked from the user's own list (master data); none clears it.
+        Salutation? salutation = null;
+        if (input.SalutationId is { } salutationId)
+        {
+            salutation = await db.Salutations.SingleOrDefaultAsync(s => s.Id == salutationId && s.UserId == userId, cancellationToken);
+            if (salutation is null)
+            {
+                return ContactErrors.UnknownSalutation;
+            }
+        }
+
+        contact.SetSalutation(salutation);
         if (input.Occasions is { } occasions &&
             await ContactOccasionWrites.ReplaceAsync(db, userId, contact, occasions, now, cancellationToken) is { } badDate)
         {
@@ -203,7 +215,7 @@ internal static class ContactRules
 
         // Dates (Birthday included) come with the occasions, not here.
         var details = new ContactDetails(
-            phone, input.SavedName, input.NameEn, input.NameHi, input.NameGu, language, input.CategoryId, input.Salutation, null, input.Notes);
+            phone, input.SavedName, input.NameEn, input.NameHi, input.NameGu, language, input.CategoryId, null, null, input.Notes);
         var name = language switch
         {
             ContactLanguage.Hi => input.NameHi,

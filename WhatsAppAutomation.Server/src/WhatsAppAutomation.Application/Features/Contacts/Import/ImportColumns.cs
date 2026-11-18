@@ -23,11 +23,11 @@ public static class ImportColumns
         (NameEn, "Name (English)", "Real name used in English messages, for example Rameshbhai."),
         (NameHi, "Name (Hindi)", "Real name used in Hindi messages, for example रमेशभाई."),
         (NameGu, "Name (Gujarati)", "Real name used in Gujarati messages, for example રમેશભાઈ."),
-        (Category, "Category", "Optional. One category; a new name creates that category. Empty keeps the existing one."),
-        (Language, "Language", "en, hi or gu (or English, Hindi, Gujarati). Empty keeps a saved contact's language; new contacts get your default language."),
-        (Salutation, "Salutation", "For example Pujya, Respected, Dear."),
-        (Birthday, "Birthday", "DD-MM or DD-MM-YYYY, for example 15-08 or 15-08-1960."),
-        (Groups, "Groups", "Comma-separated. New names create those groups."),
+        (Category, "Category", "Pick one of your categories from the list. Empty keeps the existing one."),
+        (Language, "Language", "Pick English, Hindi or Gujarati. Empty keeps a saved contact's language; new contacts get your default language."),
+        (Salutation, "Salutation", "Pick one of your salutations from the list (both languages, for example Shri / શ્રી). Empty keeps the saved one."),
+        (Birthday, "Birthday", "DD-MM, DD-MM-YY or DD-MM-YYYY, for example 15-08 or 15-08-1960."),
+        (Groups, "Groups", "Older files only: names of your groups, comma-separated. New files have a Yes column per group."),
         (Notes, "Notes", "Anything else, up to 1000 characters."),
     ];
 

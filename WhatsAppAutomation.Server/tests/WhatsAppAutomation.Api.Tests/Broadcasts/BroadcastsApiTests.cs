@@ -12,6 +12,7 @@ using WhatsAppAutomation.Application.Features.Modules;
 using WhatsAppAutomation.Application.Features.Sending;
 using WhatsAppAutomation.Application.Features.Contacts;
 using WhatsAppAutomation.Application.Features.Files;
+using WhatsAppAutomation.Application.Features.Salutations;
 using WhatsAppAutomation.Application.Features.Templates;
 using WhatsAppAutomation.Domain.Authorization;
 using WhatsAppAutomation.Domain.Entities;
@@ -677,9 +678,18 @@ public sealed class BroadcastsApiTests(ApiFactory factory)
         HttpClient client, string phone, Guid? categoryId, string language, string? nameEn = null, string? nameHi = null, string? nameGu = null,
         string? salutation = null, string? saved = null)
     {
+        Guid? salutationId = null;
+        if (salutation is not null)
+        {
+            // Salutations are master data: the same text in both languages here.
+            var list = (await client.GetFromJsonAsync<List<SalutationDto>>("/api/v1/salutations", Ct))!;
+            salutationId = list.FirstOrDefault(s => s.NameEn == salutation)?.Id ?? (await (await client.PostAsJsonAsync(
+                "/api/v1/salutations", new SaveSalutationRequest(salutation, salutation), Ct)).Content.ReadFromJsonAsync<SalutationDto>(Ct))!.Id;
+        }
+
         var response = await client.PostAsJsonAsync(
             "/api/v1/contacts",
-            new ContactInput(phone, saved, nameEn, nameHi, nameGu, language, categoryId, salutation, null, null, null),
+            new ContactInput(phone, saved, nameEn, nameHi, nameGu, language, categoryId, salutationId, null, null, null),
             Ct);
         Assert.True(response.IsSuccessStatusCode, await response.Content.ReadAsStringAsync(Ct));
     }
