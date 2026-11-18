@@ -1,6 +1,7 @@
 using System.Reflection;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Routing;
 using WhatsAppAutomation.Api.Authorization;
 
 namespace WhatsAppAutomation.Api.Tests.Access;
