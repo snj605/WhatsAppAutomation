@@ -110,7 +110,9 @@ public sealed class ModulesApiTests(ApiFactory factory)
         Assert.True(wish.IsSuccessStatusCode, await wish.Content.ReadAsStringAsync(Ct));
         var queue = (await client.GetFromJsonAsync<QueueDto>("/api/v1/broadcasts/queue", Ct))!;
         Assert.Equal("occasion", Assert.Single(queue.Items).Kind);
-        Assert.Equal("pending", (await client.GetFromJsonAsync<List<ModuleDayPersonDto>>($"/api/v1/modules/{anniversary.Id}/days", Ct))!.Single().Status);
+        // Waiting, or already sent when another test class ran the sender at that moment (they share the database).
+        Assert.Contains((await client.GetFromJsonAsync<List<ModuleDayPersonDto>>($"/api/v1/modules/{anniversary.Id}/days", Ct))!.Single().Status,
+            new[] { "pending", "sent" });
 
         Assert.Equal(HttpStatusCode.NoContent, (await client.DeleteAsync($"/api/v1/modules/{anniversary.Id}", Ct)).StatusCode);
         Assert.Empty((await client.GetFromJsonAsync<QueueDto>("/api/v1/broadcasts/queue", Ct))!.Items);
