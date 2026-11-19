@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { SkeletonModule } from 'primeng/skeleton';
 import { problemMessage } from '../../core/http/problem';
+import { IdentityCheck } from '../../shared/confirm-identity/identity-check';
 import { BroadcastsApi } from '../broadcasts/broadcasts.api';
 import { clockText, whenText } from '../modules/time-text';
 import { Queue, QueueItem, SendingApi, SendingSettings } from './sending.api';
@@ -29,6 +30,7 @@ export class SendingPage implements OnInit {
   private readonly broadcasts = inject(BroadcastsApi);
   private readonly toast = inject(MessageService);
   private readonly confirm = inject(ConfirmationService);
+  private readonly identity = inject(IdentityCheck);
 
   protected readonly whenText = whenText;
   protected readonly clockText = clockText;
@@ -42,6 +44,8 @@ export class SendingPage implements OnInit {
   protected readonly settings = signal<SendingSettings | null>(null);
   protected readonly saving = signal(false);
   protected form = { dailyLimit: 300, sendFrom: '09:00', sendUntil: '21:00', anyTime: false };
+  /** Settings are shown read-only; Change asks for the password and Save or Cancel locks them again. */
+  protected readonly editing = signal(false);
 
   protected readonly usedPercent = computed(() => {
     const q = this.queue();
@@ -157,6 +161,26 @@ export class SendingPage implements OnInit {
 
   // ---------- Settings ----------
 
+  protected async startEditing(): Promise<void> {
+    if (await this.identity.ask('Change messages a day and sending hours.')) this.editing.set(true);
+  }
+
+  protected cancelEditing(): void {
+    const s = this.settings();
+    if (s) this.useSettings(s);
+    this.editing.set(false);
+  }
+
+  /** "9:00 am – 9:00 pm", or "Any time of day". */
+  protected hoursText(s: SendingSettings): string {
+    if (s.sendFrom === s.sendUntil) return 'Any time of day';
+    const t = (hhmm: string) => {
+      const [h, m] = hhmm.split(':').map(Number);
+      return `${h % 12 === 0 ? 12 : h % 12}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`;
+    };
+    return `${t(s.sendFrom)} – ${t(s.sendUntil)}`;
+  }
+
   private useSettings(s: SendingSettings): void {
     this.settings.set(s);
     this.form = {
@@ -190,6 +214,7 @@ export class SendingPage implements OnInit {
         sendUntil: f.anyTime ? '00:00' : f.sendUntil,
       });
       this.useSettings(saved);
+      this.editing.set(false);
       this.toast.add({ severity: 'success', summary: 'Saved', detail: `About ${saved.fitsPerDay} messages fit in a day.` });
       void this.loadQueue(false);
     } catch (e) {

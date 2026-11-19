@@ -101,6 +101,20 @@
           <p class="ap-note">Occasion wishes always go first. Use ▲ ▼ to choose which message goes next. Times are estimates from your settings.</p>
         }
       }
+    } @else if (!editing()) {
+      @if (settings(); as s) {
+        <section class="ap-card pad">
+          <div class="ap-view-row"><i class="pi pi-send" aria-hidden="true"></i><span>Messages a day</span><strong>{{ s.dailyLimit }}</strong></div>
+          <div class="ap-view-row"><i class="pi pi-clock" aria-hidden="true"></i><span>Sending hours</span><strong>{{ hoursText(s) }}</strong></div>
+          <div class="ap-view-row"><i class="pi pi-info-circle" aria-hidden="true"></i><span>Fit in a day</span><strong>About {{ s.fitsPerDay }}</strong></div>
+          <span class="ap-hint">Occasion wishes start at their own time, even outside these hours. They count in messages a day. Times are in {{ s.timeZone }}.</span>
+          <div class="ap-actions end">
+            <button type="button" class="ap-btn" (click)="startEditing()"><i class="pi pi-lock" aria-hidden="true"></i> Change</button>
+          </div>
+        </section>
+      } @else {
+        <p class="ap-note">Loading…</p>
+      }
     } @else {
       <section class="ap-card pad ap-form">
         <label for="s-limit">Messages a day</label>
@@ -133,6 +147,7 @@
         }
 
         <div class="ap-actions end">
+          <button type="button" class="ap-btn" [disabled]="saving()" (click)="cancelEditing()">Cancel</button>
           <button type="button" class="ap-btn primary" [disabled]="saving() || !!problem()" (click)="save()"><i class="pi pi-check" aria-hidden="true"></i> Save</button>
         </div>
       </section>

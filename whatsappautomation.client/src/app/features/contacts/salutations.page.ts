@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { problemMessage } from '../../core/http/problem';
+import { IdentityCheck } from '../../shared/confirm-identity/identity-check';
 import { Salutation, SalutationsStore } from './salutations.api';
 
 const MAX_SALUTATIONS = 30;
@@ -21,6 +22,7 @@ export class SalutationsPage implements OnInit {
   protected readonly store = inject(SalutationsStore);
   private readonly toast = inject(MessageService);
   private readonly confirm = inject(ConfirmationService);
+  private readonly identity = inject(IdentityCheck);
 
   protected readonly max = MAX_SALUTATIONS;
   /** null: closed; 'new': adding; a salutation: changing it. */
@@ -83,6 +85,8 @@ export class SalutationsPage implements OnInit {
       acceptButtonProps: { severity: 'danger' },
       rejectButtonProps: { severity: 'secondary', outlined: true },
       accept: async () => {
+        // A delete also needs the password, so nothing is deleted by a slip.
+        if (!(await this.identity.ask('Confirm to delete.'))) return;
         try {
           await this.store.remove(s.id);
           await this.store.reload();

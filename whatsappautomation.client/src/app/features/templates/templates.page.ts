@@ -6,6 +6,7 @@ import { RouterLink } from '@angular/router';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { AuthService } from '../../core/auth/auth.service';
 import { problemMessage } from '../../core/http/problem';
+import { IdentityCheck } from '../../shared/confirm-identity/identity-check';
 import { BigVideoConsent } from '../files/big-video';
 import { fileIcon, fileProblem, FilesApi, fileSize, UploadedFile } from '../files/files.api';
 import { MORE_INSERTS, NAME_PLACEHOLDER } from '../chats/send-templates';
@@ -22,6 +23,7 @@ export class TemplatesPage implements OnInit {
   private readonly api = inject(TemplatesApi);
   private readonly toast = inject(MessageService);
   private readonly confirm = inject(ConfirmationService);
+  private readonly identity = inject(IdentityCheck);
   private readonly box = viewChild<ElementRef<HTMLTextAreaElement>>('box');
   private readonly filesApi = inject(FilesApi);
   private readonly bigVideo = inject(BigVideoConsent);
@@ -158,6 +160,8 @@ export class TemplatesPage implements OnInit {
       acceptButtonProps: { severity: 'danger' },
       rejectButtonProps: { severity: 'secondary', outlined: true },
       accept: async () => {
+        // A delete also needs the password, so nothing is deleted by a slip.
+        if (!(await this.identity.ask('Confirm to delete.'))) return;
         try {
           await this.api.remove(t.id);
           await this.load();

@@ -3,6 +3,7 @@ import 'package:forui/forui.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../app/confirm_dialog.dart';
+import '../../app/confirm_identity.dart';
 import '../../core/format.dart';
 import '../../core/ui.dart';
 import '../auth/auth_models.dart';
@@ -67,7 +68,8 @@ class _TemplatesPageState extends ConsumerState<TemplatesPage> {
       confirm: 'Delete',
       destructive: true,
     );
-    if (!yes || !mounted) {
+    // A delete also needs fingerprint, face or the password, so nothing is deleted by a slip.
+    if (!yes || !mounted || !await confirmIdentity(context, ref, 'Confirm to delete.') || !mounted) {
       return;
     }
 

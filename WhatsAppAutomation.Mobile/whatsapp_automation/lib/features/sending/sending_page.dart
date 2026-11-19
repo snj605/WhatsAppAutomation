@@ -6,6 +6,7 @@ import 'package:forui/forui.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../app/confirm_dialog.dart';
+import '../../app/confirm_identity.dart';
 import '../../app/theme.dart';
 import '../../core/format.dart';
 import '../../core/realtime/live_updates.dart';
@@ -318,6 +319,7 @@ class SendingTabState extends ConsumerState<SendingTab> {
 
 /// Messages a day and sending hours: the only things the user chooses. The rhythm inside (pauses, how many in one
 /// go, rests) is the system's own and changes all the time, so WhatsApp sees no pattern.
+/// Shown read-only; Change asks for fingerprint, face or the password first, and Save or Cancel locks it again.
 class SendingSettingsForm extends ConsumerStatefulWidget {
   const SendingSettingsForm({super.key});
 
@@ -332,9 +334,61 @@ class _SendingSettingsFormState extends ConsumerState<SendingSettingsForm> {
   bool _anyTime = false;
   SendingSettings? _settings;
   bool _saving = false;
+  bool _editing = false;
   String? _error;
 
   List<TextEditingController> get _all => <TextEditingController>[_limit];
+
+  Future<void> _startEditing() async {
+    if (await confirmIdentity(context, ref, 'Change messages a day and sending hours.') && mounted) {
+      setState(() => _editing = true);
+    }
+  }
+
+  void _cancel() => setState(() {
+        _use(_settings!);
+        _error = null;
+        _editing = false;
+      });
+
+  /// "9:00 AM – 9:00 PM", or "Any time of day".
+  String _hoursText(SendingSettings s) => s.anyTime
+      ? 'Any time of day'
+      : '${clockText(DateTime(2000, 1, 1, _parse(s.sendFrom).hour, _parse(s.sendFrom).minute))} – '
+          '${clockText(DateTime(2000, 1, 1, _parse(s.sendUntil).hour, _parse(s.sendUntil).minute))}';
+
+  Widget _view(FThemeData theme, SendingSettings s) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          CardSection(
+            children: <Widget>[
+              ListRow(leading: const IconBadge(FLucideIcons.send), title: 'Messages a day', subtitle: '${s.dailyLimit}'),
+              ListRow(leading: const IconBadge(FLucideIcons.clock), title: 'Sending hours', subtitle: _hoursText(s)),
+              ListRow(
+                leading: const IconBadge(FLucideIcons.info),
+                title: 'About ${s.fitsPerDay} messages fit in a day',
+                subtitle: 'Times are in ${s.timeZone}.',
+              ),
+            ],
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+            child: Text(
+              'Occasion wishes start at their own time, even outside these hours. They count in messages a day.',
+              style: theme.typography.body.xs.copyWith(color: theme.colors.mutedForeground),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: FButton(
+              variant: FButtonVariant.outline,
+              prefix: const Icon(FLucideIcons.lock),
+              onPress: _startEditing,
+              child: const Text('Change'),
+            ),
+          ),
+        ],
+      );
 
   @override
   void initState() {
@@ -427,7 +481,10 @@ class _SendingSettingsFormState extends ConsumerState<SendingSettingsForm> {
             sendUntil: _anyTime ? '00:00' : _hhmm(_until),
           );
       if (mounted) {
-        setState(() => _use(saved));
+        setState(() {
+          _use(saved);
+          _editing = false;
+        });
         showInfoToast(context, 'Saved', description: 'About ${saved.fitsPerDay} messages fit in a day.');
       }
     } on Object catch (e) {
@@ -468,6 +525,10 @@ class _SendingSettingsFormState extends ConsumerState<SendingSettingsForm> {
       return _error == null
           ? const LoadingView()
           : EmptyView(icon: FLucideIcons.wifiOff, title: 'Could not load the settings', text: _error!, action: _load, actionLabel: 'Try again');
+    }
+
+    if (!_editing) {
+      return _view(theme, _settings!);
     }
 
     final int fits = _fits();
@@ -523,10 +584,24 @@ class _SendingSettingsFormState extends ConsumerState<SendingSettingsForm> {
           ),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-          child: FButton(
-            prefix: _saving ? const FCircularProgress.loader(size: FCircularProgressSizeVariant.sm) : null,
-            onPress: _saving ? null : _save,
-            child: const Text('Save'),
+          child: Row(
+            spacing: 10,
+            children: <Widget>[
+              Expanded(
+                child: FButton(
+                  variant: FButtonVariant.outline,
+                  onPress: _saving ? null : _cancel,
+                  child: const Text('Cancel'),
+                ),
+              ),
+              Expanded(
+                child: FButton(
+                  prefix: _saving ? const FCircularProgress.loader(size: FCircularProgressSizeVariant.sm) : null,
+                  onPress: _saving ? null : _save,
+                  child: const Text('Save'),
+                ),
+              ),
+            ],
           ),
         ),
       ],

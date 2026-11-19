@@ -3,6 +3,7 @@ import 'package:forui/forui.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../app/confirm_dialog.dart';
+import '../../app/confirm_identity.dart';
 import '../../core/ui.dart';
 import 'contact_models.dart';
 import 'contacts_api.dart';
@@ -153,7 +154,8 @@ class _SalutationEditPageState extends ConsumerState<SalutationEditPage> {
       destructive: true,
       icon: FLucideIcons.trash2,
     );
-    if (!yes || !mounted) {
+    // A delete also needs fingerprint, face or the password, so nothing is deleted by a slip.
+    if (!yes || !mounted || !await confirmIdentity(context, ref, 'Confirm to delete.') || !mounted) {
       return;
     }
 

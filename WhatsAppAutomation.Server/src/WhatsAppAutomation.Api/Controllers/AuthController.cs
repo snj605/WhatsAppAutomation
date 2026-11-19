@@ -83,6 +83,20 @@ public sealed class AuthController(ISender mediator) : ControllerBase
     public async Task<IActionResult> ChangePassword(ChangePasswordRequest request, CancellationToken cancellationToken) =>
         this.ToActionResult(await mediator.Send(new ChangePasswordCommand(request.CurrentPassword, request.NewPassword), cancellationToken));
 
+    /// <summary>
+    /// Checks the signed-in user's password before an important change on the website (the app uses fingerprint or
+    /// face, and this when the phone has neither). Nothing is stored.
+    /// </summary>
+    [HttpPost("confirm-password")]
+    [Authorize]
+    [EnableRateLimiting(RateLimitPolicies.Auth)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> ConfirmPassword(ConfirmPasswordRequest request, CancellationToken cancellationToken) =>
+        this.ToActionResult(await mediator.Send(new ConfirmPasswordCommand(request.Password), cancellationToken));
+
     private static SessionResponse ToResponse(AuthSession session) => new(
         session.AccessToken,
         session.AccessTokenExpiresAt,

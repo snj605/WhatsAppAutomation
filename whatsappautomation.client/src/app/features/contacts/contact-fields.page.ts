@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { problemMessage } from '../../core/http/problem';
+import { IdentityCheck } from '../../shared/confirm-identity/identity-check';
 import { ContactFieldsStore, FIELD_TYPES } from './contact-fields.api';
 import { ContactField, ContactFieldType } from './contacts.models';
 
@@ -22,6 +23,7 @@ export class ContactFieldsPage implements OnInit {
   protected readonly store = inject(ContactFieldsStore);
   private readonly toast = inject(MessageService);
   private readonly confirm = inject(ConfirmationService);
+  private readonly identity = inject(IdentityCheck);
 
   protected readonly types = FIELD_TYPES;
   protected readonly max = MAX_FIELDS;
@@ -120,6 +122,8 @@ export class ContactFieldsPage implements OnInit {
       acceptButtonProps: { severity: 'danger' },
       rejectButtonProps: { severity: 'secondary', outlined: true },
       accept: async () => {
+        // A delete also needs the password, so nothing is deleted by a slip.
+        if (!(await this.identity.ask('Confirm to delete.'))) return;
         try {
           await this.store.remove(f.id);
           await this.store.reload();

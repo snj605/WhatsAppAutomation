@@ -112,3 +112,10 @@ button.ap-row:hover { background: var(--ap-line); }
 @media (min-width: 700px) { .ap-grid-2 { grid-template-columns: 1fr 1fr; } }
 .ap-pre { white-space: pre-wrap; background: var(--ap-line); border-radius: 10px; padding: 12px; font-size: 14px; margin: 0; }
 .ap-dot.info { background: #2e90fa; }
+
+/* A setting shown read-only (Change asks for the password first): icon, name, value. Wraps on a phone. */
+.ap-view-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 0; border-bottom: 1px solid var(--ap-line); }
+.ap-view-row:last-of-type { border-bottom: 0; }
+.ap-view-row > i { color: var(--ap-muted); width: 18px; text-align: center; }
+.ap-view-row > span { flex: 1 1 140px; color: var(--ap-muted); }
+.ap-view-row > strong { font-weight: 600; overflow-wrap: anywhere; }

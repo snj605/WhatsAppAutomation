@@ -5,6 +5,7 @@ import 'package:forui/forui.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../app/confirm_dialog.dart';
+import '../../app/confirm_identity.dart';
 import '../../core/format.dart';
 import '../../core/ui.dart';
 import '../chats/new_message_page.dart';
@@ -344,7 +345,24 @@ class _ModuleSettingsState extends ConsumerState<_ModuleSettings> {
   late final TextEditingController _name = TextEditingController(text: widget.module.name);
   late final TextEditingController _label = TextEditingController(text: widget.module.forNameLabel ?? '');
   bool _saving = false;
+  // Automatic sending is shown read-only; Change asks for fingerprint, face or the password first. Save or Cancel
+  // locks it again, so a time or template never changes by a slip while scrolling.
+  bool _editingSending = false;
   String? _error;
+
+  Future<void> _startEditing() async {
+    if (await confirmIdentity(context, ref, 'Change the automatic sending of ${widget.module.name}.') && mounted) {
+      setState(() => _editingSending = true);
+    }
+  }
+
+  void _cancelEditing() => setState(() {
+        _auto = widget.module.autoSend;
+        _time = _parse(widget.module.time) ?? const FTime(7, 15);
+        _templateId = widget.module.templateId;
+        _error = null;
+        _editingSending = false;
+      });
 
   static FTime? _parse(String? hhmm) {
     final List<String>? parts = hhmm?.split(':');
@@ -381,6 +399,7 @@ class _ModuleSettingsState extends ConsumerState<_ModuleSettings> {
           await ref.read(modulesApiProvider).setSending(widget.module.id, enabled: _auto, time: _hhmm, templateId: _templateId);
       widget.onSaved(saved);
       if (mounted) {
+        setState(() => _editingSending = false);
         showInfoToast(
           context,
           saved.ready ? 'Automatic sending is on' : 'Automatic sending is off',
@@ -440,7 +459,7 @@ class _ModuleSettingsState extends ConsumerState<_ModuleSettings> {
       cancel: 'Keep',
       destructive: true,
     );
-    if (!yes || !mounted) {
+    if (!yes || !mounted || !await confirmIdentity(context, ref, 'Delete ${widget.module.name}.') || !mounted) {
       return;
     }
 
@@ -462,9 +481,50 @@ class _ModuleSettingsState extends ConsumerState<_ModuleSettings> {
   Widget build(BuildContext context) {
     final FThemeData theme = context.theme;
     final MessageTemplate? chosen = widget.templates.where((MessageTemplate t) => t.id == _templateId).firstOrNull;
+    final FTime? savedTime = _parse(widget.module.time);
+    final MessageTemplate? savedTemplate = widget.templates.where((MessageTemplate t) => t.id == widget.module.templateId).firstOrNull;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
+        if (!_editingSending) ...<Widget>[
+          CardSection(
+            title: 'Automatic sending',
+            children: <Widget>[
+              ListRow(
+                leading: IconBadge(moduleIcon(widget.module)),
+                title: 'Send by itself',
+                subtitle: widget.module.autoSend ? 'On' : 'Off',
+              ),
+              ListRow(
+                leading: const IconBadge(FLucideIcons.clock),
+                title: 'Starts at',
+                subtitle: savedTime == null ? 'Not chosen' : clockText(DateTime(2000, 1, 1, savedTime.hour, savedTime.minute)),
+              ),
+              ListRow(
+                leading: const IconBadge(FLucideIcons.fileText),
+                title: 'Template',
+                subtitle: savedTemplate?.name ?? 'Not chosen',
+              ),
+            ],
+          ),
+          if (savedTemplate != null)
+            CardSection(
+              title: 'How it looks on WhatsApp',
+              padding: const EdgeInsets.all(12),
+              children: <Widget>[
+                WaPersonPreview(text: savedTemplate.text, file: WaFile.upload(savedTemplate.attachment), moduleId: widget.module.id),
+              ],
+            ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+            child: FButton(
+              variant: FButtonVariant.outline,
+              prefix: const Icon(FLucideIcons.lock),
+              onPress: _startEditing,
+              child: const Text('Change automatic sending'),
+            ),
+          ),
+        ] else ...<Widget>[
         CardSection(
           title: 'Automatic sending',
           children: <Widget>[
@@ -528,8 +588,17 @@ class _ModuleSettingsState extends ConsumerState<_ModuleSettings> {
           ),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-          child: FButton(onPress: _saving ? null : _saveSending, child: const Text('Save sending')),
+          child: Row(
+            spacing: 10,
+            children: <Widget>[
+              Expanded(
+                child: FButton(variant: FButtonVariant.outline, onPress: _saving ? null : _cancelEditing, child: const Text('Cancel')),
+              ),
+              Expanded(child: FButton(onPress: _saving ? null : _saveSending, child: const Text('Save sending'))),
+            ],
+          ),
         ),
+        ],
         CardSection(
           title: 'Details',
           padding: const EdgeInsets.all(12),

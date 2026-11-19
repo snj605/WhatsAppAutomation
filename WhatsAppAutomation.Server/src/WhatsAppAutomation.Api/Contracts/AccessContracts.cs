@@ -30,6 +30,8 @@ public sealed record SetPasswordRequest(string Password);
 
 public sealed record ChangePasswordRequest(string CurrentPassword, string NewPassword);
 
+public sealed record ConfirmPasswordRequest(string Password);
+
 /// <summary>A tenant as the platform admin sees it: counts only, nothing of what is inside.</summary>
 public sealed record TenantResponse(Guid Id, string Name, bool IsActive, DateTimeOffset CreatedAt, int Users, int Admins);
 

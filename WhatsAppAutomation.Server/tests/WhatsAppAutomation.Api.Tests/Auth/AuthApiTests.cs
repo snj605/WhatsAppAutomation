@@ -232,6 +232,32 @@ public sealed class AuthApiTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
+    [Fact]
+    public async Task Confirming_the_password_before_a_change_checks_it_without_ending_the_session()
+    {
+        var userName = await factory.CreateUserAsync();
+        var session = await LoginAsync(userName, "phone-1");
+
+        async Task<HttpResponseMessage> ConfirmAsync(string password, string? token)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/auth/confirm-password")
+            {
+                Content = JsonContent.Create(new ConfirmPasswordRequest(password)),
+            };
+            if (token is not null)
+            {
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            }
+
+            return await _client.SendAsync(request, Ct);
+        }
+
+        Assert.Equal(HttpStatusCode.NoContent, (await ConfirmAsync(ApiFactory.TestPassword, session.AccessToken)).StatusCode);
+        // A wrong password is a plain mistake (400), not a signed-out session (401).
+        Assert.Equal(HttpStatusCode.BadRequest, (await ConfirmAsync("wrong password here", session.AccessToken)).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await ConfirmAsync(ApiFactory.TestPassword, null)).StatusCode);
+    }
+
     private async Task<SessionResponse> LoginAsync(string userName, string deviceId)
     {
         var response = await PostLoginAsync(userName, ApiFactory.TestPassword, deviceId);

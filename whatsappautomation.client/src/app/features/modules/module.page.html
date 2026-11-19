@@ -196,6 +196,20 @@
 
         @case ('settings') {
           <h2 class="ap-section-title">Automatic sending</h2>
+          @if (!editingSending()) {
+          <section class="ap-card pad">
+            <div class="ap-view-row"><i class="pi pi-bolt" aria-hidden="true"></i><span>Send by itself</span><strong>{{ m.autoSend ? 'On' : 'Off' }}</strong></div>
+            <div class="ap-view-row"><i class="pi pi-clock" aria-hidden="true"></i><span>Starts at</span><strong>{{ m.time ? hhmmText(m.time) : 'Not chosen' }}</strong></div>
+            <div class="ap-view-row"><i class="pi pi-bookmark" aria-hidden="true"></i><span>Template</span><strong>{{ savedTemplate()?.name ?? 'Not chosen' }}</strong></div>
+            @if (savedTemplate(); as t) {
+              <span class="ap-hint">How it looks on WhatsApp</span>
+              <app-wa-person-preview [text]="t.text" [file]="t.attachment" [moduleId]="m.id" />
+            }
+            <div class="ap-actions end">
+              <button type="button" class="ap-btn" (click)="startEditingSending()"><i class="pi pi-lock" aria-hidden="true"></i> Change</button>
+            </div>
+          </section>
+          } @else {
           <section class="ap-card pad ap-form">
             <div class="switch-row">
               <span class="ap-text">
@@ -233,9 +247,11 @@
             }
 
             <div class="ap-actions end">
+              <button type="button" class="ap-btn" [disabled]="saving()" (click)="cancelEditingSending()">Cancel</button>
               <button type="button" class="ap-btn primary" [disabled]="saving()" (click)="saveSending()"><i class="pi pi-check" aria-hidden="true"></i> Save</button>
             </div>
           </section>
+          }
 
           <h2 class="ap-section-title">Details</h2>
           <section class="ap-card pad ap-form">

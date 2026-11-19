@@ -11,6 +11,7 @@ import { Contact, displayName } from '../contacts/contacts.models';
 import { MessageTemplate, TemplatesApi } from '../templates/templates.api';
 import { modulePreset } from './composer-preset';
 import { ModuleDayPerson, ModuleEntry, moduleIcon, ModulesApi, ModulesStore, OccasionModule } from './modules.api';
+import { IdentityCheck } from '../../shared/confirm-identity/identity-check';
 import { hhmmText, initials, MONTHS, statusLook, whenText } from './time-text';
 
 type Tab = 'days' | 'dates' | 'settings';
@@ -42,6 +43,7 @@ export class ModulePage {
   private readonly router = inject(Router);
   private readonly toast = inject(MessageService);
   private readonly confirm = inject(ConfirmationService);
+  private readonly identity = inject(IdentityCheck);
   protected readonly auth = inject(AuthService);
 
   /** Route parameter. */
@@ -81,6 +83,8 @@ export class ModulePage {
   protected readonly comingCount = computed(() => this.people().filter((p) => p.daysUntil > 0).length);
 
   // ---------- Settings ----------
+  /** Automatic sending is shown read-only; Change asks for the password and Save or Cancel locks it again. */
+  protected readonly editingSending = signal(false);
   protected editAuto = false;
   protected editTime = '07:15';
   protected editTemplateId: string | null = null;
@@ -152,6 +156,7 @@ export class ModulePage {
     const m = this.module();
     if (!m) return;
     if (t === 'settings') {
+      this.editingSending.set(false);
       this.editAuto = m.autoSend;
       this.editTime = m.time ?? '07:15';
       this.editTemplateId = m.templateId;
@@ -252,6 +257,28 @@ export class ModulePage {
     return sample(text);
   }
 
+  protected async startEditingSending(): Promise<void> {
+    const m = this.module();
+    if (m && (await this.identity.ask(`Change the automatic sending of ${m.name}.`))) this.editingSending.set(true);
+  }
+
+  protected cancelEditingSending(): void {
+    const m = this.module();
+    if (m) {
+      this.editAuto = m.autoSend;
+      this.editTime = m.time ?? '07:15';
+      this.editTemplateId = m.templateId;
+    }
+
+    this.editingSending.set(false);
+  }
+
+  /** The template chosen and saved on the occasion (the read-only view). */
+  protected savedTemplate(): MessageTemplate | null {
+    const id = this.module()?.templateId;
+    return this.templates().find((t) => t.id === id) ?? null;
+  }
+
   protected async saveSending(): Promise<void> {
     const m = this.module();
     if (!m) return;
@@ -264,6 +291,7 @@ export class ModulePage {
     try {
       const saved = await this.api.setSending(m.id, this.editAuto, this.editTime || null, this.editTemplateId);
       this.module.set(saved);
+      this.editingSending.set(false);
       void this.store.reload();
       this.toast.add({
         severity: 'success',
@@ -311,6 +339,7 @@ export class ModulePage {
       acceptButtonProps: { severity: 'danger' },
       rejectButtonProps: { severity: 'secondary', outlined: true },
       accept: async () => {
+        if (!(await this.identity.ask(`Delete ${m.name}.`))) return;
         try {
           await this.api.remove(m.id);
           await this.store.reload();
