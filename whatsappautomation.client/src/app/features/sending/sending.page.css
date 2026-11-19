@@ -13,3 +13,12 @@
 @media (max-width: 700px) {
   .ctl { width: 100%; padding-left: 38px; }
 }
+
+/* The one being sent now: large, plain words, big labelled buttons. */
+.now { display: flex; flex-direction: column; gap: 6px; border-left: 4px solid var(--ap-accent); }
+.now.paused { border-left-color: var(--ui-warn); background: var(--ui-warn-soft); }
+.now-label { font-size: 13px; font-weight: 600; color: var(--ap-muted); display: inline-flex; gap: 6px; align-items: center; }
+.now-name { font-size: 18px; overflow-wrap: anywhere; }
+.now-count { font-size: 15px; font-weight: 600; }
+.now-why { font-size: 14px; color: var(--ap-muted); line-height: 1.4; }
+.now-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }

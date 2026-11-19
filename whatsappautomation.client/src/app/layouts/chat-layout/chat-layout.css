@@ -43,7 +43,8 @@
 
 /* Full-height screens (chat, new message) subtract the sending bar's height. */
 .shell { --sending-bar-h: 0px; }
-.shell.has-bar { --sending-bar-h: 56px; }
+/* The strip takes room only while it shows (something is queued, and not on the Sending page). */
+.shell.has-bar:has(app-sending-bar.visible) { --sending-bar-h: 48px; }
 
 /* Unread or today's count on a tab. */
 .tab-icon, .rail-icon { position: relative; }

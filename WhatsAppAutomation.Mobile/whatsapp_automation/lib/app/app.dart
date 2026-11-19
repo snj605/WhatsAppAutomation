@@ -9,6 +9,7 @@ import '../features/auth/auth_models.dart';
 import '../features/auth/lock_page.dart';
 import '../features/auth/login_page.dart';
 import '../features/auth/session_controller.dart';
+import '../features/broadcasts/sending_bar.dart';
 import '../features/home/home_page.dart';
 import '../features/update/update_gate.dart';
 import 'theme.dart';
@@ -60,6 +61,12 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     });
 
     final SessionState session = ref.watch(sessionProvider);
+    // The sending strip shows above every screen for a signed-in user who may send (not on the forced password
+    // change, the lock screen or the platform admin's screens).
+    final bool strip = session is SignedIn &&
+        !session.user.mustChangePassword &&
+        session.user.kind != UserKind.platformAdmin &&
+        session.can('messages.send');
     return MaterialApp(
       title: 'WhatsApp Automation',
       debugShowCheckedModeBanner: false,
@@ -74,7 +81,22 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       // FTheme sits above the navigator so every screen and dialog gets the Forui theme.
       builder: (BuildContext context, Widget? child) => FTheme(
         data: Theme.brightnessOf(context) == Brightness.light ? AppTheme.light : AppTheme.dark,
-        child: FToaster(child: FTooltipGroup(child: UpdateGate(child: child!))),
+        child: FToaster(
+          child: FTooltipGroup(
+            child: UpdateGate(
+              child: SendingBar(
+                enabled: strip,
+                navigator: _navigator,
+                // The full queue: back to the home screen, on the Sending tab.
+                onOpen: () {
+                  _navigator.currentState?.popUntil((Route<dynamic> route) => route.isFirst);
+                  openHomeTabRequest.value = 'sending';
+                },
+                child: child!,
+              ),
+            ),
+          ),
+        ),
       ),
       home: switch (session) {
         SessionStarting() => const _Starting(),

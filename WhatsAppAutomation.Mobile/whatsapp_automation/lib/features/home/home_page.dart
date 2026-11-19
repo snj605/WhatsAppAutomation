@@ -115,6 +115,8 @@ class _HomePageState extends ConsumerState<HomePage> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _offerBiometrics());
+    openHomeTabRequest.addListener(_openRequested);
+    currentHomeTab.value = _tab;
   }
 
   /// Asked once after the first sign-in on a phone that has a fingerprint or face registered.
@@ -145,8 +147,24 @@ class _HomePageState extends ConsumerState<HomePage> {
     }
   }
 
+  /// The sending strip (above every screen) asks for the Sending tab.
+  void _openRequested() {
+    final String? id = openHomeTabRequest.value;
+    if (id != null && mounted) {
+      openHomeTabRequest.value = null;
+      _select(id);
+    }
+  }
+
+  @override
+  void dispose() {
+    openHomeTabRequest.removeListener(_openRequested);
+    super.dispose();
+  }
+
   void _select(String id) {
     setState(() => _tab = id);
+    currentHomeTab.value = id;
     // Fresh data when coming back to a tab.
     switch (id) {
       case 'chats':
@@ -251,7 +269,6 @@ class _HomePageState extends ConsumerState<HomePage> {
             ),
       child: Column(
         children: <Widget>[
-          const SendingBar(),
           Expanded(
             child: wide
                 ? Row(

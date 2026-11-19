@@ -12,6 +12,7 @@ import '../../core/format.dart';
 import '../../core/realtime/live_updates.dart';
 import '../../core/ui.dart';
 import '../broadcasts/broadcasts_api.dart';
+import '../preview/wa_bubble.dart';
 import 'results_page.dart';
 import 'sending_api.dart';
 import 'status_look.dart';
@@ -141,6 +142,88 @@ class SendingTabState extends ConsumerState<SendingTab> {
         ),
       );
 
+  /// The one being sent now, large and in plain words, with big labelled buttons.
+  Widget _now(FThemeData theme, SendQueue q, QueueItem now) {
+    final bool paused = now.status == 'paused';
+    final bool busy = _busy == now.id;
+    final int willGet = now.counts.willGet;
+    final double done = willGet == 0 ? 0 : (now.counts.sent / willGet).clamp(0, 1).toDouble();
+    final String why = paused
+        ? '${now.pauseReason ?? 'You paused it.'} Press Continue to go on.'
+        : !q.connected
+            ? 'WhatsApp is not connected. Nothing goes out until it is.'
+            : q.waiting ??
+                (q.nextSendAt == null ? 'Sending one by one.' : 'Next message at ${waTimeText(q.nextSendAt!.toLocal())}.');
+    final String finish = !paused && now.expectedFinish != null ? ' All done about ${whenText(now.expectedFinish!)}.' : '';
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: theme.colors.card,
+        borderRadius: BorderRadius.circular(14),
+        border: Border(
+          left: BorderSide(color: paused ? AppTheme.warn : theme.colors.primary, width: 4),
+          top: BorderSide(color: theme.colors.border),
+          right: BorderSide(color: theme.colors.border),
+          bottom: BorderSide(color: theme.colors.border),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        spacing: 6,
+        children: <Widget>[
+          Row(
+            spacing: 6,
+            children: <Widget>[
+              Icon(paused ? FLucideIcons.pause : FLucideIcons.send, size: 16, color: theme.colors.mutedForeground),
+              Text(
+                '${paused ? 'Paused' : 'Sending now'}${now.kind == 'occasion' ? ' · occasion wishes' : ''}',
+                style: theme.typography.body.xs.copyWith(color: theme.colors.mutedForeground, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+          Text(now.name, style: theme.typography.body.lg.copyWith(fontWeight: FontWeight.w700)),
+          Text('${now.counts.sent} of $willGet sent', style: theme.typography.body.md.copyWith(fontWeight: FontWeight.w600)),
+          FDeterminateProgress(value: done),
+          Text('$why$finish', style: theme.typography.body.sm.copyWith(color: theme.colors.mutedForeground)),
+          const SizedBox(height: 2),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: <Widget>[
+              FButton(
+                variant: paused ? FButtonVariant.primary : FButtonVariant.outline,
+                mainAxisSize: MainAxisSize.min,
+                prefix: Icon(paused ? FLucideIcons.play : FLucideIcons.pause),
+                onPress: busy
+                    ? null
+                    : () => _run(now, () => ref.read(broadcastsApiProvider).change(now.id, paused ? 'resume' : 'pause'), 'Not changed'),
+                child: Text(paused ? 'Continue' : 'Pause'),
+              ),
+              FButton(
+                variant: FButtonVariant.destructive,
+                mainAxisSize: MainAxisSize.min,
+                prefix: const Icon(FLucideIcons.square),
+                onPress: busy ? null : () => _stop(now),
+                child: const Text('Stop'),
+              ),
+              FButton(
+                variant: FButtonVariant.outline,
+                mainAxisSize: MainAxisSize.min,
+                prefix: const Icon(FLucideIcons.users),
+                onPress: () async {
+                  await pushPage<void>(context, ResultsPage(id: now.id));
+                  await reload();
+                },
+                child: const Text('Who got it'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _queueView(FThemeData theme) {
     final SendQueue? q = _queue;
     if (q == null) {
@@ -152,6 +235,7 @@ class SendingTabState extends ConsumerState<SendingTab> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
+        if (q.items.firstOrNull case final QueueItem now) _now(theme, q, now),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
           child: Column(
@@ -188,7 +272,7 @@ class SendingTabState extends ConsumerState<SendingTab> {
           )
         else ...<Widget>[
           CardSection(
-            title: 'In order',
+            title: 'In order · ${q.items.length} ${q.items.length == 1 ? 'item' : 'items'}',
             children: <Widget>[
               for (int i = 0; i < q.items.length; i++) _item(theme, q.items[i], i),
             ],
@@ -196,8 +280,8 @@ class SendingTabState extends ConsumerState<SendingTab> {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
             child: Text(
-              'Occasion wishes always go first. Use the arrows to choose which message goes next. Times are estimates from '
-              'your settings.',
+              'Occasion wishes always go first, even before your sending hours. Use Up and Down to choose which message '
+              'goes next. Times are estimates.',
               style: theme.typography.body.xs.copyWith(color: theme.colors.mutedForeground),
             ),
           ),
@@ -245,19 +329,23 @@ class SendingTabState extends ConsumerState<SendingTab> {
             runSpacing: 6,
             children: <Widget>[
               if (item.kind == 'broadcast') ...<Widget>[
-                FButton.icon(
+                FButton(
                   variant: FButtonVariant.outline,
+                  mainAxisSize: MainAxisSize.min,
+                  prefix: const Icon(FLucideIcons.chevronUp),
                   onPress: item.canMoveUp && !busy
                       ? () => _run(item, () => ref.read(sendingApiProvider).move(item.id, 'up'), 'Not moved')
                       : null,
-                  child: const Icon(FLucideIcons.chevronUp),
+                  child: const Text('Up'),
                 ),
-                FButton.icon(
+                FButton(
                   variant: FButtonVariant.outline,
+                  mainAxisSize: MainAxisSize.min,
+                  prefix: const Icon(FLucideIcons.chevronDown),
                   onPress: item.canMoveDown && !busy
                       ? () => _run(item, () => ref.read(sendingApiProvider).move(item.id, 'down'), 'Not moved')
                       : null,
-                  child: const Icon(FLucideIcons.chevronDown),
+                  child: const Text('Down'),
                 ),
               ],
               FButton.icon(

@@ -1,34 +1,27 @@
-@if (current(); as b) {
-  <a class="bar active" [class.paused]="b.status === 'paused'" routerLink="/sending" aria-live="polite"
-    [attr.aria-label]="'Sending ' + b.name + ': ' + sent() + ' of ' + willGet() + ' sent. Open the queue.'">
-    <span class="icon" aria-hidden="true">
-      <i [class]="b.status === 'paused' ? 'pi pi-pause' : 'pi pi-send'"></i>
-    </span>
-    <span class="text">
-      <span class="line1">
-        <strong>{{ b.name }}</strong>
-        <span class="count">{{ sent() }} / {{ willGet() }}</span>
-        @if (more() > 0) {<span class="more">+{{ more() }} more</span>}
+@if (shown()) {
+  @if (current(); as b) {
+    <a class="bar active" [class.paused]="b.status === 'paused'" routerLink="/sending" aria-live="polite"
+      [attr.aria-label]="(b.status === 'paused' ? 'Paused ' : 'Sending ') + b.name + ': ' + sent() + ' of ' + willGet() + ' sent. Open the queue.'">
+      <span class="icon" aria-hidden="true">
+        <i [class]="b.status === 'paused' ? 'pi pi-pause' : 'pi pi-send'"></i>
       </span>
-      <span class="line2">{{ note() }}</span>
+      <span class="text">
+        <span class="line1">
+          <strong>{{ b.status === 'paused' ? 'Paused' : 'Sending' }} · {{ b.name }}</strong>
+          <span class="count">{{ sent() }} of {{ willGet() }}</span>
+          @if (more() > 0) {<span class="more">+{{ more() }} waiting</span>}
+        </span>
+        <span class="line2">{{ note() }} · tap to see the queue</span>
+      </span>
+      <span class="buttons">
+        @if (b.status === 'sending') {
+          <button type="button" class="btn" (click)="pause($event)" [disabled]="busy()" aria-label="Pause" title="Pause"><i class="pi pi-pause" aria-hidden="true"></i></button>
+        } @else {
+          <button type="button" class="btn go" (click)="resume($event)" [disabled]="busy()" aria-label="Continue" title="Continue"><i class="pi pi-play" aria-hidden="true"></i></button>
+        }
+        <button type="button" class="btn stop" (click)="stop($event)" [disabled]="busy()" aria-label="Stop" title="Stop"><i class="pi pi-stop" aria-hidden="true"></i></button>
+      </span>
       <span class="track" aria-hidden="true"><span class="fill" [style.width.%]="percent()"></span></span>
-    </span>
-    <span class="buttons">
-      @if (b.status === 'sending') {
-        <button type="button" class="btn" (click)="pause($event)" [disabled]="busy()" aria-label="Pause" title="Pause"><i class="pi pi-pause" aria-hidden="true"></i></button>
-      } @else {
-        <button type="button" class="btn go" (click)="resume($event)" [disabled]="busy()" aria-label="Continue" title="Continue"><i class="pi pi-play" aria-hidden="true"></i></button>
-      }
-      <button type="button" class="btn stop" (click)="stop($event)" [disabled]="busy()" aria-label="Stop" title="Stop"><i class="pi pi-stop" aria-hidden="true"></i></button>
-    </span>
-  </a>
-} @else {
-  <div class="bar idle" aria-disabled="true">
-    <span class="icon" aria-hidden="true"><i class="pi pi-send"></i></span>
-    <span class="text"><span class="line1">Nothing is being sent</span></span>
-    <span class="buttons" aria-hidden="true">
-      <span class="btn"><i class="pi pi-pause"></i></span>
-      <span class="btn"><i class="pi pi-stop"></i></span>
-    </span>
-  </div>
+    </a>
+  }
 }

@@ -25,6 +25,40 @@
           <button type="button" class="ap-btn" (click)="loadQueue(true)"><i class="pi pi-refresh" aria-hidden="true"></i> Try again</button>
         </section>
       } @else if (queue(); as q) {
+        <!-- The one being sent now, large and in plain words, with big labelled buttons. -->
+        @if (q.items[0]; as now) {
+          <section class="ap-card pad now" [class.paused]="now.status === 'paused'" aria-live="polite">
+            <span class="now-label">
+              <i [class]="now.status === 'paused' ? 'pi pi-pause' : 'pi pi-send'" aria-hidden="true"></i>
+              {{ now.status === 'paused' ? 'Paused' : 'Sending now' }}@if (now.kind === 'occasion') { · occasion wishes}
+            </span>
+            <strong class="now-name">{{ now.name }}</strong>
+            <span class="now-count">{{ now.counts.sent }} of {{ now.counts.total - now.counts.skipped }} sent</span>
+            <div class="ap-bar" aria-hidden="true"><span [style.width.%]="progress(now)"></span></div>
+            <span class="now-why">
+              @if (now.status === 'paused') {
+                <i class="pi pi-info-circle" aria-hidden="true"></i> {{ now.pauseReason ?? 'You paused it.' }} Press Continue to go on.
+              } @else if (!q.connected) {
+                <i class="pi pi-exclamation-triangle" aria-hidden="true"></i> WhatsApp is not connected. Nothing goes out until it is.
+              } @else if (q.waiting) {
+                <i class="pi pi-clock" aria-hidden="true"></i> {{ q.waiting }}
+              } @else if (q.nextSendAt) {
+                <i class="pi pi-clock" aria-hidden="true"></i> Next message at {{ clockText(q.nextSendAt) }}
+              }
+              @if (now.status === 'sending' && now.expectedFinish) { · all done about {{ whenText(now.expectedFinish) }}}
+            </span>
+            <div class="now-actions">
+              @if (now.status === 'sending') {
+                <button type="button" class="ap-btn" [disabled]="busy() === now.id" (click)="change(now, 'pause')"><i class="pi pi-pause" aria-hidden="true"></i> Pause</button>
+              } @else {
+                <button type="button" class="ap-btn primary" [disabled]="busy() === now.id" (click)="change(now, 'resume')"><i class="pi pi-play" aria-hidden="true"></i> Continue</button>
+              }
+              <button type="button" class="ap-btn danger" [disabled]="busy() === now.id" (click)="stop(now)"><i class="pi pi-stop" aria-hidden="true"></i> Stop</button>
+              <a class="ap-btn" [routerLink]="['/sending/results', now.id]"><i class="pi pi-users" aria-hidden="true"></i> Who got it</a>
+            </div>
+          </section>
+        }
+
         <section class="ap-kpis">
           <div class="ap-kpi">
             <span>Sent today</span>
@@ -56,7 +90,7 @@
           </a>
         }
 
-        <h2 class="ap-section-title">In order</h2>
+        <h2 class="ap-section-title">In order · {{ q.items.length }} {{ q.items.length === 1 ? 'item' : 'items' }}</h2>
         @if (q.items.length === 0) {
           <section class="ap-card ap-empty">
             <i class="pi pi-check-circle" aria-hidden="true"></i>
@@ -84,8 +118,8 @@
                 </span>
                 <span class="ctl">
                   @if (item.kind === 'broadcast') {
-                    <button type="button" class="ap-btn icon" [disabled]="!item.canMoveUp || busy() === item.id" (click)="move(item, 'up')" aria-label="Move up" title="Move up">▲</button>
-                    <button type="button" class="ap-btn icon" [disabled]="!item.canMoveDown || busy() === item.id" (click)="move(item, 'down')" aria-label="Move down" title="Move down">▼</button>
+                    <button type="button" class="ap-btn" [disabled]="!item.canMoveUp || busy() === item.id" (click)="move(item, 'up')" aria-label="Move up" title="Move up"><i class="pi pi-arrow-up" aria-hidden="true"></i> Up</button>
+                    <button type="button" class="ap-btn" [disabled]="!item.canMoveDown || busy() === item.id" (click)="move(item, 'down')" aria-label="Move down" title="Move down"><i class="pi pi-arrow-down" aria-hidden="true"></i> Down</button>
                   }
                   @if (item.status === 'sending') {
                     <button type="button" class="ap-btn icon" [disabled]="busy() === item.id" (click)="change(item, 'pause')" aria-label="Pause" title="Pause"><i class="pi pi-pause" aria-hidden="true"></i></button>
@@ -98,7 +132,7 @@
               </div>
             }
           </section>
-          <p class="ap-note">Occasion wishes always go first. Use ▲ ▼ to choose which message goes next. Times are estimates from your settings.</p>
+          <p class="ap-note">Occasion wishes always go first, even before your sending hours. Use Up and Down to choose which message goes next. Times are estimates.</p>
         }
       }
     } @else if (!editing()) {
