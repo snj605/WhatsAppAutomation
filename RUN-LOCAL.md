@@ -131,6 +131,13 @@ The website and the app show the same screens, in the approved look (grey page, 
 27. **Excel only takes your lists**: Download my contacts → Category, Language, Salutation and each choice field are drop-downs; each group has a **Group: …** column with Yes; the header row is locked. Type something not in a list: Excel refuses it. Paste a wrong value anyway and import: the preview shows the mistake for that row and saves nothing of it. Dates: 06-05, 06-05-02 or 06-05-2002 (02 means 2002; a 2-digit year is never in the future).
 28. **Link with QR or code (app too)**: in the app, WhatsApp → **Show QR code** when the app runs on a second phone or a tablet: scan it with the phone that has WhatsApp (Linked devices → Link a device). The QR changes every 20 seconds. **Use a code** when WhatsApp is on the same phone. The website offers the same two ways.
 
+29. **Wishes at their own time**: an occasion that sends by itself at 7:00 with sending hours 8:00–21:00 starts at 7:00 (Sending shows "Occasion wishes start at their own time"). Broadcasts wait for 8:00. Both count in the one daily limit.
+30. **Preview like the phone**: open a template or a sent message; the preview has phone-size text, the time like "8:15 pm" on the last line, and lines break about where the phone breaks them. Opening a sent message shows only what the person got (no template text).
+31. **Settings locked**: Sending → Settings and an occasion's Settings show read-only with **Change**. Change asks for the password on the website and fingerprint/face in the app (password if the phone has none). A wrong password says so and keeps you signed in. Save or Cancel locks it again. Deleting an occasion, template, contact field or salutation asks too.
+32. **Sending strip**: start a broadcast; a slim strip shows on every screen (inner pages too) with Pause and Stop; tap it: the Sending page opens with a big "Sending now" card, and the strip hides there. When nothing is queued the strip is gone.
+33. **Same Me list**: Me shows Message one person, Notifications, Message templates, Categories and groups, Import contacts on both the website and the app. On the website Message one person opens that part of the WhatsApp page.
+34. **No sideways scrolling**: on a phone-width browser (or the app), Contacts, the import preview and the message list are cards; tabs and chips wrap.
+
 ## If something goes wrong
 
 - Build errors after updating: delete the `bin` and `obj` folders of the server projects and build again.
