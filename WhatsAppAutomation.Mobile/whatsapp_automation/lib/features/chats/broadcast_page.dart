@@ -396,14 +396,21 @@ class _BroadcastPageState extends ConsumerState<BroadcastPage> {
                     ),
                 ],
               ),
+            // The message as a person got it on WhatsApp: only the preview, no template text.
             CardSection(
-              title: 'Message',
+              title: example != null ? 'What ${example.name} got' : 'Message',
               padding: const EdgeInsets.all(14),
               children: <Widget>[
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    if (d.attachment case final BroadcastAttachment f)
+                    if (example != null)
+                      WaBubble(
+                        text: example.text,
+                        file: WaFile.sent(d.attachment),
+                        status: example.status == 'skipped' ? null : example.status,
+                      )
+                    else if (d.attachment case final BroadcastAttachment f)
                       Container(
                         margin: const EdgeInsets.only(bottom: 10),
                         padding: const EdgeInsets.all(10),
@@ -427,24 +434,12 @@ class _BroadcastPageState extends ConsumerState<BroadcastPage> {
                           ],
                         ),
                       ),
-                    for (final (String? label, String text) in texts) ...<Widget>[
+                    if (example == null)
+                      for (final (String? label, String text) in texts) ...<Widget>[
                       if (label != null)
                         Text(label, style: theme.typography.body.xs.copyWith(fontWeight: FontWeight.w700)),
                       Text.rich(TextSpan(children: highlightedText(text, chip: chip)), style: theme.typography.body.md),
                       const SizedBox(height: 8),
-                    ],
-                    if (example != null) ...<Widget>[
-                      Container(height: 0.6, color: theme.colors.border, margin: const EdgeInsets.symmetric(vertical: 6)),
-                      Text(
-                        '${example.name} got:',
-                        style: theme.typography.body.xs.copyWith(color: theme.colors.mutedForeground, fontWeight: FontWeight.w600),
-                      ),
-                      const SizedBox(height: 6),
-                      WaBubble(
-                        text: example.text,
-                        file: WaFile.sent(d.attachment),
-                        status: example.status == 'skipped' ? null : example.status,
-                      ),
                     ],
                   ],
                 ),

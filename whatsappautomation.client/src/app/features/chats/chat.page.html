@@ -56,6 +56,8 @@
     @if (summary(); as s) {
       <span class="pill">{{ s.createdAt | date: 'd MMM y, h:mm a' }}</span>
 
+      <!-- The message as a person got it on WhatsApp: only the preview. The template text shows only until someone has it. -->
+      @if (!example()) {
       @for (b of bubbles(); track $index) {
         <div class="bubble">
           @if (b.label) {<span class="bubble-label">{{ b.label }}</span>}
@@ -70,10 +72,11 @@
           <span class="bubble-meta">{{ s.createdAt | date: 'h:mm a' }} <i class="pi pi-check" aria-hidden="true"></i></span>
         </div>
       }
+      }
 
       @if (example(); as e) {
         <div class="example-wa">
-          <span class="bubble-label">{{ e.name }} got this on WhatsApp:</span>
+          <span class="bubble-label">What {{ e.name }} got on WhatsApp</span>
           <app-wa-bubble [text]="e.text" [file]="details()?.attachment ?? null" [time]="e.processedAt" [status]="e.status === 'skipped' ? null : e.status" />
         </div>
       }

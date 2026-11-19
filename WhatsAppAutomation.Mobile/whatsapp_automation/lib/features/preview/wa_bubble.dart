@@ -71,6 +71,9 @@ Color docColor(String fileName) => switch (docType(fileName)) {
       _ => const Color(0xFF8696A0),
     };
 
+/// The time as WhatsApp on a phone writes it: "8:15 pm", "12:05 am".
+String waTimeText(DateTime t) => timeText(t).toLowerCase();
+
 /// WhatsApp's formatting as text spans: *bold*, _italic_, ~strike~, ```monospace``` and `code`.
 /// Marks inside words (2*3*4) stay as typed, the same rule as WhatsApp and the website.
 List<InlineSpan> waSpans(String text) {
@@ -201,7 +204,19 @@ class _WaBubbleState extends ConsumerState<WaBubble> {
     final Color ink = dark ? const Color(0xFFE9EDEF) : const Color(0xFF111B21);
     final Color meta = dark ? const Color(0xFF8FA1A9) : const Color(0xFF667781);
     final bool media = _kind == 'image' || _kind == 'video';
-    final TextStyle body = TextStyle(color: ink, fontSize: 15, height: 1.3);
+    // WhatsApp on a phone: 16 sp text with 21 sp lines; a photo bubble is about 72% of the screen wide and a text
+    // bubble at most 80%. Each person's own font size setting can still move a word to the next line.
+    final TextStyle body = TextStyle(color: ink, fontSize: 16, height: 21 / 16);
+    final double screen = MediaQuery.sizeOf(context).width;
+    final bool hasText = widget.text?.trim().isNotEmpty ?? false;
+    final Widget clock = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        Text(waTimeText(widget.time ?? DateTime.now()), style: TextStyle(color: meta, fontSize: 12, height: 1.25)),
+        const SizedBox(width: 3),
+        _ticks(meta),
+      ],
+    );
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
@@ -218,10 +233,16 @@ class _WaBubbleState extends ConsumerState<WaBubble> {
                 child: Text(widget.chip!, style: TextStyle(color: meta, fontSize: 12)),
               ),
             ),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 320, minWidth: 90),
+          LayoutBuilder(
+            builder: (BuildContext context, BoxConstraints room) {
+              final double widest = room.maxWidth;
+              final double photoWidth = (screen * 0.72).clamp(0, widest).toDouble();
+              return ConstrainedBox(
+            constraints: media
+                ? BoxConstraints.tightFor(width: photoWidth)
+                : BoxConstraints(maxWidth: (screen * 0.8).clamp(90, widest < 90 ? 90 : widest).toDouble(), minWidth: 90),
             child: Container(
-              padding: media ? const EdgeInsets.fromLTRB(3, 3, 3, 6) : const EdgeInsets.fromLTRB(9, 6, 7, 6),
+              padding: media ? const EdgeInsets.fromLTRB(3, 3, 3, 6) : const EdgeInsets.fromLTRB(9, 6, 8, 6),
               decoration: BoxDecoration(
                 color: out,
                 borderRadius: const BorderRadius.only(
@@ -236,28 +257,36 @@ class _WaBubbleState extends ConsumerState<WaBubble> {
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
                   if (widget.file case final WaFile f) _filePart(f, ink, meta),
-                  if (widget.text case final String t when t.trim().isNotEmpty)
+                  // Like WhatsApp: the time takes room only at the end of the last line (the spacer), so lines
+                  // break where the phone breaks them; on a full last line it moves to a line of its own.
+                  if (hasText)
                     Padding(
                       padding: media ? const EdgeInsets.fromLTRB(6, 5, 6, 0) : EdgeInsets.zero,
-                      child: Text.rich(TextSpan(style: body, children: waSpans(t))),
-                    ),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: Padding(
-                      padding: EdgeInsets.only(top: 2, right: media ? 6 : 0),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
+                      child: Stack(
                         children: <Widget>[
-                          Text(timeText(widget.time ?? DateTime.now()), style: TextStyle(color: meta, fontSize: 11)),
-                          const SizedBox(width: 3),
-                          _ticks(meta),
+                          Text.rich(
+                            TextSpan(
+                              style: body,
+                              children: <InlineSpan>[
+                                ...waSpans(widget.text!),
+                                const WidgetSpan(child: SizedBox(width: 74, height: 16)),
+                              ],
+                            ),
+                          ),
+                          Positioned(right: 0, bottom: 0, child: clock),
                         ],
                       ),
+                    )
+                  else
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: Padding(padding: EdgeInsets.only(top: 2, right: media ? 6 : 0), child: clock),
                     ),
-                  ),
                 ],
               ),
             ),
+          );
+            },
           ),
         ],
       ),

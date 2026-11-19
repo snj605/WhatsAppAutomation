@@ -36,3 +36,9 @@ export function docColor(fileName: string): string {
   if (['PPT', 'PPTX', 'ODP'].includes(t)) return '#d24726';
   return '#8696a0';
 }
+
+/** The time as WhatsApp on a phone writes it: "8:15 pm", "12:05 am". */
+export function waClock(t: Date): string {
+  const h = t.getHours();
+  return `${h % 12 === 0 ? 12 : h % 12}:${String(t.getMinutes()).padStart(2, '0')} ${h < 12 ? 'am' : 'pm'}`;
+}

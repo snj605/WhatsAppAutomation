@@ -1,7 +1,7 @@
 import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { fileSize } from '../../features/files/files.api';
 import { FileLinks } from './file-links';
-import { docColor, docType, waFormat, waKind } from './wa-format';
+import { docColor, docType, waClock, waFormat, waKind } from './wa-format';
 
 /** The file part of a message, as the screens have it. */
 export interface WaFile {
@@ -48,7 +48,7 @@ export class WaBubble {
   protected readonly html = computed(() => waFormat(this.text() ?? ''));
   protected readonly clock = computed(() => {
     const t = this.time();
-    return new Date(t ?? Date.now()).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }).toUpperCase();
+    return waClock(new Date(t ?? Date.now()));
   });
 
   protected readonly fileSize = fileSize;

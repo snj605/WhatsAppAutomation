@@ -50,7 +50,8 @@
       }
     }
     @if (text()) {
-      <div class="wa-text" [innerHTML]="html()"></div>
+      <!-- Like WhatsApp: the time takes room only on the last line (the spacer), so lines break where the phone breaks them. -->
+      <div class="wa-text"><span [innerHTML]="html()"></span><span class="wa-spacer" aria-hidden="true"></span></div>
     }
     <span class="wa-meta">
       {{ clock() }}

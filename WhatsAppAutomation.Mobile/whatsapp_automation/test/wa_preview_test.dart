@@ -15,6 +15,11 @@ void main() {
     expect((spans[3] as TextSpan).style?.fontStyle, FontStyle.italic);
   });
 
+  test('the time is written like WhatsApp on a phone', () {
+    expect(waTimeText(DateTime(2026, 11, 20, 20, 15)), '8:15 pm');
+    expect(waTimeText(DateTime(2026, 11, 20, 0, 5)), '12:05 am');
+  });
+
   test('what a file shows as', () {
     expect(waKind('image/jpeg'), 'image');
     expect(waKind('image/svg+xml'), 'document');

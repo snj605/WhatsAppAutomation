@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { sample } from './wa-person-preview';
-import { docColor, docType, waFormat, waKind } from './wa-format';
+import { docColor, docType, waClock, waFormat, waKind } from './wa-format';
 
 describe('waFormat', () => {
   it('formats bold, italic, strike and monospace like WhatsApp', () => {
@@ -36,5 +36,13 @@ describe('sample', () => {
   it('fills names, second name and custom fields with examples', () => {
     expect(sample('{Hi|Hello} {{name}} - {{for_name}} - {{city}}')).toBe('Hi Ramesh Patel - Late Shri Mohanbhai - [city]');
     expect(sample('{{salutation}} {{name_gu}}')).toBe('Ramesh Patel');
+  });
+});
+
+describe('waClock', () => {
+  it('writes the time like WhatsApp on a phone', () => {
+    expect(waClock(new Date(2026, 10, 20, 20, 15))).toBe('8:15 pm');
+    expect(waClock(new Date(2026, 10, 20, 0, 5))).toBe('12:05 am');
+    expect(waClock(new Date(2026, 10, 20, 12, 0))).toBe('12:00 pm');
   });
 });
