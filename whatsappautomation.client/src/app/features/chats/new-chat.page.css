@@ -65,9 +65,9 @@ h3 { margin: 0 0 8px; font-size: 0.95rem; color: var(--ui-text-2); font-weight: 
 .search input { flex: 1; border: 0; background: transparent; font: inherit; color: var(--ui-text); outline: none; }
 .link-btn { background: none; border: 0; padding: 4px 0; color: var(--ui-accent-strong); font: inherit; font-weight: 600; cursor: pointer; }
 
-.templates { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 10px; scrollbar-width: none; }
+.templates { display: flex; gap: 8px; flex-wrap: wrap; padding-bottom: 10px; max-height: 150px; overflow-y: auto; }
 .template {
-  display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; padding: 8px 14px; border-radius: 999px;
+  display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; padding: 8px 14px; border-radius: 999px;
   border: 1px solid var(--ui-border); background: var(--ui-surface); color: var(--ui-text); font: inherit; font-size: 0.88rem; cursor: pointer;
 }
 .template:hover { border-color: var(--ui-accent); color: var(--ui-accent-strong); }

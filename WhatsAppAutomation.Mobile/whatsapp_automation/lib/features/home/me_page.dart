@@ -137,8 +137,8 @@ class _MePageState extends ConsumerState<MePage> {
             if (can('messages.send') && (account?.isLinked ?? false))
               ListRow(
                 leading: const IconBadge(FLucideIcons.send, color: Color(0xFF3B82F6)),
-                title: 'Send a test message',
-                subtitle: 'Check that sending works',
+                title: 'Message one person',
+                subtitle: 'Type a message to one number',
                 trailing: chevron,
                 onTap: () => pushPage<void>(context, const TestMessagePage()),
               ),
@@ -163,16 +163,16 @@ class _MePageState extends ConsumerState<MePage> {
             if (can('templates.manage'))
               ListRow(
                 leading: const IconBadge(FLucideIcons.fileText),
-                title: 'Templates',
-                subtitle: 'Messages you send often',
+                title: 'Message templates',
+                subtitle: 'Your saved messages',
                 trailing: chevron,
                 onTap: () => pushPage<void>(context, const TemplatesPage()),
               ),
             if (can('contacts.view'))
               ListRow(
                 leading: const IconBadge(FLucideIcons.tags, color: Color(0xFF8B5CF6)),
-                title: 'Categories & groups',
-                subtitle: 'Elders, Family, Office…',
+                title: 'Categories and groups',
+                subtitle: 'Family, friends, elders…',
                 trailing: chevron,
                 onTap: () => pushPage<void>(context, const ListsPage()),
               ),
@@ -180,7 +180,7 @@ class _MePageState extends ConsumerState<MePage> {
               ListRow(
                 leading: const IconBadge(FLucideIcons.fileSpreadsheet, color: Color(0xFF10B981)),
                 title: 'Import contacts',
-                subtitle: 'From Excel or CSV',
+                subtitle: 'From an Excel or CSV file',
                 trailing: chevron,
                 onTap: () => pushPage<void>(context, const ImportPage()),
               ),

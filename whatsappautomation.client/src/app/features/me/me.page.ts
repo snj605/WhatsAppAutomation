@@ -13,16 +13,18 @@ interface Item {
   hint: string;
   icon: string;
   link: string;
+  /** A part of the page to scroll to. */
+  fragment?: string;
   permissions: string[];
 }
 
 const ITEMS: Item[] = [
+  // The same list, in the same order, as the app's Me screen. Occasions and Sending are main tabs, not here.
+  { label: 'Message one person', hint: 'Type a message to one number', icon: 'pi pi-comment', link: '/whatsapp', fragment: 'message-one', permissions: ['messages.send'] },
   { label: 'Notifications', hint: 'Your number, sending and occasions', icon: 'pi pi-bell', link: '/notifications', permissions: ['messages.send'] },
-  { label: 'Occasions', hint: 'Birthdays, anniversaries and more', icon: 'pi pi-calendar', link: '/modules', permissions: ['modules.manage'] },
-  { label: 'Sending', hint: "Today's queue, messages a day, hours", icon: 'pi pi-send', link: '/sending', permissions: ['messages.send'] },
   { label: 'Message templates', hint: 'Your saved messages', icon: 'pi pi-bookmark', link: '/templates', permissions: ['templates.manage'] },
-  { label: 'Import contacts', hint: 'From an Excel or CSV file', icon: 'pi pi-file-import', link: '/contacts/import', permissions: ['contacts.import'] },
   { label: 'Categories and groups', hint: 'Family, friends, elders…', icon: 'pi pi-tags', link: '/contacts/lists', permissions: ['contacts.view'] },
+  { label: 'Import contacts', hint: 'From an Excel or CSV file', icon: 'pi pi-file-import', link: '/contacts/import', permissions: ['contacts.import'] },
   { label: 'Sending overview', hint: 'Recent messages and ticks', icon: 'pi pi-chart-bar', link: '/home', permissions: ['messages.send'] },
 ];
 

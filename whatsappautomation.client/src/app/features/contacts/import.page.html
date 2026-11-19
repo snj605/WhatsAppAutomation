@@ -108,17 +108,17 @@
         <span class="spacer"></span>
         <p-selectbutton [options]="showOptions" [(ngModel)]="show" optionLabel="label" optionValue="value" [allowEmpty]="false" size="small" />
       </div>
-      <p-table [value]="rows()" [paginator]="rows().length > 50" [rows]="50" [tableStyle]="{ 'min-width': '44rem' }">
+      <p-table [value]="rows()" [paginator]="rows().length > 50" [rows]="50" styleClass="ap-stack wide-44">
         <ng-template #header>
           <tr><th style="width: 4rem">Row</th><th>Phone</th><th>Name</th><th>Category</th><th>Result</th></tr>
         </ng-template>
         <ng-template #body let-row>
           <tr [class.row-error]="row.action === 'error'">
-            <td class="muted">{{ row.row }}</td>
-            <td class="nowrap mono">{{ row.phoneNumber ?? '—' }}</td>
-            <td>{{ row.name ?? '—' }}</td>
-            <td>{{ row.category ?? '—' }}</td>
-            <td>
+            <td class="muted" data-label="Row">{{ row.row }}</td>
+            <td class="nowrap mono" data-label="Phone">{{ row.phoneNumber ?? '—' }}</td>
+            <td data-label="Name">{{ row.name ?? '—' }}</td>
+            <td data-label="Category">{{ row.category ?? '—' }}</td>
+            <td data-label="Result">
               @switch (row.action) {
                 @case ('create') { <p-tag value="New" severity="success" /> }
                 @case ('update') { <p-tag value="Update" severity="info" /> }

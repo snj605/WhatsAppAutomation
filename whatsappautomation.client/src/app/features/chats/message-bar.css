@@ -16,7 +16,7 @@
 .file-name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
 .file small { color: var(--ui-text-2); }
 .x { border: 0; background: none; color: var(--ui-text-2); cursor: pointer; padding: 4px 6px; }
-.chips { display: flex; gap: 6px; overflow-x: auto; margin-bottom: 6px; scrollbar-width: none; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; scrollbar-width: none; }
 .chip {
   display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; padding: 5px 11px; border-radius: 999px;
   border: 1px solid var(--ui-border); background: var(--ui-surface); color: var(--ui-text-2); font: inherit; font-size: 0.82rem; cursor: pointer;

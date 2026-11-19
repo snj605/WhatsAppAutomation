@@ -80,7 +80,7 @@
 }
 
 /* Chat kinds: easy to tell apart at a glance. */
-.kinds { display: flex; gap: 6px; overflow-x: auto; margin-top: 10px; scrollbar-width: none; }
+.kinds { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; scrollbar-width: none; }
 .kind {
   display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; padding: 6px 12px; border-radius: 999px;
   border: 1px solid var(--ui-border); background: var(--ui-surface); color: var(--ui-text-2); font: inherit; font-size: 0.82rem; cursor: pointer;

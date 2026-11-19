@@ -112,7 +112,8 @@
     }
     <p-menu #groupMenuRef [model]="groupMenu" [popup]="true" appendTo="body" />
 
-    <p-table [value]="contacts()" [loading]="loading()" dataKey="id" [(selection)]="selection" [tableStyle]="{ 'min-width': '52rem' }"
+    <!-- On a phone each contact is a card (ap-stack): no sideways scrolling. -->
+    <p-table [value]="contacts()" [loading]="loading()" dataKey="id" [(selection)]="selection" styleClass="ap-stack wide-52"
       [rowHover]="true">
       <ng-template #header>
         <tr>
@@ -133,9 +134,9 @@
       <ng-template #body let-c>
         <tr>
           @if (canManage()) {
-            <td><p-table-checkbox [value]="c" /></td>
+            <td class="stack-check"><p-table-checkbox [value]="c" /></td>
           }
-          <td>
+          <td class="stack-main">
             <div class="cell-main">
               <span class="initials" [style.background]="(category(c.categoryId)?.color ?? '#94a3b8') + '22'"
                 [style.color]="category(c.categoryId)?.color ?? '#475569'" aria-hidden="true">{{ initials(c) }}</span>
@@ -159,23 +160,23 @@
               </div>
             </div>
           </td>
-          <td class="nowrap mono">{{ c.phoneNumber }}</td>
-          <td>
+          <td class="nowrap mono" data-label="Phone">{{ c.phoneNumber }}</td>
+          <td data-label="Category">
             @if (category(c.categoryId); as cat) {
               <span class="flag-item"><span class="flag" [style.background]="cat.color"></span>{{ cat.name }}</span>
             }
           </td>
-          <td><span class="lang">{{ c.language.toUpperCase() }}</span></td>
-          <td>
+          <td data-label="Language"><span class="lang">{{ c.language.toUpperCase() }}</span></td>
+          <td data-label="Groups">
             <div class="tags">
               @for (g of c.groups; track g.id) {
                 <p-tag [value]="g.name" severity="secondary" />
               }
             </div>
           </td>
-          <td class="occasions-cell">{{ occasionsText(c) || '—' }}</td>
+          <td class="occasions-cell" data-label="Occasions">{{ occasionsText(c) || '—' }}</td>
           @if (canManage()) {
-            <td>
+            <td class="stack-actions">
               <div class="row-actions">
                 <p-button icon="pi pi-pencil" [text]="true" [rounded]="true" ariaLabel="Edit" (onClick)="editing.set(c)" />
                 @if (c.whatsAppCheck === 'not_on_whatsapp' || c.whatsAppCheck === 'unchecked') {

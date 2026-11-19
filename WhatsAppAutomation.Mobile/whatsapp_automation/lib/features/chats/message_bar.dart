@@ -150,10 +150,10 @@ class ComposerTools extends StatelessWidget {
   final bool attaching;
 
   @override
-  Widget build(BuildContext context) => SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: <Widget>[
+  // The chips wrap onto a second line on a narrow phone instead of scrolling sideways.
+  Widget build(BuildContext context) => Wrap(
+        runSpacing: 6,
+        children: <Widget>[
             _ToolChip(
               icon: FLucideIcons.user,
               label: 'Name',
@@ -195,8 +195,7 @@ class ComposerTools extends StatelessWidget {
                 label: attaching ? 'Uploading…' : 'File',
                 onTap: enabled && !attaching ? onAttach : null,
               ),
-          ],
-        ),
+        ],
       );
 }
 

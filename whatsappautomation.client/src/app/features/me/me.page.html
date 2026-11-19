@@ -23,7 +23,7 @@
   <ul class="items">
     @for (i of items(); track i.link) {
       <li>
-        <a [routerLink]="i.link" class="item">
+        <a [routerLink]="i.link" [fragment]="i.fragment" class="item">
           <span class="item-icon" aria-hidden="true"><i [class]="i.icon"></i></span>
           <span class="item-text"><strong>{{ i.label }}</strong><small>{{ i.hint }}</small></span>
           <i class="pi pi-chevron-right chev" aria-hidden="true"></i>

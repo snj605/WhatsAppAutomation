@@ -40,7 +40,7 @@ class TestMessagePage extends ConsumerStatefulWidget {
 
 class _TestMessagePageState extends ConsumerState<TestMessagePage> {
   final TextEditingController _to = TextEditingController(text: '+91');
-  final TextEditingController _text = TextEditingController(text: 'Hello! This is a test message.');
+  final TextEditingController _text = TextEditingController(text: '');
   List<OutgoingMessage>? _messages;
   bool _sending = false;
   String? _error;
@@ -96,7 +96,7 @@ class _TestMessagePageState extends ConsumerState<TestMessagePage> {
     try {
       await ref.read(apiClientProvider).post('/api/v1/whatsapp/messages', <String, dynamic>{'to': to, 'text': _text.text.trim()});
       if (mounted) {
-        showInfoToast(context, 'Test message sent', description: to);
+        showInfoToast(context, 'Message sent', description: to);
         await _load();
       }
     } on Object catch (e) {
@@ -122,7 +122,7 @@ class _TestMessagePageState extends ConsumerState<TestMessagePage> {
   Widget build(BuildContext context) {
     final FThemeData theme = context.theme;
     return PageScaffold(
-      title: 'Test message',
+      title: 'Message one person',
       subtitle: 'Check that your WhatsApp sends',
       child: ListView(
         padding: const EdgeInsets.only(bottom: 24),
@@ -155,7 +155,7 @@ class _TestMessagePageState extends ConsumerState<TestMessagePage> {
                     prefix: _sending
                         ? const FCircularProgress.loader(size: FCircularProgressSizeVariant.sm)
                         : const Icon(FLucideIcons.send),
-                    child: const Text('Send test message'),
+                    child: const Text('Send'),
                   ),
                   if (_error != null) ...<Widget>[
                     const SizedBox(height: 12),

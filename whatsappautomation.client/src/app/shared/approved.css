@@ -93,7 +93,7 @@ button.ap-row:hover { background: var(--ap-line); }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
 /* Shared by the new screens (modules, sending, queue, results, notifications, dashboard). */
-.ap-tabs { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; }
+.ap-tabs { display: flex; gap: 4px; flex-wrap: wrap; scrollbar-width: none; }
 .ap-tab { height: 34px; padding: 0 12px; border-radius: 8px; border: 1px solid transparent; background: transparent; color: var(--ap-text-2); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
 .ap-tab:hover { background: var(--ap-line); }
 .ap-tab.active { background: var(--ap-card); border-color: var(--ap-border); color: var(--ap-text); }
@@ -119,3 +119,21 @@ button.ap-row:hover { background: var(--ap-line); }
 .ap-view-row > i { color: var(--ap-muted); width: 18px; text-align: center; }
 .ap-view-row > span { flex: 1 1 140px; color: var(--ap-muted); }
 .ap-view-row > strong { font-weight: 600; overflow-wrap: anywhere; }
+
+/*
+ * Tables that become cards on a phone (styleClass="ap-stack wide-NN"): wide screens keep the table, at least NN rem
+ * wide; under 760 px each row is a card with "Label: value" lines, so nothing scrolls sideways.
+ */
+.ap-stack.wide-40 .p-datatable-table { min-width: 40rem; }
+.ap-stack.wide-44 .p-datatable-table { min-width: 44rem; }
+.ap-stack.wide-52 .p-datatable-table { min-width: 52rem; }
+@media (max-width: 760px) {
+  .ap-stack .p-datatable-table { min-width: 0 !important; width: 100%; }
+  .ap-stack .p-datatable-thead { display: none; }
+  .ap-stack .p-datatable-tbody > tr { display: flex; flex-wrap: wrap; align-items: center; padding: 10px 4px; border-bottom: 1px solid var(--ap-line); }
+  .ap-stack .p-datatable-tbody > tr > td { display: block; border: 0 !important; padding: 2px 8px !important; flex: 1 1 100%; min-width: 0; white-space: normal; overflow-wrap: anywhere; }
+  .ap-stack .p-datatable-tbody > tr > td.stack-check { flex: 0 0 auto; }
+  .ap-stack .p-datatable-tbody > tr > td.stack-main { flex: 1 1 0; font-weight: 600; }
+  .ap-stack .p-datatable-tbody > tr > td[data-label]::before { content: attr(data-label) ': '; color: var(--ap-muted); font-size: 12px; font-weight: 400; }
+  .ap-stack .p-datatable-tbody > tr > td.stack-actions { flex: 1 1 100%; }
+}

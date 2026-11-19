@@ -2,7 +2,7 @@
   <header class="page-header">
     <div>
       <h1>WhatsApp</h1>
-      <p class="subtitle">Link your number, check its status and send a test message.</p>
+      <p class="subtitle">Link your number, check its status and message one person.</p>
     </div>
     <div class="actions">
       <span class="live" [class.off]="!live.connected()">
@@ -141,11 +141,11 @@
 
   <!-- Test message -->
   @if (canSend()) {
-    <section class="card" aria-labelledby="test-title">
+    <section class="card" id="message-one" aria-labelledby="test-title">
       <div class="card-head">
         <span class="card-icon blue"><i class="pi pi-send" aria-hidden="true"></i></span>
         <div>
-          <h2 id="test-title">Send a test message</h2>
+          <h2 id="test-title">Message one person</h2>
           <p class="muted small">Sends one message right away from your linked number.</p>
         </div>
       </div>
@@ -203,10 +203,10 @@
         <div class="empty">
           <i class="pi pi-inbox" aria-hidden="true"></i>
           <strong>No messages yet</strong>
-          <span>Send a test message to see it here.</span>
+          <span>Message one person to see it here.</span>
         </div>
       } @else {
-        <p-table [value]="messages()" [tableStyle]="{ 'min-width': '40rem' }">
+        <p-table [value]="messages()" styleClass="ap-stack wide-40">
           <ng-template #header>
             <tr>
               <th>To</th>
@@ -217,12 +217,12 @@
           </ng-template>
           <ng-template #body let-m>
             <tr>
-              <td class="nowrap">{{ m.toPhoneNumber }}</td>
-              <td class="text-cell">{{ m.text }}</td>
-              <td>
+              <td class="nowrap stack-main">{{ m.toPhoneNumber }}</td>
+              <td class="text-cell" data-label="Message">{{ m.text }}</td>
+              <td data-label="Status">
                 <span class="tick" [class]="m.status"><i [class]="tick(m.status).icon" aria-hidden="true"></i> {{ tick(m.status).label }}</span>
               </td>
-              <td class="nowrap">{{ m.createdAt | date: 'short' }}</td>
+              <td class="nowrap" data-label="Time">{{ m.createdAt | date: 'short' }}</td>
             </tr>
           </ng-template>
         </p-table>
