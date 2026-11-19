@@ -49,6 +49,17 @@ internal sealed class PacingRules(BroadcastOptions options)
             : local >= s.SendFrom || local < s.SendUntil;
     }
 
+    /// <summary>Today's date in the sending time zone.</summary>
+    public DateOnly Today(DateTimeOffset now) => DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(now, _zone).DateTime);
+
+    /// <summary>
+    /// Whether a message may go now: inside the sending hours, or, for today's occasion wishes, at any time of their
+    /// own day. Wishes start at the time chosen on the occasion, even before the sending hours, so they are done
+    /// early and leave the sending hours to broadcasts. They still count in the same daily limit.
+    /// </summary>
+    public bool MaySend(UserSending s, DateTimeOffset now, DateOnly? occasionDay) =>
+        InWindow(s, now) || (occasionDay is { } day && day == Today(now));
+
     /// <summary>The next moment (now or later) inside the sending hours.</summary>
     public DateTimeOffset NextWindowStart(UserSending s, DateTimeOffset from)
     {

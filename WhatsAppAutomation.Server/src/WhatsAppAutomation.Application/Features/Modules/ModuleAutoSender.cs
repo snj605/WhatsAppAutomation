@@ -13,7 +13,8 @@ namespace WhatsAppAutomation.Application.Features.Modules;
 /// <summary>
 /// Starts each module's wishes once a day, at the time its owner chose, with the chosen template. People already
 /// wished today, who do not want broadcasts or who are not on WhatsApp are left out. The paced sender then sends them
-/// one by one, occasions before any broadcast. If WhatsApp is not connected they wait and go out as soon as it is
+/// one by one, occasions before any broadcast, from the occasion's time even before the sending hours (same daily
+/// limit). If WhatsApp is not connected they wait and go out as soon as it is
 /// connected again (the apps ask the user to reconnect).
 /// </summary>
 public sealed class ModuleAutoSender(
@@ -80,7 +81,7 @@ public sealed class ModuleAutoSender(
 
             started++;
             await notifications.SendAsync(m.UserId, "occasion", $"{m.Name}: {ids.Count} wishes started",
-                "They go out one by one, before any broadcast.", cancellationToken);
+                "They go out one by one from now, before any broadcast, even before your sending hours.", cancellationToken);
         }
 
         return started;

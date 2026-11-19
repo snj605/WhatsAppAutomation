@@ -62,7 +62,7 @@ internal sealed class GetQueueQueryHandler(
 
         var active = await db.Broadcasts.AsNoTracking()
             .Where(b => b.UserId == userId && (b.Status == BroadcastStatus.Sending || b.Status == BroadcastStatus.Paused))
-            .Select(b => new { b.Id, b.Target, b.QueuePosition, b.CreatedAt, b.Status })
+            .Select(b => new { b.Id, b.Target, b.TargetDate, b.QueuePosition, b.CreatedAt, b.Status })
             .ToListAsync(cancellationToken);
         var ordered = active
             .OrderBy(b => b.Target == BroadcastTarget.Occasion ? 0 : 1)
@@ -81,7 +81,9 @@ internal sealed class GetQueueQueryHandler(
         {
             var s = summaries[b.Id];
             (DateTimeOffset First, DateTimeOffset Last)? times =
-                connected && b.Status == BroadcastStatus.Sending && s.Counts.Pending > 0 ? plan.Take(s.Counts.Pending) : null;
+                connected && b.Status == BroadcastStatus.Sending && s.Counts.Pending > 0
+                    ? plan.Take(s.Counts.Pending, b.Target == BroadcastTarget.Occasion ? b.TargetDate : null)
+                    : null;
             var index = broadcasts.IndexOf(b.Id);
             items.Add(new QueueItemDto(
                 b.Id,
@@ -118,7 +120,8 @@ internal sealed class GetQueueQueryHandler(
 
 /// <summary>
 /// Walks the queue forward in time the way the sender does (the average time per message, which includes the
-/// rests, sending hours, daily limit), to tell when each item's messages go out. An estimate: the real pauses are random.
+/// rests, sending hours, daily limit), to tell when each item's messages go out. Today's occasion wishes may go
+/// outside the sending hours on their own day. An estimate: the real pauses are random.
 /// </summary>
 internal sealed class SendPlan(PacingRules rules, UserSending settings, int sentToday, DateTimeOffset startOfToday, DateTimeOffset from)
 {
@@ -127,8 +130,11 @@ internal sealed class SendPlan(PacingRules rules, UserSending settings, int sent
     private DateTimeOffset _dayStart = startOfToday;
     private int _leftToday = Math.Max(0, settings.DailyLimit - sentToday);
 
-    /// <summary>Plans this many messages; returns when the first and the last are expected.</summary>
-    public (DateTimeOffset First, DateTimeOffset Last) Take(int count)
+    /// <summary>
+    /// Plans this many messages; returns when the first and the last are expected. occasionDay: the day of occasion
+    /// wishes, which may go at any time of that day.
+    /// </summary>
+    public (DateTimeOffset First, DateTimeOffset Last) Take(int count, DateOnly? occasionDay = null)
     {
         DateTimeOffset? first = null;
         var last = _t;
@@ -136,7 +142,11 @@ internal sealed class SendPlan(PacingRules rules, UserSending settings, int sent
         {
             for (var guard = 0; guard < 10; guard++)
             {
-                _t = rules.NextWindowStart(settings, _t);
+                if (!rules.MaySend(settings, _t, occasionDay))
+                {
+                    _t = rules.NextWindowStart(settings, _t);
+                }
+
                 var day = rules.StartOfToday(_t);
                 if (day > _dayStart)
                 {

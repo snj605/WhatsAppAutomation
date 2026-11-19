@@ -12,7 +12,8 @@ namespace WhatsAppAutomation.Application.Features.Broadcasts;
 
 /// <summary>
 /// The paced sender. Each run releases at most one message per WhatsApp number, and only when every rule
-/// allows it: number connected, inside the user's sending hours, under the user's daily limit, and the random
+/// allows it: number connected, inside the user's sending hours (today's occasion wishes also before or after them,
+/// from their own time), under the user's daily limit, and the random
 /// gap since the last message (plus the rest after each chunk) has passed. Occasions go first, then broadcasts in
 /// the user's queue order. It pauses broadcasts on the safety stops (blueprint section 2.4).
 /// </summary>
@@ -109,7 +110,13 @@ public sealed class BroadcastDispatcher(
             settings = settings with { SendFrom = TimeOnly.MinValue, SendUntil = TimeOnly.MinValue, NoWaits = true };
         }
 
-        if (!_rules.InWindow(settings, now))
+        // Outside the sending hours only today's occasion wishes may go (they start at their own time).
+        var inWindow = _rules.InWindow(settings, now);
+        var today = _rules.Today(now);
+        if (!inWindow && !await db.BroadcastRecipients.AnyAsync(
+                r => r.Status == RecipientStatus.Pending && db.Broadcasts.Any(b => b.Id == r.BroadcastId && b.UserId == userId &&
+                    b.Status == BroadcastStatus.Sending && b.Target == BroadcastTarget.Occasion && b.TargetDate == today),
+                cancellationToken))
         {
             state.NextSendAt = _rules.NextWindowStart(settings, now);
             state.Waiting = $"Outside your sending hours ({PacingRules.Hours(settings)}). Sending starts at the next start time.";
@@ -139,7 +146,8 @@ public sealed class BroadcastDispatcher(
 
         var recipient = await db.BroadcastRecipients
             .Where(r => r.Status == RecipientStatus.Pending &&
-                db.Broadcasts.Any(b => b.Id == r.BroadcastId && b.UserId == userId && b.Status == BroadcastStatus.Sending))
+                db.Broadcasts.Any(b => b.Id == r.BroadcastId && b.UserId == userId && b.Status == BroadcastStatus.Sending &&
+                    (inWindow || (b.Target == BroadcastTarget.Occasion && b.TargetDate == today))))
             // Occasion wishes always go first (oldest first), then broadcasts in the user's queue order.
             .OrderBy(r => db.Broadcasts.Where(b => b.Id == r.BroadcastId).Select(b => b.Target == BroadcastTarget.Occasion ? 0 : 1).First())
             .ThenBy(r => db.Broadcasts.Where(b => b.Id == r.BroadcastId)
